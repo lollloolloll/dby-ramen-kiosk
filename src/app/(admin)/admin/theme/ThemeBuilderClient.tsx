@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, RefreshCcw, Trash2, Upload } from "lucide-react";
+import { Loader2, Plus, RefreshCcw, RotateCw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,12 +32,29 @@ const PREVIEW_TABS = {
   kiosk: "/kiosk?preview=1",
 } as const;
 
+const DEVICE_PRESETS = {
+  ipad: { label: "iPad", width: 1024, height: 768 },
+  ipadPro11: { label: "iPad Pro 11\"", width: 1194, height: 834 },
+  ipadPro13: { label: "iPad Pro 13\"", width: 1366, height: 1024 },
+  iphone: { label: "iPhone 14 Pro", width: 393, height: 852 },
+  desktop: { label: "Desktop", width: 1440, height: 900 },
+} as const;
+
+type DevicePresetKey = keyof typeof DEVICE_PRESETS;
+
 export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfig }) {
   const [activePreview, setActivePreview] = useState<keyof typeof PREVIEW_TABS>("home");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [device, setDevice] = useState<DevicePresetKey>("ipad");
+  const [isRotated, setIsRotated] = useState(false);
+  const [zoom, setZoom] = useState(0.75);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const preset = DEVICE_PRESETS[device];
+  const frameWidth = isRotated ? preset.height : preset.width;
+  const frameHeight = isRotated ? preset.width : preset.height;
 
   const form = useForm<SiteConfigInput>({
     resolver: zodResolver(siteConfigSchema),
@@ -149,7 +166,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
   };
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 xl:grid-cols-[minmax(420px,1fr)_minmax(520px,1.4fr)]">
+    <form onSubmit={onSubmit} className="grid gap-6 xl:grid-cols-[minmax(420px,1fr)_auto] xl:items-start">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">테마 빌더</h1>
@@ -480,13 +497,67 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
         </div>
       </div>
 
-      <div className="space-y-4">
-        <Card className="h-full min-h-[75vh]">
-          <CardHeader>
-            <CardTitle>실시간 미리보기</CardTitle>
-            <CardDescription>실제 페이지를 iframe으로 렌더링합니다.</CardDescription>
+      <div className="xl:sticky xl:top-4 xl:self-start">
+        <Card>
+          <CardHeader className="flex flex-col gap-3">
+            <div>
+              <CardTitle>실시간 미리보기</CardTitle>
+              <CardDescription>
+                {preset.label} {isRotated ? "세로" : "가로"} ({frameWidth} × {frameHeight}) · {Math.round(zoom * 100)}%
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={device} onValueChange={(value) => setDevice(value as DevicePresetKey)}>
+                <SelectTrigger className="h-8 w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DEVICE_PRESETS).map(([key, value]) => (
+                    <SelectItem key={key} value={key}>
+                      {value.label} ({value.width} × {value.height})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsRotated((prev) => !prev)}
+              >
+                <RotateCw className="mr-1 h-4 w-4" />
+                회전
+              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.05).toFixed(2)))}
+                >
+                  −
+                </Button>
+                <span className="w-12 text-center text-xs tabular-nums">{Math.round(zoom * 100)}%</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.05).toFixed(2)))}
+                >
+                  +
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setZoom(1)}
+                >
+                  1:1
+                </Button>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="flex h-[calc(100%-96px)] flex-col gap-4">
+          <CardContent className="flex flex-col gap-4">
             <Tabs value={activePreview} onValueChange={(value) => setActivePreview(value as keyof typeof PREVIEW_TABS)}>
               <TabsList>
                 <TabsTrigger value="home">홈</TabsTrigger>
@@ -496,14 +567,34 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
               <TabsContent value="kiosk" />
             </Tabs>
 
-            <iframe
-              key={previewSrc}
-              ref={iframeRef}
-              src={previewSrc}
-              title="theme-preview"
-              onLoad={postPreviewDraft}
-              className="min-h-[70vh] w-full flex-1 rounded-xl border bg-white"
-            />
+            <div
+              className="overflow-auto rounded-xl border bg-muted/30 p-3"
+              style={{ maxHeight: "calc(100vh - 220px)" }}
+            >
+              <div
+                style={{
+                  width: frameWidth * zoom,
+                  height: frameHeight * zoom,
+                }}
+              >
+                <iframe
+                  key={previewSrc}
+                  ref={iframeRef}
+                  src={previewSrc}
+                  title="theme-preview"
+                  onLoad={postPreviewDraft}
+                  width={frameWidth}
+                  height={frameHeight}
+                  style={{
+                    width: frameWidth,
+                    height: frameHeight,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "top left",
+                  }}
+                  className="rounded-lg border bg-white"
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

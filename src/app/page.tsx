@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, MonitorPlay, Sparkle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Heart, Sparkle } from "lucide-react";
 import { PromotionSlider } from "@/components/PromotionSlider";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -227,18 +226,23 @@ export default function Home() {
     await processAndMutateExpiredRentals();
   }, [isPreview]);
 
-  const handleKioskClick = (event: React.MouseEvent) => {
-    if (isPreview) {
-      event.preventDefault();
-      return;
-    }
-
+  const handleBackgroundClick = () => {
+    if (isPreview) return;
+    if (showPromotion) return;
     router.refresh();
+    router.push("/kiosk");
+  };
+
+  const stopBubble = (event: React.MouseEvent) => {
+    event.stopPropagation();
   };
 
   return (
     <>
-      <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-slate-50 font-sans text-brand-text selection:bg-brand-primary/20">
+      <div
+        onClick={handleBackgroundClick}
+        className="relative flex min-h-screen w-full cursor-pointer flex-col items-center justify-center overflow-hidden bg-slate-50 font-sans text-brand-text selection:bg-brand-primary/20"
+      >
         <ThemeBackground
           backgroundPath={config.backgroundPath}
           backgroundType={config.backgroundType}
@@ -275,6 +279,7 @@ export default function Home() {
         <Link
           href="/admin"
           prefetch={false}
+          onClick={stopBubble}
           className="absolute right-6 top-6 z-20 text-sm text-muted-foreground transition-colors hover:text-brand-primary"
         >
           관리자
@@ -282,7 +287,8 @@ export default function Home() {
 
         <p
           className="absolute right-20 top-6 z-20 cursor-pointer text-sm text-muted-foreground transition-colors hover:text-brand-primary"
-          onClick={async () => {
+          onClick={async (event) => {
+            event.stopPropagation();
             if (isPreview) {
               return;
             }
@@ -368,48 +374,9 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="animate-in fade-in zoom-in slide-in-from-bottom-10 fill-mode-backwards pt-4 duration-1000 delay-300">
-            <Button
-              asChild
-              className="group relative h-24 overflow-hidden rounded-4xl border-4 border-slate-100 px-12 text-3xl font-black text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] active:scale-95 active:shadow-sm md:text-4xl"
-              style={{ backgroundColor: "var(--brand-cta-bg)" }}
-            >
-              <Link
-                href="/kiosk"
-                prefetch={false}
-                onClick={handleKioskClick}
-                className="flex items-center gap-4"
-              >
-                <div
-                  className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(to right, var(--brand-primary-10), var(--brand-accent-10))",
-                  }}
-                />
-
-                <span
-                  className="relative z-10"
-                  style={{ color: "var(--brand-text)" }}
-                >
-                  {config.homeCtaLabel}
-                </span>
-
-                <div
-                  className="relative z-10 rounded-full p-2 shadow-sm transition-transform duration-300 group-hover:rotate-12"
-                  style={{
-                    backgroundColor: "var(--brand-text)",
-                    color: "white",
-                  }}
-                >
-                  <MonitorPlay
-                    className="h-6 w-6 md:h-8 md:w-8"
-                    fill="currentColor"
-                  />
-                </div>
-              </Link>
-            </Button>
-          </div>
+          <p className="animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards pt-4 text-base font-semibold text-slate-500 duration-1000 delay-300 md:text-lg">
+            화면 아무 곳이나 터치하세요
+          </p>
         </div>
 
         {config.showMarquee && (

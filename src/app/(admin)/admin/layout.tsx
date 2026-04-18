@@ -17,6 +17,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname(); // 페이지 이동 감지용
   const { status } = useSession();
+  const isFullWidth = pathname?.startsWith("/admin/theme");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -38,9 +39,17 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      {/* Desktop Sidebar (기존 유지) */}
-      <aside className="hidden border-r bg-muted/40 md:block">
+    <div
+      className={
+        isFullWidth
+          ? "min-h-screen w-full"
+          : "grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
+      }
+    >
+      {/* Desktop Sidebar (테마 페이지에서는 숨김) */}
+      <aside
+        className={`hidden border-r bg-muted/40 md:block ${isFullWidth ? "md:hidden" : ""}`}
+      >
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
             <div

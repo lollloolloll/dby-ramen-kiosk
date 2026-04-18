@@ -144,3 +144,75 @@ export const rentalRecordPeople = sqliteTable("rental_record_people", {
   name: text().notNull(),
   gender: text().notNull(), // '남' 또는 '여'
 });
+
+export const siteConfig = sqliteTable("site_config", {
+  id: integer().primaryKey({ autoIncrement: true }).notNull(),
+
+  colorPrimary: text("color_primary").default("#5FD4A5").notNull(),
+  colorAccent: text("color_accent").default("#E896C0").notNull(),
+  colorTextMain: text("color_text_main").default("#1e293b").notNull(),
+  colorTextMuted: text("color_text_muted").default("#64748b").notNull(),
+
+  overrideCtaBg: text("override_cta_bg"),
+  overrideHeadlineGradFrom: text("override_headline_grad_from"),
+  overrideHeadlineGradTo: text("override_headline_grad_to"),
+  overrideFilterActiveBg: text("override_filter_active_bg"),
+
+  orgName: text("org_name").default("쌍청문").notNull(),
+  homeBadge1: text("home_badge_1").default("우리들의 아지트").notNull(),
+  homeBadge2: text("home_badge_2")
+    .default("나의 미성숙함이 머물다 가는 곳")
+    .notNull(),
+  homeHeadlineTop: text("home_headline_top").default("학교 끝나고").notNull(),
+  homeHeadlineBottom: text("home_headline_bottom")
+    .default("뭐하고 놀래?")
+    .notNull(),
+  homeSubcopy: text("home_subcopy").default("으로 다 모여! 🎉").notNull(),
+  homeCtaLabel: text("home_cta_label").default("😎 놀 준비 완료!").notNull(),
+  kioskTitle: text("kiosk_title").default("쉬다 대여 목록").notNull(),
+  kioskEmptyTitle: text("kiosk_empty_title")
+    .default("현재 대여가능한 상품이 없습니다.")
+    .notNull(),
+  kioskEmptySubtitle: text("kiosk_empty_subtitle")
+    .default("관리자에게 문의해주세요.")
+    .notNull(),
+
+  marqueeItemsJson: text("marquee_items_json")
+    .default(
+      '[{"emoji":"🎮","label":"닌텐도 스위치"},{"emoji":"🍜","label":"라면"},{"emoji":"🎲","label":"보드게임"},{"emoji":"🏸","label":"배드민턴"},{"emoji":"🍿","label":"맛있는 간식"},{"emoji":"🏀","label":"농구"},{"emoji":"🏓","label":"탁구"}]'
+    )
+    .notNull(),
+  stickerEmojisJson: text("sticker_emojis_json")
+    .default('[{"emoji":"🎮"},{"emoji":"🎤"},{"emoji":"🎲"},{"emoji":"🍜"}]')
+    .notNull(),
+
+  showLavaLamp: integer("show_lava_lamp", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+  showStickers: integer("show_stickers", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+  showMarquee: integer("show_marquee", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+  showFilters: integer("show_filters", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+  showKioskBgGradient: integer("show_kiosk_bg_gradient", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+
+  backgroundPath: text("background_path"),
+  backgroundType: text("background_type", { enum: ["image", "video"] }),
+  backgroundOverlayOpacity: integer("background_overlay_opacity")
+    .default(30)
+    .notNull(),
+  logoPath: text("logo_path"),
+
+  kioskGridCols: integer("kiosk_grid_cols").default(4).notNull(),
+  inactivityTimeoutMs: integer("inactivity_timeout_ms")
+    .default(60000)
+    .notNull(),
+
+  updatedAt: integer("updated_at").default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+});

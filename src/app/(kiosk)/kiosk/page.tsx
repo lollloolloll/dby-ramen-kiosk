@@ -5,9 +5,15 @@ import { KioskPageClient } from "./KioskPageClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function KioskPage() {
+export default async function KioskPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ preview?: string }>;
+}) {
+  const params = searchParams ? await searchParams : undefined;
+  const isPreview = params?.preview === "1";
   const [items, consentFile] = await Promise.all([
-    getAllItems(),
+    getAllItems({ skipProcess: isPreview }),
     getConsentFile(),
   ]);
 

@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import type { CSSProperties } from "react";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { getSiteConfig } from "@/lib/actions/siteConfig";
+import { toThemeCssVars } from "@/lib/theme/theme-utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,13 +25,18 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const config = await getSiteConfig();
+
   return (
-    <html lang="ko">
+    <html
+      lang="ko"
+      style={toThemeCssVars(config) as CSSProperties}
+    >
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
@@ -35,7 +44,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextAuthProvider>{children}</NextAuthProvider>
+        <NextAuthProvider>
+          <ThemeProvider initial={config}>{children}</ThemeProvider>
+        </NextAuthProvider>
         <Toaster />
         <ServiceWorkerRegister />
       </body>

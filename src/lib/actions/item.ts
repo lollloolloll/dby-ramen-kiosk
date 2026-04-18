@@ -58,8 +58,11 @@ export async function getAllItemsForAdmin() {
   return itemsWithStatusAndWaitingCount;
 }
 
-export async function getAllItems() {
-  await processAndMutateExpiredRentals();
+export async function getAllItems(options?: { skipProcess?: boolean }) {
+  if (!options?.skipProcess) {
+    await processAndMutateExpiredRentals();
+  }
+
   const allItems = await db
     .select()
     .from(items)

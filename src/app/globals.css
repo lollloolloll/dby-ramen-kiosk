@@ -6,6 +6,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-text: var(--brand-text);
+  --color-brand-muted: var(--brand-muted);
+  --color-brand-cta: var(--brand-cta-bg);
+  --color-brand-filter: var(--brand-filter-active);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -45,6 +51,24 @@
 
 :root {
   --radius: 0.625rem;
+  --brand-primary: #5fd4a5;
+  --brand-accent: #e896c0;
+  --brand-text: #1e293b;
+  --brand-muted: #64748b;
+  --brand-cta-bg: var(--brand-primary);
+  --brand-headline-from: var(--brand-primary);
+  --brand-headline-to: var(--brand-accent);
+  --brand-filter-active: var(--brand-primary);
+  --bg-overlay-opacity: 0.3;
+  --brand-primary-10: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+  --brand-primary-15: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  --brand-primary-20: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+  --brand-primary-30: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  --brand-primary-40: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  --brand-accent-10: color-mix(in srgb, var(--brand-accent) 10%, transparent);
+  --brand-accent-15: color-mix(in srgb, var(--brand-accent) 15%, transparent);
+  --brand-accent-20: color-mix(in srgb, var(--brand-accent) 20%, transparent);
+  --brand-accent-30: color-mix(in srgb, var(--brand-accent) 30%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

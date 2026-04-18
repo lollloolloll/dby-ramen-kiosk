@@ -8,6 +8,13 @@ node_modules
 
 # 빌드 결과물 (컨테이너 안에서 새로 생성하므로 불필요)
 .next
+*.tsbuildinfo
+public/uploads
+worktrees
+**/.next_linux_bak_*
+**/node_modules_linux_bak_*
+build-win.log
+data/local.db
 
 # Git 폴더
 .git

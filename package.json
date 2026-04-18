@@ -67,6 +67,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "baseline-browser-mapping": "^2.10.19",
     "drizzle-kit": "^0.31.5",
     "shadcn": "^3.5.0",
     "tailwindcss": "^4",

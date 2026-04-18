@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Heart, MonitorPlay, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PromotionSlider } from "@/components/PromotionSlider";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
-import { Heart, MonitorPlay, Sparkle, Sparkles } from "lucide-react";
-import {useRouter} from "next/navigation"
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
+import { hasBackgroundMedia } from "@/lib/theme/theme-utils";
+import type { MarqueeItem } from "@/lib/schemas/siteConfig";
 
-// 인터페이스 수정: url, pdf 타입 추가
 interface PromotionItem {
   id: string;
   type: "video" | "image" | "url" | "pdf";
@@ -16,14 +19,12 @@ interface PromotionItem {
   title?: string;
 }
 
-// URL 데이터 타입 (API 응답용)
 interface VideoUrl {
   type: "url";
   name: string;
   url: string;
 }
 
-// 파일 타입 판별 함수 수정: PDF 추가
 function getFileType(fileName: string): "video" | "image" | "pdf" {
   const ext = fileName.toLowerCase().split(".").pop();
   const videoExts = ["mp4", "webm", "mov", "avi", "mkv"];
@@ -33,54 +34,48 @@ function getFileType(fileName: string): "video" | "image" | "pdf" {
   return "image";
 }
 
-// 비활성 시간 설정 (밀리초)
-const INACTIVITY_TIMEOUT = 1 * 60 * 1000; // 1분
-
 export default function Home() {
+  const config = useTheme();
+  const isPreview = usePreviewMode();
+  const router = useRouter();
   const [showPromotion, setShowPromotion] = useState(false);
   const [hasShownInitialPromotion, setHasShownInitialPromotion] =
     useState(false);
   const [promotionItems, setPromotionItems] = useState<PromotionItem[]>([]);
-  const lastActivityRef = useRef<number>(Date.now());
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasCheckedKioskFlag = useRef(false);
 
-  const router=useRouter();
+  const hasBackground = hasBackgroundMedia(config.backgroundPath);
+  const effectiveShowLavaLamp = config.showLavaLamp && !hasBackground;
 
-  // 업로드된 홍보물 파일 및 URL 목록 가져오기
   useEffect(() => {
     const fetchPromotionFiles = async () => {
       try {
         const response = await fetch("/api/uploads/promotion");
-        if (response.ok) {
-          const data = await response.json();
 
-          // 1. 파일 아이템 변환
-          const fileItems: PromotionItem[] = (data.files || []).map(
-            (fileName: string, index: number) => ({
-              id: `file-${index}-${fileName}`,
-              type: getFileType(fileName),
-              url: `/uploads/promotion/${fileName}`,
-              title: fileName,
-            })
-          );
-
-          // 2. 외부 URL 아이템 변환 (유튜브 등)
-          const urlItems: PromotionItem[] = (data.urls || []).map(
-            (urlData: VideoUrl, index: number) => ({
-              id: `url-${index}-${urlData.name}`,
-              type: "url" as const,
-              url: urlData.url,
-              title: urlData.name,
-            })
-          );
-
-          // 3. 합치기
-          setPromotionItems([...fileItems, ...urlItems]);
-          // console.log(
-          //   `Loaded ${fileItems.length + urlItems.length} promotion items`
-          // );
+        if (!response.ok) {
+          return;
         }
+
+        const data = await response.json();
+        const fileItems: PromotionItem[] = (data.files || []).map(
+          (fileName: string, index: number) => ({
+            id: `file-${index}-${fileName}`,
+            type: getFileType(fileName),
+            url: `/uploads/promotion/${fileName}`,
+            title: fileName,
+          })
+        );
+        const urlItems: PromotionItem[] = (data.urls || []).map(
+          (urlData: VideoUrl, index: number) => ({
+            id: `url-${index}-${urlData.name}`,
+            type: "url",
+            url: urlData.url,
+            title: urlData.name,
+          })
+        );
+
+        setPromotionItems([...fileItems, ...urlItems]);
       } catch (error) {
         console.error("Error fetching promotion files:", error);
       }
@@ -89,46 +84,49 @@ export default function Home() {
     fetchPromotionFiles();
   }, []);
 
-  // Kiosk에서 넘어온 플래그 확인
   useEffect(() => {
+    if (isPreview) {
+      hasCheckedKioskFlag.current = true;
+      return;
+    }
+
     if (hasCheckedKioskFlag.current || promotionItems.length === 0) {
       return;
     }
 
     const promotionFlag = sessionStorage.getItem("showPromotionOnHome");
 
-    if (promotionFlag) {
-      try {
-        const payload = JSON.parse(promotionFlag);
-        const now = Date.now();
+    if (!promotionFlag) {
+      hasCheckedKioskFlag.current = true;
+      return;
+    }
 
-        // TTL(5초) 내에 리다이렉트 된 경우에만 즉시 실행
-        if (
-          payload.show &&
-          payload.timestamp &&
-          now - payload.timestamp < payload.ttl
-        ) {
-          // console.log("Valid promotion flag from kiosk - showing promotion");
-          sessionStorage.removeItem("showPromotionOnHome");
-          setShowPromotion(true);
-          hasCheckedKioskFlag.current = true;
-          return;
-        } else {
-          // console.log("Expired promotion flag - ignoring");
-          sessionStorage.removeItem("showPromotionOnHome");
-        }
-      } catch (e) {
-        console.error("Invalid promotion flag format:", e);
+    try {
+      const payload = JSON.parse(promotionFlag);
+      const now = Date.now();
+
+      if (
+        payload.show &&
+        payload.timestamp &&
+        now - payload.timestamp < payload.ttl
+      ) {
+        sessionStorage.removeItem("showPromotionOnHome");
+        setShowPromotion(true);
+      } else {
         sessionStorage.removeItem("showPromotionOnHome");
       }
+    } catch (error) {
+      console.error("Invalid promotion flag format:", error);
+      sessionStorage.removeItem("showPromotionOnHome");
     }
 
     hasCheckedKioskFlag.current = true;
-  }, [promotionItems]);
+  }, [isPreview, promotionItems]);
 
-  // 타이머 리셋 로직
-  const resetInactivityTimer = () => {
-    lastActivityRef.current = Date.now();
+  const resetInactivityTimer = useCallback(() => {
+    if (isPreview) {
+      return;
+    }
 
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
@@ -137,14 +135,20 @@ export default function Home() {
     if (!showPromotion) {
       inactivityTimerRef.current = setTimeout(() => {
         setShowPromotion(true);
-      }, INACTIVITY_TIMEOUT);
+      }, config.inactivityTimeoutMs);
     }
-  };
+  }, [config.inactivityTimeoutMs, isPreview, showPromotion]);
 
-  // 사용자 활동 감지
   useEffect(() => {
+    if (isPreview) {
+      return;
+    }
+
     const handleActivity = () => {
-      if (showPromotion) return;
+      if (showPromotion) {
+        return;
+      }
+
       resetInactivityTimer();
     };
 
@@ -155,28 +159,25 @@ export default function Home() {
       "scroll",
       "touchstart",
       "click",
-    ];
+    ] as const;
 
     events.forEach((event) => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
 
-    // 키오스크 플래그가 없을 때만 초기 타이머 시작
     if (!sessionStorage.getItem("showPromotionOnHome")) {
       inactivityTimerRef.current = setTimeout(() => {
         setShowPromotion(true);
-      }, INACTIVITY_TIMEOUT);
+      }, config.inactivityTimeoutMs);
     }
 
-    // 앱 최초 실행 시 홍보물 표시 (한 번만)
     if (
       promotionItems.length > 0 &&
       !hasShownInitialPromotion &&
       !sessionStorage.getItem("showPromotionOnHome")
     ) {
-      const hasSeenPromotion = sessionStorage.getItem(
-        "hasSeenInitialPromotion"
-      );
+      const hasSeenPromotion = sessionStorage.getItem("hasSeenInitialPromotion");
+
       if (!hasSeenPromotion) {
         setShowPromotion(true);
         setHasShownInitialPromotion(true);
@@ -188,166 +189,221 @@ export default function Home() {
       events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
+
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
     };
-  }, [showPromotion, hasShownInitialPromotion, promotionItems.length]);
+  }, [
+    config.inactivityTimeoutMs,
+    hasShownInitialPromotion,
+    isPreview,
+    promotionItems.length,
+    resetInactivityTimer,
+    showPromotion,
+  ]);
 
-  // 홍보물 닫기 핸들러
   const handleClosePromotion = () => {
     setShowPromotion(false);
-    lastActivityRef.current = Date.now();
+
+    if (isPreview) {
+      return;
+    }
 
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
     }
-    // 닫은 후 다시 타이머 시작
+
     inactivityTimerRef.current = setTimeout(() => {
       setShowPromotion(true);
-    }, INACTIVITY_TIMEOUT);
+    }, config.inactivityTimeoutMs);
   };
-  const handleLazyCheck = useCallback(async () => {
-    // console.log("🕒 Triggering periodic lazy check...");
-    // revalidate가 포함된 trigger 함수를 사용하거나 process 함수를 사용
-    await processAndMutateExpiredRentals();
-  }, []);
 
-  const handleLinkClick = (e: React.MouseEvent, forceRefresh?: boolean) => {
-    if (forceRefresh) {
-      router.refresh();
+  const handleLazyCheck = useCallback(async () => {
+    if (isPreview) {
+      return;
     }
+
+    await processAndMutateExpiredRentals();
+  }, [isPreview]);
+
+  const handleKioskClick = (event: React.MouseEvent) => {
+    if (isPreview) {
+      event.preventDefault();
+      return;
+    }
+
+    router.refresh();
   };
 
   return (
     <>
-      <div className="relative flex flex-col items-center justify-center min-h-screen w-full overflow-hidden bg-slate-50 font-sans selection:bg-[oklch(0.75_0.12_165/0.2)]">
-        {/* 1. 배경: 동적인 그라데이션 블러 효과 (Lava Lamp 느낌) */}
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <div
-            className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[oklch(0.75_0.12_165/0.2)] rounded-full blur-[100px] animate-pulse"
-            style={{ animationDuration: "8s" }}
-          />
-          <div
-            className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-[oklch(0.7_0.18_350/0.2)] rounded-full blur-[120px] animate-pulse"
-            style={{ animationDuration: "10s", animationDelay: "1s" }}
-          />
-          <div
-            className="absolute top-[40%] left-[30%] w-[40vw] h-[40vw] bg-purple-200/40 rounded-full blur-[80px] animate-pulse"
-            style={{ animationDuration: "12s", animationDelay: "2s" }}
-          />
-        </div>
+      <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-slate-50 font-sans text-brand-text selection:bg-brand-primary/20">
+        <ThemeBackground
+          backgroundPath={config.backgroundPath}
+          backgroundType={config.backgroundType}
+        />
 
-        {/* 2. 관리자/전체화면 컨트롤 */}
+        {effectiveShowLavaLamp && (
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <div
+              className="absolute left-[-10%] top-[-10%] h-[50vw] w-[50vw] rounded-full blur-[100px] animate-pulse"
+              style={{
+                backgroundColor: "var(--brand-primary-20)",
+                animationDuration: "8s",
+              }}
+            />
+            <div
+              className="absolute bottom-[-10%] right-[-10%] h-[60vw] w-[60vw] rounded-full blur-[120px] animate-pulse"
+              style={{
+                backgroundColor: "var(--brand-accent-20)",
+                animationDuration: "10s",
+                animationDelay: "1s",
+              }}
+            />
+            <div
+              className="absolute left-[30%] top-[40%] h-[40vw] w-[40vw] rounded-full blur-[80px] animate-pulse"
+              style={{
+                backgroundColor: "var(--brand-primary-15)",
+                animationDuration: "12s",
+                animationDelay: "2s",
+              }}
+            />
+          </div>
+        )}
+
         <Link
           href="/admin"
           prefetch={false}
-          className="absolute top-6 right-6 text-sm text-muted-foreground hover:text-[oklch(0.75_0.12_165)] transition-colors"
+          className="absolute right-6 top-6 z-20 text-sm text-muted-foreground transition-colors hover:text-brand-primary"
         >
           관리자
         </Link>
+
         <p
-          className="absolute top-6 right-20 text-sm text-muted-foreground hover:text-[oklch(0.75_0.12_165)] transition-colors cursor-pointer"
+          className="absolute right-20 top-6 z-20 cursor-pointer text-sm text-muted-foreground transition-colors hover:text-brand-primary"
           onClick={async () => {
+            if (isPreview) {
+              return;
+            }
+
             try {
               if (!document.fullscreenElement) {
                 await document.documentElement.requestFullscreen();
               }
-            } catch (err) {
-              // console.log("Fullscreen request failed:", err);
+            } catch (error) {
+              console.error("Fullscreen request failed:", error);
             }
           }}
         >
           전체화면
         </p>
 
-        {/* 3. 떠다니는 스티커 아이콘들 */}
-        <FloatingSticker
-          emoji="🎮"
-          className="top-[15%] left-[10%] -rotate-12"
-          delay="0s"
-        />
-        <FloatingSticker
-          emoji="🎤"
-          className="top-[20%] right-[12%] rotate-12"
-          delay="1.5s"
-        />
-        <FloatingSticker
-          emoji="🎲"
-          className="bottom-[25%] left-[15%] rotate-6"
-          delay="0.5s"
-        />
-        <FloatingSticker
-          emoji="🍜"
-          className="bottom-[20%] right-[10%] -rotate-6"
-          delay="2s"
-        />
+        {config.showStickers &&
+          config.stickerEmojis.map((sticker, index) => (
+            <FloatingSticker
+              key={`${sticker.emoji}-${index}`}
+              emoji={sticker.emoji}
+              className={STICKER_POSITIONS[index] ?? STICKER_POSITIONS[0]}
+              delay={STICKER_DELAYS[index] ?? "0s"}
+            />
+          ))}
 
-        {/* 4. 메인 컨텐츠 */}
-        <div className="relative z-10 flex flex-col items-center text-center space-y-10 px-4">
-          {/* 헤드라인 그룹 */}
-          <div className="space-y-6 animate-in fade-in zoom-in duration-700 slide-in-from-bottom-10">
-            <div className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white/60 border border-white/50 backdrop-blur-sm shadow-sm mb-4">
-              <span className="text-sm font-bold text-slate-500 flex items-center gap-1">
-                <Sparkle className="w-4 h-4 text-[oklch(0.75_0.12_165)]" />
-                우리들의 아지트
+        <div className="relative z-10 flex flex-col items-center space-y-10 px-4 text-center">
+          <div className="space-y-6 animate-in fade-in zoom-in slide-in-from-bottom-10 duration-700">
+            {config.logoPath ? (
+              <div className="mb-6 flex justify-center">
+                <img
+                  src={config.logoPath}
+                  alt={config.orgName}
+                  className="max-h-24 w-auto rounded-2xl bg-white/60 p-3 shadow-sm backdrop-blur-sm"
+                />
+              </div>
+            ) : null}
+
+            <div className="mb-4 inline-flex items-center justify-center rounded-full border border-white/50 bg-white/60 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+              <span className="flex items-center gap-1 text-sm font-bold text-slate-500">
+                <Sparkle
+                  className="h-4 w-4"
+                  style={{ color: "var(--brand-primary)" }}
+                />
+                {config.homeBadge1}
               </span>
             </div>
 
-            {/* 옵션 2: Heart (머물다, 따뜻함) */}
-            <div className="ml-4 inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white/60 border border-white/50 backdrop-blur-sm shadow-sm mb-4">
-              <span className="text-sm font-bold text-slate-500 flex items-center gap-1">
-                <Heart className="w-4 h-4 text-[oklch(0.75_0.12_165)]" />
-                나의 미성숙함이 머물다 가는 곳
+            <div className="mb-4 ml-4 inline-flex items-center justify-center rounded-full border border-white/50 bg-white/60 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+              <span className="flex items-center gap-1 text-sm font-bold text-slate-500">
+                <Heart
+                  className="h-4 w-4"
+                  style={{ color: "var(--brand-primary)" }}
+                />
+                {config.homeBadge2}
               </span>
             </div>
 
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[1.1] text-slate-800 drop-shadow-sm">
-              학교 끝나고
+            <h1 className="text-6xl font-black leading-[1.1] tracking-tighter text-slate-800 drop-shadow-sm md:text-8xl">
+              {config.homeHeadlineTop}
               <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-[oklch(0.75_0.12_165)] to-[oklch(0.7_0.18_350)]">
-                뭐하고 놀래?
+              <span
+                className="text-transparent"
+                style={{
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  backgroundImage:
+                    "linear-gradient(to right, var(--brand-headline-from), var(--brand-headline-to))",
+                }}
+              >
+                {config.homeHeadlineBottom}
               </span>
             </h1>
 
-            <p className="text-xl md:text-2xl font-medium text-slate-500">
-              <span className="font-bold text-[oklch(0.7_0.18_350)]">
-                쌍청문
+            <p className="text-xl font-medium text-slate-500 md:text-2xl">
+              <span
+                className="font-bold"
+                style={{ color: "var(--brand-accent)" }}
+              >
+                {config.orgName}
               </span>
-              으로 다 모여! 🎉
+              {config.homeSubcopy}
             </p>
           </div>
 
-          {/* CTA 버튼 */}
-          {/* CTA 버튼 */}
-          <div className="pt-4 animate-in fade-in zoom-in duration-1000 delay-300 slide-in-from-bottom-10 fill-mode-backwards">
+          <div className="animate-in fade-in zoom-in slide-in-from-bottom-10 fill-mode-backwards pt-4 duration-1000 delay-300">
             <Button
               asChild
-              className="group relative h-24 px-12 text-3xl md:text-4xl font-black rounded-4xl 
-            bg-white text-slate-800 border-4 border-slate-100
-            shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
-            
-            /* 호버 시: 크기만 살짝 커지고, 그림자만 부드럽게. 테두리나 배경색 강하게 변경 X */
-            hover:scale-105 hover:bg-white hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)]
-            active:scale-95 active:shadow-sm
-            transition-all duration-300 overflow-hidden"
+              className="group relative h-24 overflow-hidden rounded-4xl border-4 border-slate-100 px-12 text-3xl font-black text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] active:scale-95 active:shadow-sm md:text-4xl"
+              style={{ backgroundColor: "var(--brand-cta-bg)" }}
             >
-              <Link href="/kiosk" 
-              prefetch={false}
-              onClick={(e) => handleLinkClick(e, true)}
-              className="flex items-center gap-4">
-                {/* 배경: 호버 시 아주 연한 틴트(10% 투명도)만 살짝 올라옴 -> 글자 가독성 해치지 않음 */}
-                <div className="absolute inset-0 bg-linear-to-r from-[oklch(0.75_0.12_165/0.1)] to-[oklch(0.7_0.18_350/0.1)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <Link
+                href="/kiosk"
+                prefetch={false}
+                onClick={handleKioskClick}
+                className="flex items-center gap-4"
+              >
+                <div
+                  className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{
+                    backgroundImage:
+                      "linear-gradient(to right, var(--brand-primary-10), var(--brand-accent-10))",
+                  }}
+                />
 
-                {/* 텍스트: 색상 변경 없이 그대로 유지 */}
-                <span className="relative z-10 text-slate-800">
-                  😎 놀 준비 완료!
+                <span
+                  className="relative z-10"
+                  style={{ color: "var(--brand-text)" }}
+                >
+                  {config.homeCtaLabel}
                 </span>
 
-                {/* 아이콘: 색상 반전 없이 회전 애니메이션만 살짝 */}
-                <div className="relative z-10 bg-slate-800 text-white rounded-full p-2 group-hover:rotate-12 transition-transform duration-300 shadow-sm">
+                <div
+                  className="relative z-10 rounded-full p-2 shadow-sm transition-transform duration-300 group-hover:rotate-12"
+                  style={{
+                    backgroundColor: "var(--brand-text)",
+                    color: "white",
+                  }}
+                >
                   <MonitorPlay
-                    className="w-6 h-6 md:w-8 md:h-8"
+                    className="h-6 w-6 md:h-8 md:w-8"
                     fill="currentColor"
                   />
                 </div>
@@ -356,29 +412,28 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 5. 하단 무한 스크롤 띠 */}
-        <div className="absolute bottom-10 w-full overflow-hidden bg-white/30 backdrop-blur-md border-y border-white/20 py-3 transform -rotate-1 shadow-sm">
-          <div className="flex animate-marquee whitespace-nowrap">
-            <MarqueeText />
-            <MarqueeText />
-            <MarqueeText />
-            <MarqueeText />
+        {config.showMarquee && (
+          <div className="absolute bottom-10 w-full -rotate-1 overflow-hidden border-y border-white/20 bg-white/30 py-3 shadow-sm backdrop-blur-md">
+            <div className="flex animate-marquee whitespace-nowrap">
+              <MarqueeText items={config.marqueeItems} />
+              <MarqueeText items={config.marqueeItems} />
+              <MarqueeText items={config.marqueeItems} />
+              <MarqueeText items={config.marqueeItems} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 홍보물 슬라이드 (기존 기능 유지) */}
-      {showPromotion && promotionItems.length > 0 && (
+      {!isPreview && showPromotion && promotionItems.length > 0 && (
         <PromotionSlider
           items={promotionItems}
           onClose={handleClosePromotion}
-          autoPlay={true}
+          autoPlay
           autoPlayInterval={15000}
           onLazyCheck={handleLazyCheck}
         />
       )}
 
-      {/* Marquee 애니메이션 스타일 */}
       <style jsx global>{`
         @keyframes marquee {
           0% {
@@ -396,7 +451,44 @@ export default function Home() {
   );
 }
 
-// 스티커 컴포넌트
+function ThemeBackground({
+  backgroundPath,
+  backgroundType,
+}: {
+  backgroundPath: string | null;
+  backgroundType: "image" | "video" | null;
+}) {
+  if (!backgroundPath) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0">
+      {backgroundType === "video" ? (
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+        >
+          <source src={backgroundPath} />
+        </video>
+      ) : (
+        <img
+          src={backgroundPath}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      <div
+        className="absolute inset-0 bg-black"
+        style={{ opacity: "var(--bg-overlay-opacity)" }}
+      />
+    </div>
+  );
+}
+
 function FloatingSticker({
   emoji,
   className,
@@ -408,34 +500,40 @@ function FloatingSticker({
 }) {
   return (
     <div
-      className={`absolute flex items-center justify-center w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border-4 border-white transform hover:scale-110 transition-transform duration-300 cursor-default select-none animate-bounce ${className}`}
+      className={`absolute flex h-20 w-20 cursor-default select-none items-center justify-center rounded-2xl border-4 border-white bg-white shadow-[0_8px_20px_rgba(0,0,0,0.1)] transition-transform duration-300 hover:scale-110 animate-bounce md:h-24 md:w-24 ${className}`}
       style={{ animationDuration: "3s", animationDelay: delay }}
     >
-      <span className="text-5xl md:text-6xl filter drop-shadow-sm">
-        {emoji}
-      </span>
+      <span className="text-5xl drop-shadow-sm filter md:text-6xl">{emoji}</span>
     </div>
   );
 }
 
-// 하단 흐르는 텍스트 컴포넌트
-function MarqueeText() {
+function MarqueeText({ items }: { items: MarqueeItem[] }) {
   return (
-    <span className="mx-4 text-lg font-bold text-slate-500/80 flex items-center gap-8">
-      <span>🎮 닌텐도 스위치</span>
-      <span className="w-2 h-2 rounded-full bg-[oklch(0.75_0.12_165)]"></span>
-      <span>🍜 라면</span>
-      <span className="w-2 h-2 rounded-full bg-[oklch(0.7_0.18_350)]"></span>
-      <span>🎲 보드게임</span>
-      <span className="w-2 h-2 rounded-full bg-[oklch(0.75_0.12_165)]"></span>
-      <span>🏸 배드민턴</span>
-      <span className="w-2 h-2 rounded-full bg-[oklch(0.7_0.18_350)]"></span>
-      <span>🍿 맛있는 간식</span>
-      <span className="w-2 h-2 rounded-full bg-slate-300"></span>
-      <span>🏀 농구</span>
-      <span className="w-2 h-2 rounded-full bg-[oklch(0.75_0.12_165)]"></span>
-      <span>🏓 탁구</span>
-      <span className="w-2 h-2 rounded-full bg-[oklch(0.7_0.18_350)]"></span>
+    <span className="mx-4 flex items-center gap-8 text-lg font-bold text-slate-500/80">
+      {items.map((item, index) => (
+        <span key={`${item.emoji}-${item.label}-${index}`} className="flex items-center gap-8">
+          <span>
+            {item.emoji} {item.label}
+          </span>
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{
+              backgroundColor:
+                index % 2 === 0 ? "var(--brand-primary)" : "var(--brand-accent)",
+            }}
+          />
+        </span>
+      ))}
     </span>
   );
 }
+
+const STICKER_POSITIONS = [
+  "top-[15%] left-[10%] -rotate-12",
+  "top-[20%] right-[12%] rotate-12",
+  "bottom-[25%] left-[15%] rotate-6",
+  "bottom-[20%] right-[10%] -rotate-6",
+];
+
+const STICKER_DELAYS = ["0s", "1.5s", "0.5s", "2s"];

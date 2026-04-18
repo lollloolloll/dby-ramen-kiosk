@@ -68,3 +68,9 @@ node_modules/
 .vercel
 /Variant
 worktrees/
+
+public/workbox-*.js*
+*.sw?
+
+public/workbox-*.js*
+public/sw.js

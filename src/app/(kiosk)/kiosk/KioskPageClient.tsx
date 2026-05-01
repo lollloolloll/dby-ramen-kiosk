@@ -44,10 +44,13 @@ export function KioskPageClient({ items, consentFile }: KioskPageClientProps) {
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasBackground = hasBackgroundMedia(config.backgroundPath);
-  const effectiveShowKioskGradient = config.showKioskBgGradient && !hasBackground;
+  const effectiveShowKioskGradient =
+    config.showKioskBgGradient && !hasBackground;
 
   const categories = useMemo(() => {
-    const uniqueCategories = Array.from(new Set(items.map((item) => item.category)));
+    const uniqueCategories = Array.from(
+      new Set(items.map((item) => item.category))
+    );
     return ["전체", ...uniqueCategories.sort()];
   }, [items]);
 
@@ -215,7 +218,7 @@ export function KioskPageClient({ items, consentFile }: KioskPageClientProps) {
           className={cn(
             "relative min-h-screen",
             effectiveShowKioskGradient &&
-              "bg-linear-to-br from-[var(--brand-primary-15)] via-[var(--brand-accent-15)] to-[var(--brand-accent-15)]"
+              "bg-linear-to-br from-(--brand-primary-15) via-(--brand-accent-15) to-(--brand-accent-15)"
           )}
         >
           <div className="container relative z-10 mx-auto px-6 py-10">
@@ -251,13 +254,6 @@ export function KioskPageClient({ items, consentFile }: KioskPageClientProps) {
                 >
                   {config.kioskTitle}
                 </h1>
-                <div
-                  className="mx-auto h-1.5 w-32 rounded-full"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(to right, var(--brand-primary), var(--brand-accent))",
-                  }}
-                />
               </div>
 
               <div className="ml-4 flex shrink-0 items-center gap-3">
@@ -293,7 +289,12 @@ export function KioskPageClient({ items, consentFile }: KioskPageClientProps) {
 
           <div className="container relative z-10 mx-auto min-h-0 flex-1 px-6 pb-10">
             {filteredItems.length > 0 ? (
-              <div className={cn("grid gap-6 auto-rows-fr", getGridColsClass(config.kioskGridCols))}>
+              <div
+                className={cn(
+                  "grid gap-6 auto-rows-fr",
+                  getGridColsClass(config.kioskGridCols)
+                )}
+              >
                 {filteredItems.map((item) => (
                   <div key={item.id} className="h-full w-full">
                     <ItemCard item={item} onOrder={handleOrder} />

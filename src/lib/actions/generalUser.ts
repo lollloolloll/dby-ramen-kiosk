@@ -16,6 +16,24 @@ export type UserCheckResult =
   | { status: "name_exists_phone_mismatch" }
   | { status: "not_found" };
 
+export type UserPinLookupResult =
+  | { status: "single_match"; user: typeof generalUsers.$inferSelect }
+  | {
+      status: "multiple_matches";
+      users: (typeof generalUsers.$inferSelect)[];
+    }
+  | { status: "not_found" };
+
+const getMiddleFourDigits = (phoneNumber: string) => {
+  const digits = phoneNumber.replace(/[^\d]/g, "");
+
+  if (digits.length < 8) {
+    return "";
+  }
+
+  return digits.slice(3, 7);
+};
+
 // 기존 함수 이름을 그대로 쓰면서 기능만 업그레이드
 export async function findUserByNameAndPhone(
   name: string,
@@ -56,6 +74,37 @@ export async function findUserByNameAndPhone(
   }
 
   return { status: "not_found" };
+}
+
+export async function findUsersByNameAndPin(
+  name: string,
+  pin: string
+): Promise<UserPinLookupResult> {
+  const normalizedName = name.trim().replace(/\s/g, "");
+  const normalizedPin = pin.replace(/[^\d]/g, "");
+
+  if (!normalizedName || normalizedPin.length !== 4) {
+    return { status: "not_found" };
+  }
+
+  const matchedUsers = await db
+    .select()
+    .from(generalUsers)
+    .where(eq(generalUsers.name, normalizedName));
+
+  const pinMatchedUsers = matchedUsers.filter(
+    (user) => getMiddleFourDigits(user.phoneNumber) === normalizedPin
+  );
+
+  if (pinMatchedUsers.length === 0) {
+    return { status: "not_found" };
+  }
+
+  if (pinMatchedUsers.length === 1) {
+    return { status: "single_match", user: pinMatchedUsers[0] };
+  }
+
+  return { status: "multiple_matches", users: pinMatchedUsers };
 }
 
 // 2. 사용자 생성 함수 수정
@@ -245,6 +294,63 @@ export async function updateUser(id: number, data: unknown) {
     return { success: true };
   } catch (error) {
     console.error("Error updating general user:", error);
+    return { error: "사용자 정보 업데이트에 실패했습니다." };
+  }
+}
+
+export async function updateGeneralUserForKiosk(
+  id: number,
+  data: Pick<
+    typeof generalUsers.$inferInsert,
+    "gender" | "birthDate" | "school" | "personalInfoConsent"
+  >
+) {
+  const kioskUpdateSchema = generalUserSchema.pick({
+    gender: true,
+    birthDate: true,
+    school: true,
+    personalInfoConsent: true,
+  });
+
+  const validatedData = kioskUpdateSchema.safeParse(data);
+
+  if (!validatedData.success) {
+    return {
+      error:
+        validatedData.error.flatten().fieldErrors.personalInfoConsent?.[0] ||
+        validatedData.error.flatten().fieldErrors.gender?.[0] ||
+        validatedData.error.flatten().fieldErrors.birthDate?.[0] ||
+        validatedData.error.flatten().fieldErrors.school?.[0] ||
+        "유효하지 않은 데이터입니다.",
+    };
+  }
+
+  try {
+    const [existingUser] = await db
+      .select()
+      .from(generalUsers)
+      .where(eq(generalUsers.id, id));
+
+    if (!existingUser) {
+      return { error: "사용자를 찾을 수 없습니다." };
+    }
+
+    await db
+      .update(generalUsers)
+      .set({
+        gender: validatedData.data.gender,
+        birthDate: validatedData.data.birthDate,
+        school: validatedData.data.school,
+        personalInfoConsent: validatedData.data.personalInfoConsent,
+      })
+      .where(eq(generalUsers.id, id));
+
+    revalidatePath("/kiosk");
+    revalidatePath("/admin/users");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating kiosk general user:", error);
     return { error: "사용자 정보 업데이트에 실패했습니다." };
   }
 }

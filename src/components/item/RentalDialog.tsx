@@ -20,9 +20,11 @@ import {
   getWaitingListByItemId,
 } from "@/lib/actions/waiting";
 import {
-  findUserByNameAndPhone,
+  findUsersByNameAndPin,
   createGeneralUser,
+  updateGeneralUserForKiosk,
 } from "@/lib/actions/generalUser";
+import type { UserPinLookupResult } from "@/lib/actions/generalUser";
 import { toast } from "sonner";
 import { useForm, useFieldArray, Resolver, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,11 +60,22 @@ interface RentalDialogProps {
   consentFile: { url: string; type: "pdf" | "image" | "doc" } | null;
 }
 
-type Step = "identification" | "register" | "success" | "waitingSuccess";
+type Step =
+  | "identification"
+  | "resolveMatch"
+  | "register"
+  | "success"
+  | "waitingSuccess";
+type IdentificationAction = "rent" | "edit";
+type RegisterMode = "create" | "edit";
+type PinMatchedUser = Extract<
+  UserPinLookupResult,
+  { status: "single_match" }
+>["user"];
 
 const identificationSchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요."),
-  phoneNumber: z.string().min(1, "휴대폰 번호를 입력해주세요."),
+  pin: z.string().regex(/^\d{4}$/, "PIN 4자리를 입력해주세요."),
   maleCount: z.number().optional().default(0),
   femaleCount: z.number().optional().default(0),
   participants: z
@@ -77,6 +90,52 @@ const identificationSchema = z.object({
 });
 type IdentificationFormValues = z.infer<typeof identificationSchema>;
 type GeneralUserFormValues = z.infer<typeof generalUserSchema>;
+
+const formatBirthDateLabel = (birthDate: string | null) => {
+  if (!birthDate) return "생년월일 미등록";
+  const [year, month, day] = birthDate.split("-");
+
+  if (!year || !month || !day) {
+    return birthDate;
+  }
+
+  return `${year}.${month.padStart(2, "0")}.${day.padStart(2, "0")}`;
+};
+
+const getSchoolSuffix = (level: string) => {
+  switch (level) {
+    case "초등학교":
+      return "초";
+    case "중학교":
+      return "중";
+    case "고등학교":
+      return "고";
+    case "대학교":
+      return "대";
+    default:
+      return "";
+  }
+};
+
+const buildSchoolValue = (level: string, name: string) => {
+  const trimmedName = name.trim().replace(/\s/g, "");
+
+  if (level === "해당없음") {
+    return "해당없음";
+  }
+
+  if (!trimmedName) {
+    return "";
+  }
+
+  const suffix = getSchoolSuffix(level);
+
+  if (suffix && trimmedName.endsWith(suffix)) {
+    return trimmedName;
+  }
+
+  return `${trimmedName}${suffix}`;
+};
 
 const formatPhoneNumber = (value: string) => {
   if (!value) return value;
@@ -171,6 +230,15 @@ export function RentalDialog({
   const [showWaitingList, setShowWaitingList] = useState(false);
   const [waitingList, setWaitingList] = useState<any[]>([]);
   const [isLoadingWaitingList, setIsLoadingWaitingList] = useState(false);
+  const [identificationAction, setIdentificationAction] =
+    useState<IdentificationAction>("rent");
+  const identificationActionRef = useRef<IdentificationAction>("rent");
+  const [registerMode, setRegisterMode] = useState<RegisterMode>("create");
+  const [matchedUsers, setMatchedUsers] = useState<PinMatchedUser[]>([]);
+  const [lastIdentificationValues, setLastIdentificationValues] =
+    useState<IdentificationFormValues | null>(null);
+  const [selectedResolvedUser, setSelectedResolvedUser] =
+    useState<PinMatchedUser | null>(null);
   const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
   const [tempConsent, setTempConsent] = useState(false);
   const [currentRenter, setCurrentRenter] = useState<{
@@ -220,9 +288,10 @@ export function RentalDialog({
     resolver: zodResolver(
       identificationSchema
     ) as Resolver<IdentificationFormValues>,
+    mode: "onChange",
     defaultValues: {
       name: "",
-      phoneNumber: "",
+      pin: "",
       maleCount: 0,
       femaleCount: 0,
       participants: [],
@@ -325,30 +394,7 @@ export function RentalDialog({
       registerForm.setValue("school", "");
       return;
     }
-    if (!isDirectInput) {
-      registerForm.setValue("school", schoolName);
-    } else {
-      let finalName = schoolName;
-      let suffix = "";
-      switch (schoolLevel) {
-        case "초등학교":
-          suffix = "초";
-          break;
-        case "중학교":
-          suffix = "중";
-          break;
-        case "고등학교":
-          suffix = "고";
-          break;
-        case "대학교":
-          suffix = "대";
-          break;
-      }
-      if (suffix && !finalName.endsWith(suffix)) {
-        finalName += suffix;
-      }
-      registerForm.setValue("school", finalName);
-    }
+    registerForm.setValue("school", buildSchoolValue(schoolLevel, schoolName));
   }, [schoolLevel, schoolName, isDirectInput, registerForm]);
 
   useEffect(() => {
@@ -368,7 +414,137 @@ export function RentalDialog({
     }
   }, [step]);
 
-  // ... (handleIdentificationSubmit, handleRegisterSubmit, handleRental, handleWaiting 생략 - 기존과 동일) ...
+  const preloadRegisterForm = (user: {
+    name: string;
+    phoneNumber: string;
+    gender: string;
+    birthDate: string | null;
+    school: string | null;
+    personalInfoConsent?: boolean | null;
+  }) => {
+    registerForm.reset({
+      name: user.name,
+      phoneNumber: user.phoneNumber,
+      gender: user.gender,
+      birthDate: user.birthDate ?? "",
+      school: user.school ?? "",
+      personalInfoConsent: user.personalInfoConsent ?? false,
+    });
+
+    const birthDateParts = user.birthDate ? user.birthDate.split("-") : [];
+    setBirthYear(birthDateParts[0]);
+    setBirthMonth(birthDateParts[1]);
+    setBirthDay(birthDateParts[2]);
+
+    if (user.school === "해당없음") {
+      setSchoolLevel("해당없음");
+      setSchoolName("");
+      setIsDirectInput(false);
+      setShowSchoolPanel(false);
+      return;
+    }
+
+    const schoolValue = user.school ?? "";
+    const lastChar = schoolValue.slice(-1);
+    switch (lastChar) {
+      case "초":
+        setSchoolLevel("초등학교");
+        setSchoolName(schoolValue.slice(0, -1));
+        break;
+      case "중":
+        setSchoolLevel("중학교");
+        setSchoolName(schoolValue.slice(0, -1));
+        break;
+      case "고":
+        setSchoolLevel("고등학교");
+        setSchoolName(schoolValue.slice(0, -1));
+        break;
+      case "대":
+        setSchoolLevel("대학교");
+        setSchoolName(schoolValue.slice(0, -1));
+        break;
+      default:
+        setSchoolLevel("");
+        setSchoolName(schoolValue);
+        break;
+    }
+
+    setIsDirectInput(false);
+    setShowSchoolPanel(false);
+  };
+
+  const proceedToRegister = (values: IdentificationFormValues) => {
+    setRegisterMode("create");
+    setMatchedUsers([]);
+    setSelectedResolvedUser(null);
+    setLastIdentificationValues(values);
+    setStep("register");
+    registerForm.reset({
+      name: values.name,
+      phoneNumber: "",
+      gender: "",
+      birthDate: "",
+      school: "",
+      personalInfoConsent: false,
+    });
+    setBirthYear(undefined);
+    setBirthMonth(undefined);
+    setBirthDay(undefined);
+    setSchoolLevel("");
+    setSchoolName("");
+    setIsDirectInput(false);
+    setShowSchoolPanel(false);
+  };
+
+  const proceedToEdit = (
+    user: PinMatchedUser,
+    values: IdentificationFormValues
+  ) => {
+    setRegisterMode("edit");
+    setSelectedResolvedUser(user);
+    setLastIdentificationValues(values);
+    setStep("register");
+    preloadRegisterForm(user);
+  };
+
+  const continueWithExistingUser = async (
+    user: PinMatchedUser,
+    values: IdentificationFormValues
+  ) => {
+    if (!item) {
+      return;
+    }
+
+    if (identificationActionRef.current === "edit") {
+      proceedToEdit(user, values);
+      return;
+    }
+
+    const status = await checkUserRentalStatus(user.id, item.id);
+    if (status.error) throw new Error(status.error);
+
+    if (status.isRenting) {
+      toast.error("이미 대여 중인 아이템입니다.");
+      return;
+    }
+    if (status.isWaiting) {
+      toast.error("이미 대기열에 등록된 아이템입니다.");
+      return;
+    }
+
+    if (isRentedMode) {
+      await handleWaiting(user.id, values.maleCount, values.femaleCount);
+      return;
+    }
+
+    await handleRental(
+      user.id,
+      values.maleCount,
+      values.femaleCount,
+      values.participants
+    );
+  };
+
   const handleIdentificationSubmit = async (
     values: IdentificationFormValues
   ) => {
@@ -393,67 +569,30 @@ export function RentalDialog({
 
     setIsSubmitting(true);
     try {
-      // 1. 결과 받아오기
-      const result = await findUserByNameAndPhone(
-        values.name,
-        values.phoneNumber
-      );
+      setLastIdentificationValues(values);
+      const result = await findUsersByNameAndPin(values.name, values.pin);
 
-      // ---------------------------------------------------------
-      // CASE A: 사용자 찾음 (로그인 성공)
-      // ---------------------------------------------------------
-      if (result.status === "exact_match" && result.user) {
-        const user = result.user; // 여기서 user 변수를 꺼내야 합니다.
-
-        const status = await checkUserRentalStatus(user.id, item.id);
-        if (status.error) throw new Error(status.error);
-
-        if (status.isRenting) {
-          toast.error("이미 대여 중인 아이템입니다.");
-          return;
-        }
-        if (status.isWaiting) {
-          toast.error("이미 대기열에 등록된 아이템입니다.");
-          return;
-        }
-
-        if (isRentedMode) {
-          await handleWaiting(user.id, values.maleCount, values.femaleCount);
-        } else {
-          await handleRental(
-            user.id,
-            values.maleCount,
-            values.femaleCount,
-            values.participants
-          );
-        }
-      }
-
-      // CASE B: 이름은 있는데 전화번호가 다름
-      else if (result.status === "name_exists_phone_mismatch") {
-        toast.warning(`'${values.name}'님은 이미 등록되어 있습니다.`, {
-          description:
-            "전화번호를 잘못 입력했는지 확인해주세요! (처음이라면 '신규 등록' 클릭)",
-          duration: 8000,
-          className: "top-margin-warning",
-        });
+      if (result.status === "single_match") {
+        await continueWithExistingUser(result.user, values);
         return;
       }
 
-      // CASE C: 전화번호는 있는데 이름이 다름
-      else if (result.status === "family_exists") {
-        proceedToRegister(values);
+      if (result.status === "multiple_matches") {
+        setMatchedUsers(result.users);
+        setStep("resolveMatch");
         return;
       }
 
-      // ---------------------------------------------------------
-      // CASE D: 완전 신규 유저
-      // ---------------------------------------------------------
-      else {
-        // toast.info("등록된 사용자가 아닙니다.", {
-        //   description: "신규 등록 페이지로 이동합니다.",
-        // });
+      if (identificationActionRef.current === "edit") {
+        toast.error(
+          "일치하는 회원을 찾지 못했습니다. 이름과 PIN을 확인해주세요."
+        );
+        return;
+      }
+
+      if (result.status === "not_found") {
         proceedToRegister(values);
+        return;
       }
     } catch (error) {
       toast.error(
@@ -466,35 +605,67 @@ export function RentalDialog({
     }
   };
 
-  // [필수 추가] 중복되는 가입 이동 로직을 함수로 분리
-  const proceedToRegister = (values: IdentificationFormValues) => {
-    setStep("register");
-    registerForm.setValue("name", values.name);
-    registerForm.setValue("phoneNumber", values.phoneNumber);
-    setShowSchoolPanel(false);
-  };
-
   const handleRegisterSubmit = async (values: GeneralUserFormValues) => {
     setIsSubmitting(true);
     try {
+      if (registerMode === "edit" && selectedResolvedUser) {
+        const result = await updateGeneralUserForKiosk(
+          selectedResolvedUser.id,
+          {
+            gender: values.gender,
+            birthDate: values.birthDate,
+            school: values.school,
+            personalInfoConsent: values.personalInfoConsent,
+          }
+        );
+        if (result.error) throw new Error(result.error);
+        toast.success("개인정보가 수정되었습니다.");
+        setShowSchoolPanel(false);
+        setIdentificationAction("rent");
+        identificationActionRef.current = "rent";
+        setStep("identification");
+        return;
+      }
+
       const result = await createGeneralUser(values);
       if (result.error) throw new Error(result.error);
       if (result.user) {
         toast.success("회원가입이 완료되었습니다.");
 
-        // [수정] 회원가입 완료 시 학교 패널 닫기
         setShowSchoolPanel(false);
         identificationForm.setValue("name", values.name, {
           shouldValidate: true,
         });
-        identificationForm.setValue("phoneNumber", values.phoneNumber, {
+        identificationForm.setValue("pin", values.phoneNumber.slice(4, 8), {
           shouldValidate: true,
         });
+        setIdentificationAction("rent");
+        identificationActionRef.current = "rent";
         setStep("identification");
       }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "사용자 등록에 실패했습니다."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResolvedUserSelect = async (user: PinMatchedUser) => {
+    if (!lastIdentificationValues) {
+      toast.error("다시 처음부터 시도해주세요.");
+      setStep("identification");
+      return;
+    }
+
+    setSelectedResolvedUser(user);
+    setIsSubmitting(true);
+    try {
+      await continueWithExistingUser(user, lastIdentificationValues);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "사용자 확인에 실패했습니다."
       );
     } finally {
       setIsSubmitting(false);
@@ -581,6 +752,12 @@ export function RentalDialog({
     // 폼 완전 초기화
     identificationForm.reset();
     registerForm.reset();
+    setIdentificationAction("rent");
+    identificationActionRef.current = "rent";
+    setRegisterMode("create");
+    setMatchedUsers([]);
+    setLastIdentificationValues(null);
+    setSelectedResolvedUser(null);
 
     // 로컬 상태 초기화
     setBirthYear(undefined);
@@ -698,27 +875,12 @@ export function RentalDialog({
                   onClick={() => {
                     setIsDirectInput(false);
                     setSchoolName(school);
-                    let finalName = school;
-                    let suffix = "";
-                    switch (schoolLevel) {
-                      case "초등학교":
-                        suffix = "초";
-                        break;
-                      case "중학교":
-                        suffix = "중";
-                        break;
-                      case "고등학교":
-                        suffix = "고";
-                        break;
-                      case "대학교":
-                        suffix = "대";
-                        break;
-                    }
-                    if (suffix && !finalName.endsWith(suffix))
-                      finalName += suffix;
                     isPanelClickRef.current = true;
 
-                    registerForm.setValue("school", finalName);
+                    registerForm.setValue(
+                      "school",
+                      buildSchoolValue(schoolLevel, school)
+                    );
                     registerForm.trigger("school");
                   }}
                   className={cn(
@@ -766,28 +928,10 @@ export function RentalDialog({
                 onChange={(e) => {
                   const val = e.target.value.replace(/\s/g, "");
                   setSchoolName(val);
-
-                  let finalName = val;
-                  if (val) {
-                    let suffix = "";
-                    switch (schoolLevel) {
-                      case "초등학교":
-                        suffix = "초";
-                        break;
-                      case "중학교":
-                        suffix = "중";
-                        break;
-                      case "고등학교":
-                        suffix = "고";
-                        break;
-                      case "대학교":
-                        suffix = "대";
-                        break;
-                    }
-                    if (suffix && !finalName.endsWith(suffix))
-                      finalName += suffix;
-                  }
-                  registerForm.setValue("school", finalName);
+                  registerForm.setValue(
+                    "school",
+                    buildSchoolValue(schoolLevel, val)
+                  );
                 }}
                 className="flex-1"
               />
@@ -827,9 +971,16 @@ export function RentalDialog({
                   <DialogDescription>
                     {isRentedMode
                       ? `현재 '${item.name}'은(는) 대여 중입니다.`
-                      : `'${item.name}'을(를) 대여하려면 이름과 휴대폰 번호를 입력하세요.`}
+                      : `'${item.name}'을(를) 이용하려면 이름과 PIN을 입력하세요.`}
                   </DialogDescription>
                 </DialogHeader>
+
+                <div className="rounded-xl border border-[oklch(0.75_0.12_165/0.2)] bg-[oklch(0.75_0.12_165/0.06)] px-4 py-3 text-sm leading-relaxed text-slate-700">
+                  <p className="font-semibold text-[oklch(0.75_0.12_165)]">
+                    PIN 4자리는 내 전화번호 가운데 4자리예요.
+                  </p>
+                  <p>예: 010-1234-5678 이면 PIN은 1234</p>
+                </div>
 
                 {/* 대기열 현황 카드 (대여 중일 때만 표시) */}
                 {isRentedMode && (
@@ -1011,21 +1162,24 @@ export function RentalDialog({
                 />
                 <FormField
                   control={identificationForm.control}
-                  name="phoneNumber"
+                  name="pin"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>휴대폰 번호</FormLabel>
+                      <FormLabel>PIN 4자리</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="010-1234-5678"
-                          type="text"
-                          inputMode="text"
+                          placeholder="1234"
+                          type="password"
+                          inputMode="numeric"
                           autoComplete="off"
                           autoCorrect="off"
                           {...field}
+                          maxLength={4}
                           className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!"
                           onChange={(e) => {
-                            field.onChange(formatPhoneNumber(e.target.value));
+                            field.onChange(
+                              e.target.value.replace(/[^\d]/g, "").slice(0, 4)
+                            );
                           }}
                         />
                       </FormControl>
@@ -1159,41 +1313,58 @@ export function RentalDialog({
                       </div>
                     </div>
                   )}
-                <DialogFooter className="gap-2 sm:justify-between">
+                <DialogFooter className="w-full gap-2 pt-2 sm:justify-between sm:space-x-0">
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={() => {
-                      const currentValues = identificationForm.getValues();
-                      setStep("register");
-                      registerForm.setValue("name", currentValues.name);
-                      registerForm.setValue(
-                        "phoneNumber",
-                        currentValues.phoneNumber
-                      );
-                    }}
+                    variant="ghost"
+                    onClick={closeDialog}
                     disabled={isSubmitting}
-                    className="border-[oklch(0.75_0.12_165/0.3)] text-gray-600 hover:bg-[oklch(0.75_0.12_165/0.05)]"
+                    className="sm:mr-auto"
                   >
-                    신규 등록
+                    취소
                   </Button>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
                     <Button
                       type="button"
-                      variant="ghost"
-                      onClick={closeDialog}
+                      variant="outline"
+                      onClick={() => {
+                        identificationActionRef.current = "rent";
+                        setIdentificationAction("rent");
+                        proceedToRegister(identificationForm.getValues());
+                      }}
                       disabled={isSubmitting}
+                      className="border-[oklch(0.75_0.12_165/0.3)] text-gray-700 hover:bg-[oklch(0.75_0.12_165/0.05)]"
                     >
-                      취소
+                      신규 등록
                     </Button>
                     <Button
                       type="submit"
+                      variant="outline"
+                      onClick={() => {
+                        identificationActionRef.current = "edit";
+                        setIdentificationAction("edit");
+                      }}
+                      disabled={
+                        isSubmitting || !identificationForm.formState.isValid
+                      }
+                      className="border-[oklch(0.75_0.12_165/0.3)] text-gray-700 hover:bg-[oklch(0.75_0.12_165/0.05)]"
+                    >
+                      {isSubmitting && identificationAction === "edit"
+                        ? "확인 중..."
+                        : "정보 수정"}
+                    </Button>
+                    <Button
+                      type="submit"
+                      onClick={() => {
+                        identificationActionRef.current = "rent";
+                        setIdentificationAction("rent");
+                      }}
                       disabled={
                         isSubmitting || !identificationForm.formState.isValid
                       }
                       className="bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)] text-white shadow-sm"
                     >
-                      {isSubmitting
+                      {isSubmitting && identificationAction === "rent"
                         ? "처리 중..."
                         : isRentedMode
                         ? "대기열 등록하기"
@@ -1203,6 +1374,64 @@ export function RentalDialog({
                 </DialogFooter>
               </form>
             </Form>
+          );
+
+        case "resolveMatch":
+          return (
+            <div className="space-y-4" key="resolve-match">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                  회원 선택
+                </DialogTitle>
+                <DialogDescription>
+                  같은 이름과 PIN을 사용하는 회원이 여러 명 있습니다. 학교와
+                  생년월일을 보고 본인을 선택해주세요.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3">
+                {matchedUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => void handleResolvedUserSelect(user)}
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:border-[oklch(0.75_0.12_165/0.35)] hover:bg-[oklch(0.75_0.12_165/0.04)] disabled:opacity-60"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-base font-bold text-slate-900">
+                          {user.name}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          {user.school || "학교 미등록"}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {formatBirthDateLabel(user.birthDate)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setIdentificationAction("rent");
+                    identificationActionRef.current = "rent";
+                    setStep("identification");
+                    setMatchedUsers([]);
+                    setSelectedResolvedUser(null);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  뒤로
+                </Button>
+              </DialogFooter>
+            </div>
           );
 
         case "register":
@@ -1218,10 +1447,12 @@ export function RentalDialog({
                 {/* ... 헤더 및 이름, 폰번호, 성별 필드는 기존과 동일 ... */}
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
-                    사용자 등록
+                    {registerMode === "edit" ? "개인정보 수정" : "사용자 등록"}
                   </DialogTitle>
                   <DialogDescription>
-                    새로운 사용자를 등록합니다. 정보를 입력해주세요.
+                    {registerMode === "edit"
+                      ? "학교, 성별, 생년월일을 수정할 수 있어요."
+                      : "새로운 사용자를 등록합니다. 정보를 입력해주세요."}
                   </DialogDescription>
                 </DialogHeader>
                 <FormField
@@ -1240,6 +1471,7 @@ export function RentalDialog({
                           autoComplete="off"
                           autoCorrect="off"
                           lang="ko"
+                          disabled={registerMode === "edit"}
                           className={cn(
                             "focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!",
                             fieldState.invalid &&
@@ -1254,6 +1486,11 @@ export function RentalDialog({
                           }}
                         />
                       </FormControl>
+                      {registerMode === "edit" && (
+                        <FormDescription>
+                          이름은 관리자만 수정할 수 있습니다.
+                        </FormDescription>
+                      )}
                       <FormMessage className="text-red-500" />
                     </FormItem>
                   )}
@@ -1275,6 +1512,7 @@ export function RentalDialog({
                           autoComplete="off"
                           autoCorrect="off"
                           {...field}
+                          disabled={registerMode === "edit"}
                           className={cn(
                             "focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!",
                             fieldState.invalid &&
@@ -1294,6 +1532,11 @@ export function RentalDialog({
                           maxLength={13}
                         />
                       </FormControl>
+                      {registerMode === "edit" && (
+                        <FormDescription>
+                          전화번호는 관리자만 수정할 수 있습니다.
+                        </FormDescription>
+                      )}
                       <FormMessage className="text-red-500" />
                     </FormItem>
                   )}
@@ -1588,6 +1831,8 @@ export function RentalDialog({
                     type="button"
                     variant="ghost"
                     onClick={() => {
+                      setIdentificationAction("rent");
+                      identificationActionRef.current = "rent";
                       setStep("identification");
                       setShowSchoolPanel(false);
                     }}
@@ -1600,7 +1845,13 @@ export function RentalDialog({
                     disabled={isSubmitting}
                     className="bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
                   >
-                    {isSubmitting ? "등록 중..." : "등록"}
+                    {isSubmitting
+                      ? registerMode === "edit"
+                        ? "저장 중..."
+                        : "등록 중..."
+                      : registerMode === "edit"
+                      ? "수정 저장"
+                      : "등록"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -1839,133 +2090,6 @@ export function RentalDialog({
               `}</style>
             </div>
           );
-
-        case "waitingSuccess":
-          const isWaiting = step === "waitingSuccess";
-          // 반지름과 둘레 계산
-          const r = 40;
-          const c = 2 * Math.PI * r;
-
-          return (
-            <div
-              // key에 step을 넣어 모달이 열릴 때마다 애니메이션이 새로 시작되도록 함
-              key={step}
-              className="relative flex flex-col items-center justify-center w-full min-h-[500px] overflow-hidden bg-white"
-            >
-              {/* 1. 배경 그라데이션 */}
-              <div className="absolute inset-0 z-0">
-                <div className="absolute inset-0 bg-linear-to-br from-[oklch(0.75_0.12_165/0.2)] via-[oklch(0.7_0.18_350/0.15)] to-[oklch(0.65_0.2_350/0.15)] animate-pulse" />
-                <div
-                  className="absolute inset-0 bg-linear-to-tr from-transparent via-[oklch(0.75_0.12_165/0.1)] to-transparent animate-pulse"
-                  style={{ animationDelay: "1s", animationDuration: "3s" }}
-                />
-              </div>
-
-              {/* 2. 컨텐츠 영역 */}
-              <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-8 backdrop-blur-[2px]">
-                {/* 카운트다운 원형 UI */}
-                <div className="relative flex items-center justify-center w-40 h-40 mb-8">
-                  <svg className="w-full h-full transform -rotate-90">
-                    {/* 배경 트랙 */}
-                    <circle
-                      cx="50%"
-                      cy="50%"
-                      r={r}
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="transparent"
-                      className="text-gray-100"
-                    />
-                    {/* 진행바 (CSS Animation 사용) */}
-                    <circle
-                      cx="50%"
-                      cy="50%"
-                      r={r}
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="transparent"
-                      strokeDasharray={c}
-                      strokeDashoffset={0} /* 시작은 꽉 찬 상태 */
-                      strokeLinecap="round"
-                      className="text-[oklch(0.7_0.18_350)]"
-                      style={{
-                        // 5초 동안 선형(linear)으로 정확하게 줄어들도록 설정
-                        animation: `countdown-ring 5s linear forwards`,
-                      }}
-                    />
-                    {/* CSS Keyframes 정의 (이 컴포넌트 내부에서만 동작) */}
-                    <style jsx>{`
-                      @keyframes countdown-ring {
-                        from {
-                          stroke-dashoffset: 0;
-                        }
-                        to {
-                          stroke-dashoffset: ${c};
-                        }
-                      }
-                    `}</style>
-                  </svg>
-
-                  {/* 중앙 숫자/텍스트 */}
-                  <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    {isWaiting ? (
-                      <div className="text-center animate-in zoom-in duration-300">
-                        <span className="text-xs text-muted-foreground font-semibold block mb-1">
-                          대기번호
-                        </span>
-                        <span className="text-4xl font-black text-[oklch(0.7_0.18_350)]">
-                          {waitingPosition}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-5xl font-black text-[oklch(0.7_0.18_350)] tabular-nums animate-in zoom-in duration-300">
-                        {countdown}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* 메시지 영역 */}
-                <div className="space-y-3 text-center mb-8">
-                  <DialogTitle className="text-3xl font-black text-gray-800">
-                    {isWaiting ? "대기열 등록 완료!" : "대여 완료!"}
-                  </DialogTitle>
-
-                  <DialogDescription className="text-lg text-gray-600 leading-relaxed font-medium">
-                    {isWaiting ? (
-                      <>
-                        예약 리스트에 등록되었습니다.
-                        <br />
-                        순서가 되면 알려드릴게요!
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-[oklch(0.75_0.12_165)] font-bold">
-                          {item.name}
-                        </span>{" "}
-                        대여가
-                        <br />
-                        성공적으로 처리되었습니다.
-                      </>
-                    )}
-                  </DialogDescription>
-                </div>
-
-                {/* 버튼 영역 */}
-                <div className="w-full space-y-3">
-                  <Button
-                    onClick={handleSuccessConfirm}
-                    className="w-full h-12 text-lg font-bold text-white bg-linear-to-r from-[oklch(0.75_0.12_165)] to-[oklch(0.7_0.18_350)] hover:opacity-90 shadow-lg transform transition-transform hover:scale-[1.02]"
-                  >
-                    확인하러 가기
-                  </Button>
-                  <p className="text-xs text-center text-gray-500 font-medium">
-                    {countdown}초 후 자동으로 이동합니다
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
       }
     })();
     return content;
@@ -1990,21 +2114,24 @@ export function RentalDialog({
           onOpenAutoFocus={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           className={cn(
-            "transition-all duration-300 ease-in-out gap-0",
+            "gap-0 p-0 transition-all duration-300 ease-in-out",
             step === "success" || step === "waitingSuccess"
-              ? "sm:max-w-[425px] p-0 border-0 overflow-hidden bg-transparent shadow-none"
+              ? "sm:max-w-[425px] border-0 overflow-hidden bg-transparent shadow-none"
               : showSchoolPanel
               ? "sm:max-w-[850px] w-[90vw]" // 패널 열리면 넓어짐
               : "sm:max-w-[425px]"
           )}
         >
           {/* Flex 컨테이너로 감싸서 좌우 배치 */}
-          <div className="flex h-full max-h-[85vh]">
+          <div className="flex h-full max-h-[85vh] min-w-0">
             {/* 왼쪽: 기존 폼 (너비 고정 또는 유동) */}
             <div
               ref={formScrollRef}
               className={cn(
-                "flex-1 overflow-y-auto transition-all scrollbar-hidden"
+                "min-w-0 flex-1 overflow-y-auto transition-all scrollbar-hidden",
+                step === "success" || step === "waitingSuccess"
+                  ? "p-0"
+                  : "px-6 py-6"
               )}
             >
               {renderStep()}
@@ -2012,7 +2139,7 @@ export function RentalDialog({
 
             {/* 오른쪽: 학교 선택 패널 (조건부 렌더링) */}
             {showSchoolPanel && (
-              <div className="w-[400px] bg-slate-50/50 p-6 rounded-r-lg hidden sm:block">
+              <div className="hidden w-[400px] shrink-0 rounded-r-lg bg-slate-50/50 p-6 sm:block">
                 {renderSchoolPanel()}
               </div>
             )}

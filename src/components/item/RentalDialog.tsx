@@ -25,6 +25,7 @@ import {
   updateGeneralUserForKiosk,
 } from "@/lib/actions/generalUser";
 import type { UserPinLookupResult } from "@/lib/actions/generalUser";
+import { confirmUserSchool, updateUserSchool } from "@/lib/actions/settings";
 import { toast } from "sonner";
 import { useForm, useFieldArray, Resolver, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,14 +59,25 @@ interface RentalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   consentFile: { url: string; type: "pdf" | "image" | "doc" } | null;
+  schoolReconfirmMode?: boolean;
 }
 
 type Step =
   | "identification"
-  | "resolveMatch"
   | "register"
   | "success"
-  | "waitingSuccess";
+  | "waitingSuccess"
+  | "resolveMatch"
+  | "schoolReconfirm";
+
+type PendingRental = {
+  userId: number;
+  currentSchool: string | null;
+  maleCount: number;
+  femaleCount: number;
+  participants: Array<{ name: string; gender: "남" | "여" }>;
+  shouldJoinWaitingList: boolean;
+};
 type IdentificationAction = "rent" | "edit";
 type RegisterMode = "create" | "edit";
 type PinMatchedUser = Extract<
@@ -221,6 +233,7 @@ export function RentalDialog({
   open,
   onOpenChange,
   consentFile,
+  schoolReconfirmMode = false,
 }: RentalDialogProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("identification");
@@ -228,6 +241,10 @@ export function RentalDialog({
   const [countdown, setCountdown] = useState(5);
   const [waitingPosition, setWaitingPosition] = useState<number | null>(null);
   const [showWaitingList, setShowWaitingList] = useState(false);
+  const [pendingRental, setPendingRental] = useState<PendingRental | null>(
+    null
+  );
+  const [reconfirmShowEditor, setReconfirmShowEditor] = useState(false);
   const [waitingList, setWaitingList] = useState<any[]>([]);
   const [isLoadingWaitingList, setIsLoadingWaitingList] = useState(false);
   const [identificationAction, setIdentificationAction] =
@@ -531,6 +548,24 @@ export function RentalDialog({
       toast.error("이미 대기열에 등록된 아이템입니다.");
       return;
     }
+    if (schoolReconfirmMode && !user.schoolConfirmed) {
+      setPendingRental({
+        userId: user.id,
+        currentSchool: user.school,
+        maleCount: values.maleCount,
+        femaleCount: values.femaleCount,
+        participants: values.participants,
+        shouldJoinWaitingList: Boolean(isRentedMode),
+      });
+      setReconfirmShowEditor(false);
+      setSchoolLevel("");
+      setSchoolName("");
+      setIsDirectInput(false);
+      setShowSchoolPanel(false);
+      registerForm.setValue("school", "");
+      setStep("schoolReconfirm");
+      return;
+    }
 
     if (isRentedMode) {
       await handleWaiting(user.id, values.maleCount, values.femaleCount);
@@ -599,6 +634,71 @@ export function RentalDialog({
         error instanceof Error
           ? error.message
           : "사용자 확인 중 오류가 발생했습니다."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resumePendingRental = async (rental: PendingRental) => {
+    if (rental.shouldJoinWaitingList) {
+      await handleWaiting(rental.userId, rental.maleCount, rental.femaleCount);
+    } else {
+      await handleRental(
+        rental.userId,
+        rental.maleCount,
+        rental.femaleCount,
+        rental.participants
+      );
+    }
+  };
+
+  const handleSchoolReconfirmYes = async () => {
+    if (!pendingRental) return;
+    setIsSubmitting(true);
+    try {
+      const res = await confirmUserSchool(pendingRental.userId);
+      if (res.error) throw new Error(res.error);
+      const rental = pendingRental;
+      setPendingRental(null);
+      setShowSchoolPanel(false);
+      setReconfirmShowEditor(false);
+      await resumePendingRental(rental);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "학교 확인에 실패했습니다."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSchoolReconfirmSave = async () => {
+    if (!pendingRental) return;
+    if (!schoolLevel) {
+      toast.error("학교 종류를 선택해주세요.");
+      return;
+    }
+    const finalSchool = (registerForm.getValues("school") || "").trim();
+    if (!finalSchool) {
+      toast.error("학교를 선택하거나 입력해주세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await updateUserSchool(pendingRental.userId, finalSchool);
+      if (res.error) throw new Error(res.error);
+      const rental = pendingRental;
+      setPendingRental(null);
+      setShowSchoolPanel(false);
+      setReconfirmShowEditor(false);
+      await resumePendingRental(rental);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "학교 정보 수정에 실패했습니다."
       );
     } finally {
       setIsSubmitting(false);
@@ -773,6 +873,8 @@ export function RentalDialog({
     setShowSchoolPanel(false); // 패널 닫기 초기화
     setSchoolLevel(""); // 학교 레벨 초기화
     setTempConsent(false);
+    setPendingRental(null);
+    setReconfirmShowEditor(false);
   };
 
   const handleWaitingListClick = async () => {
@@ -1857,6 +1959,144 @@ export function RentalDialog({
               </form>
             </Form>
           );
+        case "schoolReconfirm": {
+          if (!pendingRental) return null;
+          const currentDisplay =
+            pendingRental.currentSchool && pendingRental.currentSchool.trim()
+              ? pendingRental.currentSchool
+              : "(등록된 학교 없음)";
+          const levels = [
+            "초등학교",
+            "중학교",
+            "고등학교",
+            "대학교",
+            "해당없음",
+          ];
+          const watchedReconfirmSchool = registerForm.getValues("school");
+          return (
+            <div className="space-y-4" key="schoolReconfirm">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                  학교 정보 확인
+                </DialogTitle>
+                <DialogDescription>
+                  새 학기를 맞아 학교 정보가 정확한지 확인해주세요.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="p-4 rounded-md border border-[oklch(0.75_0.12_165/0.3)] bg-[oklch(0.75_0.12_165/0.05)]">
+                <p className="text-xs text-muted-foreground mb-1">
+                  현재 등록된 학교
+                </p>
+                <p className="text-xl font-bold text-foreground">
+                  {currentDisplay}
+                </p>
+              </div>
+
+              {!reconfirmShowEditor ? (
+                <div className="flex flex-col gap-2 pt-2">
+                  <Button
+                    type="button"
+                    onClick={handleSchoolReconfirmYes}
+                    disabled={isSubmitting}
+                    className="h-12 text-base font-bold bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)] text-white"
+                  >
+                    {isSubmitting ? "처리 중..." : "네, 맞아요"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setReconfirmShowEditor(true);
+                      setSchoolLevel("");
+                      setSchoolName("");
+                      setIsDirectInput(false);
+                      setShowSchoolPanel(false);
+                      registerForm.setValue("school", "");
+                    }}
+                    disabled={isSubmitting}
+                    className="h-12 text-base font-bold"
+                  >
+                    학교가 바뀌었어요
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold mb-2">학교 종류</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {levels.map((level) => (
+                        <Button
+                          key={level}
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setSchoolLevel(level);
+
+                            if (level === "해당없음") {
+                              setShowSchoolPanel(false);
+                              registerForm.setValue("school", "해당없음");
+                              setSchoolName("");
+                              setIsDirectInput(false);
+                            } else {
+                              setShowSchoolPanel(true);
+                              if (
+                                !watchedReconfirmSchool?.endsWith(
+                                  level.substring(0, 1)
+                                )
+                              ) {
+                                setSchoolName("");
+                                registerForm.setValue("school", "");
+                              }
+                              setIsDirectInput(false);
+                            }
+                          }}
+                          className={cn(
+                            "h-12 text-base font-medium transition-all",
+                            schoolLevel === level
+                              ? "bg-[oklch(0.75_0.12_165)] text-white hover:bg-[oklch(0.72_0.12_165)] border-transparent"
+                              : "hover:bg-[oklch(0.75_0.12_165/0.1)] text-slate-600"
+                          )}
+                        >
+                          {level}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {watchedReconfirmSchool &&
+                    watchedReconfirmSchool !== "해당없음" && (
+                      <div className="p-3 bg-[oklch(0.75_0.12_165/0.1)] rounded-md border border-[oklch(0.75_0.12_165/0.2)] text-[oklch(0.75_0.12_165)] font-bold text-center mx-auto w-fit">
+                        {watchedReconfirmSchool}
+                      </div>
+                    )}
+
+                  <DialogFooter className="gap-2 sm:justify-between pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setReconfirmShowEditor(false);
+                        setShowSchoolPanel(false);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      뒤로
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSchoolReconfirmSave}
+                      disabled={isSubmitting}
+                      className="bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
+                    >
+                      {isSubmitting ? "저장 중..." : "저장하고 대여하기"}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </div>
+          );
+        }
         case "success":
           // 성공 화면용 원 둘레 계산 (반지름 40)
           const rSuccess = 40;

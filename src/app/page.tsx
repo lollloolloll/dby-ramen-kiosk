@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Heart, Sparkle } from "lucide-react";
@@ -39,6 +39,14 @@ function getFileType(fileName: string): "video" | "image" | "pdf" {
 }
 
 export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
   const config = useTheme();
   const isPreview = usePreviewMode();
   const router = useRouter();

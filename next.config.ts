@@ -8,8 +8,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  serverActions: {
-    bodySizeLimit: "500mb", // 비디오 파일 업로드를 위해 증가
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "500mb",
+    },
   },
   async rewrites() {
     return [
@@ -21,10 +23,9 @@ const nextConfig = {
   },
 };
 
-// PWA 설정 래핑
 export default withPWA({
   dest: "public",
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-})(nextConfig);
+})(nextConfig as any);

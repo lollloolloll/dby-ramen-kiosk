@@ -17,6 +17,7 @@ import type { Item } from "@/app/(admin)/admin/items/columns";
 interface KioskPageClientProps {
   items: Item[];
   consentFile: { url: string; type: "pdf" | "image" | "doc" } | null;
+  schoolReconfirmMode: boolean;
 }
 
 interface PromotionItem {
@@ -32,7 +33,11 @@ function getFileType(fileName: string): "video" | "image" {
   return videoExts.includes(ext || "") ? "video" : "image";
 }
 
-export function KioskPageClient({ items, consentFile }: KioskPageClientProps) {
+export function KioskPageClient({
+  items,
+  consentFile,
+  schoolReconfirmMode,
+}: KioskPageClientProps) {
   const config = useTheme();
   const isPreview = usePreviewMode();
   const router = useRouter();
@@ -330,6 +335,7 @@ export function KioskPageClient({ items, consentFile }: KioskPageClientProps) {
             open={isDialogOpen}
             onOpenChange={setIsDialogOpen}
             consentFile={consentFile}
+            schoolReconfirmMode={schoolReconfirmMode}
           />
         </div>
       </div>

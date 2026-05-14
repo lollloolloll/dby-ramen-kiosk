@@ -58,6 +58,9 @@ export const generalUsers = sqliteTable(
     gender: text().notNull(),
     birthDate: text("birth_date"),
     school: text(),
+    schoolConfirmed: integer("school_confirmed", { mode: "boolean" })
+      .default(true)
+      .notNull(),
     personalInfoConsent: integer("personal_info_consent", { mode: "boolean" }),
     consentFilePath: text("consent_file_path"),
   },
@@ -68,6 +71,12 @@ export const generalUsers = sqliteTable(
     ),
   ]
 );
+export const kioskSettings = sqliteTable("kiosk_settings", {
+  id: integer().primaryKey({ autoIncrement: true }).notNull(),
+  schoolReconfirmMode: integer("school_reconfirm_mode", { mode: "boolean" })
+    .default(false)
+    .notNull(),
+});
 
 export const rentalRecords = sqliteTable("rental_records", {
   id: integer().primaryKey({ autoIncrement: true }).notNull(),
@@ -214,5 +223,7 @@ export const siteConfig = sqliteTable("site_config", {
     .default(60000)
     .notNull(),
 
-  updatedAt: integer("updated_at").default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+  updatedAt: integer("updated_at")
+    .default(sql`(CURRENT_TIMESTAMP)`)
+    .notNull(),
 });

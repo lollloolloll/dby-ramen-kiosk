@@ -2,13 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Heart, Sparkle } from "lucide-react";
 import { PromotionSlider } from "@/components/PromotionSlider";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { hasBackgroundMedia } from "@/lib/theme/theme-utils";
+import { AuroraBackground } from "@/components/visuals/AuroraBackground";
+import {
+  ParticleWaveBackground,
+  type WaveMode,
+} from "@/components/visuals/ParticleWaveBackground";
 import type { MarqueeItem } from "@/lib/schemas/siteConfig";
 
 interface PromotionItem {
@@ -37,6 +42,7 @@ export default function Home() {
   const config = useTheme();
   const isPreview = usePreviewMode();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPromotion, setShowPromotion] = useState(false);
   const [hasShownInitialPromotion, setHasShownInitialPromotion] =
     useState(false);
@@ -45,7 +51,19 @@ export default function Home() {
   const hasCheckedKioskFlag = useRef(false);
 
   const hasBackground = hasBackgroundMedia(config.backgroundPath);
-  const effectiveShowLavaLamp = config.showLavaLamp && !hasBackground;
+  // ?bg=aurora | wave | lava (default). 배경 이미지/영상이 있으면 무조건 none
+  const bgParam = searchParams?.get("bg");
+  const visualMode: "aurora" | "wave" | "lava" | "none" = hasBackground
+    ? "none"
+    : bgParam === "aurora"
+      ? "aurora"
+      : bgParam === "wave"
+        ? "wave"
+        : config.showLavaLamp
+          ? "lava"
+          : "none";
+  const waveMode: WaveMode =
+    (searchParams?.get("waveMode") as WaveMode) || "wave";
 
   useEffect(() => {
     const fetchPromotionFiles = async () => {
@@ -248,7 +266,7 @@ export default function Home() {
           backgroundType={config.backgroundType}
         />
 
-        {effectiveShowLavaLamp && (
+        {visualMode === "lava" && (
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div
               className="absolute left-[-10%] top-[-10%] h-[50vw] w-[50vw] rounded-full blur-[100px] animate-pulse"
@@ -274,6 +292,25 @@ export default function Home() {
               }}
             />
           </div>
+        )}
+
+        {visualMode === "aurora" && (
+          <AuroraBackground
+            colorCore={config.colorPrimary}
+            colorFringe={config.colorAccent}
+            className="absolute inset-0 z-0"
+            interactive
+            paused={isPreview}
+          />
+        )}
+
+        {visualMode === "wave" && (
+          <ParticleWaveBackground
+            color={config.colorPrimary}
+            mode={waveMode}
+            className="absolute inset-0 z-0"
+            paused={isPreview}
+          />
         )}
 
         <Link

@@ -988,8 +988,8 @@ export function RentalDialog({
                   className={cn(
                     "h-12 w-full justify-center px-4 text-center transition-all",
                     isSelected
-                      ? "bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)] ring-offset-1 ring-[oklch(0.75_0.12_165)]"
-                      : "border-slate-200 hover:border-[oklch(0.75_0.12_165)]"
+                      ? "bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)] ring-offset-1 ring-[color:var(--brand-primary)]"
+                      : "border-slate-200 hover:border-[color:var(--brand-primary)]"
                   )}
                 >
                   {school}
@@ -1041,7 +1041,7 @@ export function RentalDialog({
                 onClick={() => {
                   if (schoolName) setShowSchoolPanel(false);
                 }}
-                className="bg-[oklch(0.75_0.12_165)]"
+                className="bg-[color:var(--brand-primary)]"
               >
                 완료
               </Button>
@@ -1065,7 +1065,7 @@ export function RentalDialog({
               >
                 {/* ... 헤더 및 기타 필드 ... */}
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                  <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
                     {isRentedMode
                       ? `${item.name} 대기열 등록`
                       : `${item.name} 대여`}
@@ -1077,8 +1077,8 @@ export function RentalDialog({
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="rounded-xl border border-[oklch(0.75_0.12_165/0.2)] bg-[oklch(0.75_0.12_165/0.06)] px-4 py-3 text-sm leading-relaxed text-slate-700">
-                  <p className="font-semibold text-[oklch(0.75_0.12_165)]">
+                <div className="rounded-xl border border-[color:var(--brand-primary-20)] bg-[color:var(--brand-primary-06)] px-4 py-3 text-sm leading-relaxed text-slate-700">
+                  <p className="font-semibold text-[color:var(--brand-primary)]">
                     PIN 4자리는 내 전화번호 가운데 4자리예요.
                   </p>
                   <p>예: 010-1234-5678 이면 PIN은 1234</p>
@@ -1089,13 +1089,13 @@ export function RentalDialog({
                   <div className="space-y-3">
                     {/* 현황 요약 카드 (클릭하여 펼치기) */}
                     <div
-                      className="rounded-lg border border-[oklch(0.75_0.12_165/0.2)] bg-linear-to-br from-[oklch(0.75_0.12_165/0.05)] to-[oklch(0.7_0.18_350/0.05)] p-4 space-y-3 cursor-pointer hover:from-[oklch(0.75_0.12_165/0.1)] hover:to-[oklch(0.7_0.18_350/0.1)] transition-colors"
+                      className="rounded-lg border border-[color:var(--brand-primary-20)] bg-linear-to-br from-[color:var(--brand-primary-05)] to-[color:var(--brand-accent-05)] p-4 space-y-3 cursor-pointer hover:from-[color:var(--brand-primary-10)] hover:to-[color:var(--brand-accent-10)] transition-colors"
                       onClick={handleWaitingListClick}
                     >
                       {/* ... (생략된 현황 요약 카드 내용) ... */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-[oklch(0.7_0.18_350)] animate-pulse" />
+                          <div className="w-2 h-2 rounded-full bg-[color:var(--brand-accent)] animate-pulse" />
                           <span className="text-sm font-semibold text-foreground">
                             현재 대기 현황
                           </span>
@@ -1109,7 +1109,7 @@ export function RentalDialog({
                           <span className="text-sm text-muted-foreground">
                             사용중
                           </span>
-                          <span className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                          <span className="text-2xl font-black text-[color:var(--brand-primary)]">
                             1
                           </span>
                           <span className="text-xs text-muted-foreground">
@@ -1121,7 +1121,7 @@ export function RentalDialog({
                           <span className="text-sm text-muted-foreground">
                             대기
                           </span>
-                          <span className="text-2xl font-black text-[oklch(0.7_0.18_350)]">
+                          <span className="text-2xl font-black text-[color:var(--brand-accent)]">
                             {item.waitingCount || 0}
                           </span>
                           <span className="text-xs text-muted-foreground">
@@ -1129,7 +1129,7 @@ export function RentalDialog({
                           </span>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-[oklch(0.75_0.12_165/0.1)] flex items-center justify-between">
+                      <div className="pt-2 border-t border-[color:var(--brand-primary-10)] flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">
                           터치하여 상세 정보 {showWaitingList ? "닫기" : "보기"}
                         </span>
@@ -1141,23 +1141,23 @@ export function RentalDialog({
 
                     {/* [수정됨] 상세 정보 영역 (현재 사용자 + 대기자 명단) */}
                     {showWaitingList && (
-                      <div className="rounded-lg border border-[oklch(0.75_0.12_165/0.2)] bg-white overflow-hidden shadow-sm animate-in slide-in-from-top-2 duration-200">
+                      <div className="rounded-lg border border-[color:var(--brand-primary-20)] bg-white overflow-hidden shadow-sm animate-in slide-in-from-top-2 duration-200">
                         {isLoadingWaitingList ? (
                           <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2">
-                            <div className="w-4 h-4 border-2 border-[oklch(0.75_0.12_165)] border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-[color:var(--brand-primary)] border-t-transparent rounded-full animate-spin" />
                             정보 불러오는 중...
                           </div>
                         ) : (
                           <>
                             {/* 1. 현재 사용자 섹션 (Highlight) */}
                             {currentRenter && (
-                              <div className="bg-[oklch(0.75_0.12_165/0.1)] p-3 border-b border-[oklch(0.75_0.12_165/0.1)]">
+                              <div className="bg-[color:var(--brand-primary-10)] p-3 border-b border-[color:var(--brand-primary-10)]">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span className="bg-[oklch(0.75_0.12_165)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                  <span className="bg-[color:var(--brand-primary)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                                     현재 사용 중
                                   </span>
                                   {currentRenter.returnDueDate && (
-                                    <span className="text-[10px] text-[oklch(0.7_0.18_350)] font-semibold ml-auto">
+                                    <span className="text-[10px] text-[color:var(--brand-accent)] font-semibold ml-auto">
                                       {/* 남은 시간 계산 로직 필요 (여기선 단순 예시) */}
                                       반납 예정:{" "}
                                       {new Date(
@@ -1206,7 +1206,7 @@ export function RentalDialog({
                                       key={entry.id}
                                       className="flex items-center gap-3 p-2.5 rounded-md bg-white border border-gray-100 shadow-sm"
                                     >
-                                      <div className="shrink-0 w-6 h-6 rounded-full bg-[oklch(0.7_0.18_350)] text-white flex items-center justify-center text-xs font-bold">
+                                      <div className="shrink-0 w-6 h-6 rounded-full bg-[color:var(--brand-accent)] text-white flex items-center justify-center text-xs font-bold">
                                         {entry.position}
                                       </div>
                                       <div className="flex flex-col flex-1">
@@ -1255,7 +1255,7 @@ export function RentalDialog({
                             );
                             field.onChange(value);
                           }}
-                          className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!"
+                          className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1277,7 +1277,7 @@ export function RentalDialog({
                           autoCorrect="off"
                           {...field}
                           maxLength={4}
-                          className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!"
+                          className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!"
                           onChange={(e) => {
                             field.onChange(
                               e.target.value.replace(/[^\d]/g, "").slice(0, 4)
@@ -1396,7 +1396,7 @@ export function RentalDialog({
                                       autoComplete="off"
                                       autoCorrect="off"
                                       placeholder="이름"
-                                      className="h-8 mt-1 text-sm bg-white focus-visible:border-[oklch(0.75_0.12_165)]"
+                                      className="h-8 mt-1 text-sm bg-white focus-visible:border-[color:var(--brand-primary)]"
                                       onChange={(e) => {
                                         const value = e.target.value.replace(
                                           /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]/g,
@@ -1435,7 +1435,7 @@ export function RentalDialog({
                         proceedToRegister(identificationForm.getValues());
                       }}
                       disabled={isSubmitting}
-                      className="border-[oklch(0.75_0.12_165/0.3)] text-gray-700 hover:bg-[oklch(0.75_0.12_165/0.05)]"
+                      className="border-[color:var(--brand-primary-30)] text-gray-700 hover:bg-[color:var(--brand-primary-05)]"
                     >
                       신규 등록
                     </Button>
@@ -1449,7 +1449,7 @@ export function RentalDialog({
                       disabled={
                         isSubmitting || !identificationForm.formState.isValid
                       }
-                      className="border-[oklch(0.75_0.12_165/0.3)] text-gray-700 hover:bg-[oklch(0.75_0.12_165/0.05)]"
+                      className="border-[color:var(--brand-primary-30)] text-gray-700 hover:bg-[color:var(--brand-primary-05)]"
                     >
                       {isSubmitting && identificationAction === "edit"
                         ? "확인 중..."
@@ -1464,7 +1464,7 @@ export function RentalDialog({
                       disabled={
                         isSubmitting || !identificationForm.formState.isValid
                       }
-                      className="bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)] text-white shadow-sm"
+                      className="bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)] text-white shadow-sm"
                     >
                       {isSubmitting && identificationAction === "rent"
                         ? "처리 중..."
@@ -1482,7 +1482,7 @@ export function RentalDialog({
           return (
             <div className="space-y-4" key="resolve-match">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
                   회원 선택
                 </DialogTitle>
                 <DialogDescription>
@@ -1498,7 +1498,7 @@ export function RentalDialog({
                     type="button"
                     onClick={() => void handleResolvedUserSelect(user)}
                     disabled={isSubmitting}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:border-[oklch(0.75_0.12_165/0.35)] hover:bg-[oklch(0.75_0.12_165/0.04)] disabled:opacity-60"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:border-[color:var(--brand-primary-35)] hover:bg-[color:var(--brand-primary-04)] disabled:opacity-60"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -1548,7 +1548,7 @@ export function RentalDialog({
               >
                 {/* ... 헤더 및 이름, 폰번호, 성별 필드는 기존과 동일 ... */}
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                  <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
                     {registerMode === "edit" ? "개인정보 수정" : "사용자 등록"}
                   </DialogTitle>
                   <DialogDescription>
@@ -1564,7 +1564,7 @@ export function RentalDialog({
                     <FormItem>
                       <FormLabel>
                         이름
-                        <span className="text-[oklch(0.7_0.18_350)]">*</span>
+                        <span className="text-[color:var(--brand-accent)]">*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -1575,7 +1575,7 @@ export function RentalDialog({
                           lang="ko"
                           disabled={registerMode === "edit"}
                           className={cn(
-                            "focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!",
+                            "focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!",
                             fieldState.invalid &&
                               "border-red-500! focus-visible:border-red-500!"
                           )}
@@ -1604,7 +1604,7 @@ export function RentalDialog({
                     <FormItem>
                       <FormLabel>
                         휴대폰 번호
-                        <span className="text-[oklch(0.7_0.18_350)]">*</span>
+                        <span className="text-[color:var(--brand-accent)]">*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -1616,7 +1616,7 @@ export function RentalDialog({
                           {...field}
                           disabled={registerMode === "edit"}
                           className={cn(
-                            "focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[oklch(0.75_0.12_165)]!",
+                            "focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!",
                             fieldState.invalid &&
                               registerForm.formState.isSubmitted &&
                               "border-red-500! focus-visible:border-red-500!"
@@ -1652,7 +1652,7 @@ export function RentalDialog({
                         className={cn(fieldState.invalid && "text-red-500")}
                       >
                         성별
-                        <span className="text-[oklch(0.7_0.18_350)]">*</span>
+                        <span className="text-[color:var(--brand-accent)]">*</span>
                       </FormLabel>
                       <FormControl>
                         <div
@@ -1674,8 +1674,8 @@ export function RentalDialog({
                             }}
                             className={
                               field.value === "남"
-                                ? "bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
-                                : "border-[oklch(0.75_0.12_165/0.3)] hover:bg-[oklch(0.75_0.12_165/0.1)]"
+                                ? "bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)]"
+                                : "border-[color:var(--brand-primary-30)] hover:bg-[color:var(--brand-primary-10)]"
                             }
                           >
                             남
@@ -1691,8 +1691,8 @@ export function RentalDialog({
                             }}
                             className={
                               field.value === "여"
-                                ? " bg-[oklch(0.7_0.18_350)] hover:bg-[oklch(0.68_0.18_350)] text-white"
-                                : " border-[oklch(0.7_0.18_350/0.3)] hover:bg-[oklch(0.7_0.18_350/0.1)]"
+                                ? " bg-[color:var(--brand-accent)] hover:bg-[color:var(--brand-accent)] text-white"
+                                : " border-[color:var(--brand-accent-30)] hover:bg-[color:var(--brand-accent-10)]"
                             }
                           >
                             여
@@ -1717,7 +1717,7 @@ export function RentalDialog({
                         )}
                       >
                         생년월일
-                        <span className="text-[oklch(0.7_0.18_350)]">*</span>
+                        <span className="text-[color:var(--brand-accent)]">*</span>
                       </FormLabel>
                       <div
                         ref={field.ref}
@@ -1742,7 +1742,7 @@ export function RentalDialog({
                           open={yearSelectOpen}
                           onOpenChange={setYearSelectOpen}
                         >
-                          <SelectTrigger className="focus:outline-none! focus:ring-0! focus:ring-offset-0! focus:border-2! focus:border-[oklch(0.75_0.12_165)]! data-[state=open]:border-2! data-[state=open]:border-[oklch(0.75_0.12_165)]!">
+                          <SelectTrigger className="focus:outline-none! focus:ring-0! focus:ring-offset-0! focus:border-2! focus:border-[color:var(--brand-primary)]! data-[state=open]:border-2! data-[state=open]:border-[color:var(--brand-primary)]!">
                             <SelectValue placeholder="년" />
                           </SelectTrigger>
                           <SelectContent
@@ -1767,7 +1767,7 @@ export function RentalDialog({
                           }}
                           value={birthMonth}
                         >
-                          <SelectTrigger className="focus:outline-none! focus:ring-0! focus:ring-offset-0! focus:border-2! focus:border-[oklch(0.75_0.12_165)]! data-[state=open]:border-2! data-[state=open]:border-[oklch(0.75_0.12_165)]!">
+                          <SelectTrigger className="focus:outline-none! focus:ring-0! focus:ring-offset-0! focus:border-2! focus:border-[color:var(--brand-primary)]! data-[state=open]:border-2! data-[state=open]:border-[color:var(--brand-primary)]!">
                             <SelectValue placeholder="월" />
                           </SelectTrigger>
                           <SelectContent
@@ -1792,7 +1792,7 @@ export function RentalDialog({
                           }}
                           value={birthDay}
                         >
-                          <SelectTrigger className="focus:outline-none! focus:ring-0! focus:ring-offset-0! focus:border-2! focus:border-[oklch(0.75_0.12_165)]! data-[state=open]:border-2! data-[state=open]:border-[oklch(0.75_0.12_165)]!">
+                          <SelectTrigger className="focus:outline-none! focus:ring-0! focus:ring-offset-0! focus:border-2! focus:border-[color:var(--brand-primary)]! data-[state=open]:border-2! data-[state=open]:border-[color:var(--brand-primary)]!">
                             <SelectValue placeholder="일" />
                           </SelectTrigger>
                           <SelectContent
@@ -1821,7 +1821,7 @@ export function RentalDialog({
                         className={cn(fieldState.invalid && "text-red-500")}
                       >
                         학교
-                        <span className="text-[oklch(0.7_0.18_350)]">*</span>
+                        <span className="text-[color:var(--brand-accent)]">*</span>
                       </FormLabel>
 
                       <div className="space-y-4">
@@ -1870,8 +1870,8 @@ export function RentalDialog({
                               className={cn(
                                 "h-12 text-base font-medium transition-all",
                                 schoolLevel === level
-                                  ? "bg-[oklch(0.75_0.12_165)] text-white hover:bg-[oklch(0.72_0.12_165)] border-transparent"
-                                  : "hover:bg-[oklch(0.75_0.12_165/0.1)] text-slate-600"
+                                  ? "bg-[color:var(--brand-primary)] text-white hover:bg-[color:var(--brand-primary)] border-transparent"
+                                  : "hover:bg-[color:var(--brand-primary-10)] text-slate-600"
                               )}
                             >
                               {level}
@@ -1881,7 +1881,7 @@ export function RentalDialog({
 
                         {/* 선택된 학교 표시 (패널이 열려있을 때 폼 안에서도 확인 가능하게) */}
                         {field.value && field.value !== "해당없음" && (
-                          <div className="p-3 bg-[oklch(0.75_0.12_165/0.1)] rounded-md border border-[oklch(0.75_0.12_165/0.2)] text-[oklch(0.75_0.12_165)] font-bold text-center mx-auto w-fit">
+                          <div className="p-3 bg-[color:var(--brand-primary-10)] rounded-md border border-[color:var(--brand-primary-20)] text-[color:var(--brand-primary)] font-bold text-center mx-auto w-fit">
                             {field.value}
                           </div>
                         )}
@@ -1895,7 +1895,7 @@ export function RentalDialog({
                   control={registerForm.control}
                   name="personalInfoConsent"
                   render={({ field }) => (
-                    <FormItem className="rounded-lg border-2 border-dashed border-[oklch(0.75_0.12_165/0.3)] p-4 bg-linear-to-br from-[oklch(0.75_0.12_165/0.05)] to-[oklch(0.7_0.18_350/0.05)]">
+                    <FormItem className="rounded-lg border-2 border-dashed border-[color:var(--brand-primary-30)] p-4 bg-linear-to-br from-[color:var(--brand-primary-05)] to-[color:var(--brand-accent-05)]">
                       <div className="flex items-start gap-3">
                         <div className="mt-1">
                           <Checkbox
@@ -1918,7 +1918,7 @@ export function RentalDialog({
                             <br />
                             동의하지 않아도 서비스 이용이 가능합니다.
                             <br />
-                            <span className="text-[oklch(0.75_0.12_165)] font-medium">
+                            <span className="text-[color:var(--brand-primary)] font-medium">
                               클릭하여 동의서 확인 및 선택
                             </span>
                           </FormDescription>
@@ -1945,7 +1945,7 @@ export function RentalDialog({
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
+                    className="bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)]"
                   >
                     {isSubmitting
                       ? registerMode === "edit"
@@ -1976,7 +1976,7 @@ export function RentalDialog({
           return (
             <div className="space-y-4" key="schoolReconfirm">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-[oklch(0.75_0.12_165)]">
+                <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
                   학교 정보 확인
                 </DialogTitle>
                 <DialogDescription>
@@ -1984,7 +1984,7 @@ export function RentalDialog({
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="p-4 rounded-md border border-[oklch(0.75_0.12_165/0.3)] bg-[oklch(0.75_0.12_165/0.05)]">
+              <div className="p-4 rounded-md border border-[color:var(--brand-primary-30)] bg-[color:var(--brand-primary-05)]">
                 <p className="text-xs text-muted-foreground mb-1">
                   현재 등록된 학교
                 </p>
@@ -1999,7 +1999,7 @@ export function RentalDialog({
                     type="button"
                     onClick={handleSchoolReconfirmYes}
                     disabled={isSubmitting}
-                    className="h-12 text-base font-bold bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)] text-white"
+                    className="h-12 text-base font-bold bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)] text-white"
                   >
                     {isSubmitting ? "처리 중..." : "네, 맞아요"}
                   </Button>
@@ -2054,8 +2054,8 @@ export function RentalDialog({
                           className={cn(
                             "h-12 text-base font-medium transition-all",
                             schoolLevel === level
-                              ? "bg-[oklch(0.75_0.12_165)] text-white hover:bg-[oklch(0.72_0.12_165)] border-transparent"
-                              : "hover:bg-[oklch(0.75_0.12_165/0.1)] text-slate-600"
+                              ? "bg-[color:var(--brand-primary)] text-white hover:bg-[color:var(--brand-primary)] border-transparent"
+                              : "hover:bg-[color:var(--brand-primary-10)] text-slate-600"
                           )}
                         >
                           {level}
@@ -2066,7 +2066,7 @@ export function RentalDialog({
 
                   {watchedReconfirmSchool &&
                     watchedReconfirmSchool !== "해당없음" && (
-                      <div className="p-3 bg-[oklch(0.75_0.12_165/0.1)] rounded-md border border-[oklch(0.75_0.12_165/0.2)] text-[oklch(0.75_0.12_165)] font-bold text-center mx-auto w-fit">
+                      <div className="p-3 bg-[color:var(--brand-primary-10)] rounded-md border border-[color:var(--brand-primary-20)] text-[color:var(--brand-primary)] font-bold text-center mx-auto w-fit">
                         {watchedReconfirmSchool}
                       </div>
                     )}
@@ -2087,7 +2087,7 @@ export function RentalDialog({
                       type="button"
                       onClick={handleSchoolReconfirmSave}
                       disabled={isSubmitting}
-                      className="bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
+                      className="bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)]"
                     >
                       {isSubmitting ? "저장 중..." : "저장하고 대여하기"}
                     </Button>
@@ -2108,7 +2108,7 @@ export function RentalDialog({
               key="success"
             >
               {/* 배경 그라데이션 */}
-              <div className="absolute inset-0 bg-linear-to-br from-[oklch(0.75_0.12_165/0.1)] via-[oklch(0.7_0.18_350/0.1)] to-[oklch(0.7_0.18_350/0.1)] animate-pulse" />
+              <div className="absolute inset-0 bg-linear-to-br from-[color:var(--brand-primary-10)] via-[color:var(--brand-accent-10)] to-[color:var(--brand-accent-10)] animate-pulse" />
 
               {/* 이모지 장식 */}
               <div className="absolute top-4 left-1/4 text-4xl animate-bounce">
@@ -2139,17 +2139,17 @@ export function RentalDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <DialogTitle className="text-3xl font-black bg-linear-to-r from-[oklch(0.75_0.12_165)] via-[oklch(0.7_0.18_350)] to-[oklch(0.7_0.18_350)] bg-clip-text text-transparent">
+                  <DialogTitle className="text-3xl font-black bg-linear-to-r from-[color:var(--brand-primary)] via-[color:var(--brand-accent)] to-[color:var(--brand-accent)] bg-clip-text text-transparent">
                     대여 완료!
                   </DialogTitle>
-                  <div className="text-5xl font-bold text-[oklch(0.75_0.12_165)]">
+                  <div className="text-5xl font-bold text-[color:var(--brand-primary)]">
                     {item.name}
                   </div>
                 </div>
 
                 <DialogDescription className="text-lg font-medium text-foreground leading-relaxed">
                   신나게 즐기고 <br />
-                  <span className="text-[oklch(0.7_0.18_350)] font-bold">
+                  <span className="text-[color:var(--brand-accent)] font-bold">
                     정리정돈
                   </span>{" "}
                   하는 거 잊지 말기!
@@ -2188,14 +2188,14 @@ export function RentalDialog({
                         x2="100%"
                         y2="100%"
                       >
-                        <stop offset="0%" stopColor="oklch(0.75 0.12 165)" />
-                        <stop offset="50%" stopColor="oklch(0.7 0.18 350)" />
-                        <stop offset="100%" stopColor="oklch(0.7 0.18 350)" />
+                        <stop offset="0%" style={{ stopColor: "var(--brand-primary)" }} />
+                        <stop offset="50%" style={{ stopColor: "var(--brand-accent)" }} />
+                        <stop offset="100%" style={{ stopColor: "var(--brand-accent)" }} />
                       </linearGradient>
                     </defs>
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-black bg-linear-to-r from-[oklch(0.75_0.12_165)] to-[oklch(0.7_0.18_350)] bg-clip-text text-transparent tabular-nums">
+                    <span className="text-3xl font-black bg-linear-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] bg-clip-text text-transparent tabular-nums">
                       {countdown}
                     </span>
                   </div>
@@ -2204,7 +2204,7 @@ export function RentalDialog({
                 <DialogFooter className="mt-6 w-full">
                   <Button
                     onClick={handleSuccessConfirm}
-                    className="w-full h-12 text-lg font-bold bg-linear-to-r from-[oklch(0.75_0.12_165)] via-[oklch(0.7_0.18_350)] to-[oklch(0.7_0.18_350)] hover:from-[oklch(0.7_0.12_165)] hover:via-[oklch(0.65_0.18_350)] hover:to-[oklch(0.65_0.18_350)] transition-all duration-300 transform hover:scale-105 shadow-lg text-white border-0"
+                    className="w-full h-12 text-lg font-bold bg-linear-to-r from-[color:var(--brand-primary)] via-[color:var(--brand-accent)] to-[color:var(--brand-accent)] hover:from-[color:var(--brand-primary)] hover:via-[color:var(--brand-accent)] hover:to-[color:var(--brand-accent)] transition-all duration-300 transform hover:scale-105 shadow-lg text-white border-0"
                   >
                     확인 ✓
                   </Button>
@@ -2240,9 +2240,9 @@ export function RentalDialog({
             >
               {/* 1. 배경 그라데이션 (깔끔한 버전) */}
               <div className="absolute inset-0 z-0">
-                <div className="absolute inset-0 bg-linear-to-br from-[oklch(0.75_0.12_165/0.2)] via-[oklch(0.7_0.18_350/0.15)] to-[oklch(0.65_0.2_350/0.15)] animate-pulse" />
+                <div className="absolute inset-0 bg-linear-to-br from-[color:var(--brand-primary-20)] via-[color:var(--brand-accent-15)] to-[color:var(--brand-accent-15)] animate-pulse" />
                 <div
-                  className="absolute inset-0 bg-linear-to-tr from-transparent via-[oklch(0.75_0.12_165/0.1)] to-transparent animate-pulse"
+                  className="absolute inset-0 bg-linear-to-tr from-transparent via-[color:var(--brand-primary-10)] to-transparent animate-pulse"
                   style={{ animationDelay: "1s", animationDuration: "3s" }}
                 />
               </div>
@@ -2271,7 +2271,7 @@ export function RentalDialog({
                       strokeDasharray={cWait}
                       strokeDashoffset={0}
                       strokeLinecap="round"
-                      className="text-[oklch(0.7_0.18_350)]"
+                      className="text-[color:var(--brand-accent)]"
                       style={{
                         animation: "countdown-ring-wait 5s linear forwards",
                       }}
@@ -2284,7 +2284,7 @@ export function RentalDialog({
                       <span className="text-xs text-muted-foreground font-semibold block mb-1">
                         대기번호
                       </span>
-                      <span className="text-4xl font-black text-[oklch(0.7_0.18_350)]">
+                      <span className="text-4xl font-black text-[color:var(--brand-accent)]">
                         {waitingPosition}
                       </span>
                     </div>
@@ -2308,7 +2308,7 @@ export function RentalDialog({
                 <div className="w-full space-y-3">
                   <Button
                     onClick={handleSuccessConfirm}
-                    className="w-full h-12 text-lg font-bold text-white bg-linear-to-r from-[oklch(0.75_0.12_165)] to-[oklch(0.7_0.18_350)] hover:opacity-90 shadow-lg transform transition-transform hover:scale-[1.02]"
+                    className="w-full h-12 text-lg font-bold text-white bg-linear-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] hover:opacity-90 shadow-lg transform transition-transform hover:scale-[1.02]"
                   >
                     확인하러 가기
                   </Button>
@@ -2391,8 +2391,8 @@ export function RentalDialog({
       <Dialog open={isConsentModalOpen} onOpenChange={setIsConsentModalOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden">
           {/* 기존 내용 유지 */}
-          <DialogHeader className="px-6 py-4 border-b bg-linear-to-r from-[oklch(0.75_0.12_165/0.1)] to-[oklch(0.7_0.18_350/0.1)]">
-            <DialogTitle className="text-2xl font-bold text-[oklch(0.75_0.12_165)]">
+          <DialogHeader className="px-6 py-4 border-b bg-linear-to-r from-[color:var(--brand-primary-10)] to-[color:var(--brand-accent-10)]">
+            <DialogTitle className="text-2xl font-bold text-[color:var(--brand-primary)]">
               개인정보 수집 및 이용 동의서
             </DialogTitle>
           </DialogHeader>
@@ -2430,7 +2430,7 @@ export function RentalDialog({
             {consentFile && consentFile.type === "doc" && (
               <div className="flex flex-col items-center justify-center space-y-6 py-16">
                 <div className="p-6 bg-white rounded-full shadow-lg">
-                  <FileText className="w-16 h-16 text-[oklch(0.75_0.12_165)]" />
+                  <FileText className="w-16 h-16 text-[color:var(--brand-primary)]" />
                 </div>
                 <div className="text-center space-y-2">
                   <p className="text-lg font-semibold">문서 파일</p>
@@ -2441,7 +2441,7 @@ export function RentalDialog({
                 <Button
                   asChild
                   size="lg"
-                  className="gap-2 bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
+                  className="gap-2 bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)]"
                 >
                   <a
                     href={consentFile.url}
@@ -2477,13 +2477,13 @@ export function RentalDialog({
               <Button
                 onClick={() => setIsConsentModalOpen(false)}
                 variant="outline"
-                className="flex-1 border-[oklch(0.75_0.12_165/0.3)] hover:bg-[oklch(0.75_0.12_165/0.1)]"
+                className="flex-1 border-[color:var(--brand-primary-30)] hover:bg-[color:var(--brand-primary-10)]"
               >
                 취소
               </Button>
               <Button
                 onClick={handleConsentConfirm}
-                className="flex-1 bg-[oklch(0.75_0.12_165)] hover:bg-[oklch(0.7_0.12_165)]"
+                className="flex-1 bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)]"
               >
                 확인
               </Button>

@@ -5,6 +5,7 @@ import { Item } from "@/app/(admin)/admin/items/columns";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import bearImage from "@/assets/images/bear.png";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 interface ItemCardProps {
   item: Item;
@@ -12,13 +13,16 @@ interface ItemCardProps {
 }
 
 export function ItemCard({ item, onOrder }: ItemCardProps) {
+  const config = useTheme();
   const isRented = item.isTimeLimited ? item.status === "RENTED" : false;
   const waitingCount = item.waitingCount;
 
+  // 폴백 체인: 아이템 자체 이미지 → 사이트 기본 이미지 → 정적 placeholder
+  const imageSrc = item.imageUrl ?? config.defaultItemImagePath ?? bearImage;
+
   return (
     <Card
-      // flex flex-col 추가하여 자식 요소들을 수직으로 정렬
-      className="relative flex flex-col overflow-hidden cursor-pointer transition-all hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] border-2 border-[oklch(0.75_0.12_165/0.2)] hover:border-[oklch(0.75_0.12_165/0.4)] bg-card pt-4"
+      className="relative flex flex-col overflow-hidden cursor-pointer transition-all hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] border-2 border-[color:var(--brand-primary-20)] hover:border-[color:var(--brand-primary-40)] bg-card pt-4"
       onClick={() => onOrder(item)}
     >
       <div className="absolute top-2 right-2 z-10">
@@ -27,18 +31,16 @@ export function ItemCard({ item, onOrder }: ItemCardProps) {
           {waitingCount > 0 && ` (${waitingCount}팀 대기)`}
         </Badge>
       </div>
-      {/* 이미지 영역: 이제 정상적으로 상단에 위치 */}
-      <div className="relative aspect-square bg-linear-to-br from-[oklch(0.75_0.12_165/0.1)] via-[oklch(0.7_0.18_350/0.1)] to-[oklch(0.7_0.18_350/0.1)]">
+      <div className="relative aspect-square bg-linear-to-br from-(--brand-primary-10) via-(--brand-accent-10) to-(--brand-accent-10)">
         <Image
-          src={item.imageUrl || bearImage}
+          src={imageSrc}
           alt={item.name}
           fill
           className="object-cover"
         />
       </div>
 
-      {/* 상품명 영역: 이미지 영역 아래에 위치 */}
-      <div className="p-4 bg-linear-to-r from-[oklch(0.75_0.12_165/0.05)] to-[oklch(0.7_0.18_350/0.05)]">
+      <div className="p-4 bg-linear-to-r from-(--brand-primary-05) to-(--brand-accent-05)">
         <h3 className="text-lg font-bold text-center line-clamp-2 text-foreground">
           {item.name}
         </h3>

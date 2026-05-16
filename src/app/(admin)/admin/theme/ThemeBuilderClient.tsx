@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, RefreshCcw, RotateCw, Trash2, Upload } from "lucide-react";
+import { Loader2, RefreshCcw, RotateCw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
   type SiteConfigInput,
 } from "@/lib/schemas/siteConfig";
 import { useDebounce } from "@/lib/shared/use-debounce";
+import { broadcastSiteConfigChanged } from "@/lib/theme/broadcast";
 
 const PREVIEW_TABS = {
   home: "/?preview=1",
@@ -47,6 +48,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingDefaultItem, setIsUploadingDefaultItem] = useState(false);
   const [device, setDevice] = useState<DevicePresetKey>("ipad");
   const [isRotated, setIsRotated] = useState(false);
   const [zoom, setZoom] = useState(0.75);
@@ -60,15 +62,6 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
     resolver: zodResolver(siteConfigSchema),
     defaultValues: stripMeta(initialConfig),
     mode: "onChange",
-  });
-
-  const marqueeArray = useFieldArray({
-    control: form.control,
-    name: "marqueeItems",
-  });
-  const stickerArray = useFieldArray({
-    control: form.control,
-    name: "stickerEmojis",
   });
 
   const watchedValues = useWatch({ control: form.control });
@@ -98,6 +91,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
     try {
       const saved = await updateSiteConfig(normalizeDraft(values));
       form.reset(stripMeta(saved));
+      broadcastSiteConfigChanged();
       toast.success("테마 설정을 저장했습니다.");
     } catch (error) {
       console.error(error);
@@ -131,6 +125,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
       }
 
       onSuccess(data);
+      broadcastSiteConfigChanged();
       toast.success("파일을 업로드했습니다.");
     } catch (error) {
       console.error(error);
@@ -158,6 +153,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
       }
 
       onSuccess();
+      broadcastSiteConfigChanged();
       toast.success(message);
     } catch (error) {
       console.error(error);
@@ -259,53 +255,6 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
 
         <Card>
           <CardHeader>
-            <CardTitle>스티커 / 마퀴</CardTitle>
-            <CardDescription>스티커 이모지 4개와 마퀴 항목을 조정합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-4">
-              {stickerArray.fields.map((field, index) => (
-                <TextField
-                  key={field.id}
-                  label={`스티커 ${index + 1}`}
-                  {...form.register(`stickerEmojis.${index}.emoji`)}
-                />
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              {marqueeArray.fields.map((field, index) => (
-                <div key={field.id} className="grid gap-3 md:grid-cols-[120px_1fr_auto]">
-                  <Input placeholder="🎮" {...form.register(`marqueeItems.${index}.emoji`)} />
-                  <Input
-                    placeholder="닌텐도 스위치"
-                    {...form.register(`marqueeItems.${index}.label`)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => marqueeArray.remove(index)}
-                    disabled={marqueeArray.fields.length === 1}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    삭제
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => marqueeArray.append({ emoji: "✨", label: "새 항목" })}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                마퀴 항목 추가
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>배경 / 로고</CardTitle>
             <CardDescription>배경 미디어와 홈 상단 로고를 업로드합니다.</CardDescription>
           </CardHeader>
@@ -387,6 +336,37 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                 })
               }
             />
+
+            <AssetUploader
+              label="아이템 기본 이미지"
+              description="개별 아이템에 이미지가 없을 때 보여줄 폴백 이미지입니다."
+              currentPath={form.watch("defaultItemImagePath")}
+              isLoading={isUploadingDefaultItem}
+              accept=".jpg,.jpeg,.png,.webp,.gif"
+              onUpload={async (file) => {
+                await uploadSingleAsset({
+                  file,
+                  endpoint: "/api/uploads/default-item",
+                  setLoading: setIsUploadingDefaultItem,
+                  onSuccess: (data) => {
+                    form.setValue("defaultItemImagePath", data.path, {
+                      shouldDirty: true,
+                    });
+                  },
+                });
+              }}
+              onDelete={() =>
+                deleteAsset({
+                  endpoint: "/api/uploads/default-item",
+                  message: "기본 이미지를 삭제했습니다.",
+                  onSuccess: () => {
+                    form.setValue("defaultItemImagePath", null, {
+                      shouldDirty: true,
+                    });
+                  },
+                })
+              }
+            />
           </CardContent>
         </Card>
 
@@ -397,29 +377,6 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
-              <ToggleField
-                label="라바램프"
-                checked={form.watch("showLavaLamp")}
-                disabled={hasBackground}
-                description={hasBackground ? "배경 미디어가 있으면 자동으로 숨겨집니다." : undefined}
-                onCheckedChange={(checked) =>
-                  form.setValue("showLavaLamp", checked, { shouldDirty: true })
-                }
-              />
-              <ToggleField
-                label="스티커"
-                checked={form.watch("showStickers")}
-                onCheckedChange={(checked) =>
-                  form.setValue("showStickers", checked, { shouldDirty: true })
-                }
-              />
-              <ToggleField
-                label="마퀴"
-                checked={form.watch("showMarquee")}
-                onCheckedChange={(checked) =>
-                  form.setValue("showMarquee", checked, { shouldDirty: true })
-                }
-              />
               <ToggleField
                 label="카테고리 필터"
                 checked={form.watch("showFilters")}
@@ -617,6 +574,7 @@ function normalizeDraft(values: SiteConfigInput): SiteConfigInput {
     backgroundPath: values.backgroundPath || null,
     backgroundType: values.backgroundType || null,
     logoPath: values.logoPath || null,
+    defaultItemImagePath: values.defaultItemImagePath || null,
   };
 }
 

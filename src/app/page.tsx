@@ -8,12 +8,12 @@ import { PromotionSlider } from "@/components/PromotionSlider";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
-import { hasBackgroundMedia } from "@/lib/theme/theme-utils";
 import { AuroraBackground } from "@/components/visuals/AuroraBackground";
 import {
   ParticleWaveBackground,
   type WaveMode,
 } from "@/components/visuals/ParticleWaveBackground";
+import { resolveVisualMode, resolveWaveMode } from "@/lib/theme/visual-mode";
 import type { MarqueeItem } from "@/lib/schemas/siteConfig";
 
 interface PromotionItem {
@@ -58,20 +58,8 @@ function HomeContent() {
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasCheckedKioskFlag = useRef(false);
 
-  const hasBackground = hasBackgroundMedia(config.backgroundPath);
-  // ?bg=aurora | wave | lava (default). 배경 이미지/영상이 있으면 무조건 none
-  const bgParam = searchParams?.get("bg");
-  const visualMode: "aurora" | "wave" | "lava" | "none" = hasBackground
-    ? "none"
-    : bgParam === "aurora"
-      ? "aurora"
-      : bgParam === "wave"
-        ? "wave"
-        : config.showLavaLamp
-          ? "lava"
-          : "none";
-  const waveMode: WaveMode =
-    (searchParams?.get("waveMode") as WaveMode) || "wave";
+  const visualMode = resolveVisualMode(config, searchParams, "lava");
+  const waveMode: WaveMode = resolveWaveMode(searchParams);
 
   useEffect(() => {
     const fetchPromotionFiles = async () => {

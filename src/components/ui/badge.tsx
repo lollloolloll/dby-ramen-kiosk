@@ -17,8 +17,10 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        available: "border-transparent bg-[oklch(0.75_0.12_165)] text-white",
-        rented: "border-transparent bg-[oklch(0.7_0.18_350)]  text-white",
+        available:
+          "border-transparent bg-[color:var(--brand-primary)] text-white",
+        rented:
+          "border-transparent bg-[color:var(--brand-accent)] text-white",
       },
     },
     defaultVariants: {

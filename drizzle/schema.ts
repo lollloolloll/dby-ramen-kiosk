@@ -223,6 +223,17 @@ export const siteConfig = sqliteTable("site_config", {
     .default(60000)
     .notNull(),
 
+  // 인스턴스별 비주얼 프리셋. 'lava'(쌍청문) | 'aurora'(D.Base) | 'wave' | 'none'
+  // 관리자 폼 노출 X — seed/migration으로만 변경
+  visualPreset: text("visual_preset", {
+    enum: ["lava", "aurora", "wave", "none"],
+  })
+    .default("lava")
+    .notNull(),
+
+  // 아이템 이미지가 없을 때 보여줄 폴백 이미지 경로. nullable이면 정적 placeholder 사용
+  defaultItemImagePath: text("default_item_image_path"),
+
   updatedAt: integer("updated_at")
     .default(sql`(CURRENT_TIMESTAMP)`)
     .notNull(),

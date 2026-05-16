@@ -65,6 +65,9 @@ export const siteConfigSchema = z.object({
 
   kioskGridCols: z.number().int().min(2).max(5),
   inactivityTimeoutMs: z.number().int().min(30_000).max(300_000),
+
+  visualPreset: z.enum(["lava", "aurora", "wave", "none"]),
+  defaultItemImagePath: z.string().nullable(),
 });
 
 export type MarqueeItem = z.infer<typeof marqueeItemSchema>;
@@ -118,6 +121,8 @@ export const defaultSiteConfigValues: SiteConfigInput = {
   logoPath: null,
   kioskGridCols: 4,
   inactivityTimeoutMs: 60_000,
+  visualPreset: "lava",
+  defaultItemImagePath: null,
 };
 
 function parseJsonArray<T>(raw: string, fallback: T[]): T[] {

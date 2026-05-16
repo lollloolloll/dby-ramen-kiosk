@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Home } from "lucide-react";
 import { PromotionSlider } from "@/components/PromotionSlider";
 import { ItemCard } from "@/components/item/ItemCard";
@@ -12,6 +12,12 @@ import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { cn } from "@/lib/utils";
 import { getGridColsClass, hasBackgroundMedia } from "@/lib/theme/theme-utils";
+import { AuroraBackground } from "@/components/visuals/AuroraBackground";
+import {
+  ParticleWaveBackground,
+  type WaveMode,
+} from "@/components/visuals/ParticleWaveBackground";
+import { resolveVisualMode, resolveWaveMode } from "@/lib/theme/visual-mode";
 import type { Item } from "@/app/(admin)/admin/items/columns";
 
 interface KioskPageClientProps {
@@ -41,6 +47,7 @@ export function KioskPageClient({
   const config = useTheme();
   const isPreview = usePreviewMode();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPromotion, setShowPromotion] = useState(false);
@@ -49,8 +56,11 @@ export function KioskPageClient({
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasBackground = hasBackgroundMedia(config.backgroundPath);
+  // 키오스크는 lava lamp 대신 그라데이션이라 fallback이 'gradient' 의미로 'lava' 슬롯 재활용
+  const visualMode = resolveVisualMode(config, searchParams, "lava");
+  const waveMode: WaveMode = resolveWaveMode(searchParams);
   const effectiveShowKioskGradient =
-    config.showKioskBgGradient && !hasBackground;
+    visualMode === "lava" && config.showKioskBgGradient && !hasBackground;
 
   const categories = useMemo(() => {
     const uniqueCategories = Array.from(
@@ -219,6 +229,25 @@ export function KioskPageClient({
           backgroundType={config.backgroundType}
         />
 
+        {visualMode === "aurora" && (
+          <AuroraBackground
+            colorCore={config.colorPrimary}
+            colorFringe={config.colorAccent}
+            className="absolute inset-0 z-0"
+            interactive
+            paused={isPreview}
+          />
+        )}
+
+        {visualMode === "wave" && (
+          <ParticleWaveBackground
+            color={config.colorPrimary}
+            mode={waveMode}
+            className="absolute inset-0 z-0"
+            paused={isPreview}
+          />
+        )}
+
         <div
           className={cn(
             "relative min-h-screen",
@@ -227,7 +256,7 @@ export function KioskPageClient({
           )}
         >
           <div className="container relative z-10 mx-auto px-6 py-10">
-            <div className="relative mb-12 flex items-center justify-between">
+            <div className="mb-8 flex flex-wrap items-center justify-between gap-4 lg:flex-nowrap lg:gap-6">
               <Link
                 href="/"
                 onClick={(event) => {
@@ -235,7 +264,7 @@ export function KioskPageClient({
                     event.preventDefault();
                   }
                 }}
-                className="inline-flex shrink-0 items-center gap-2 rounded-2xl border-2 bg-white/80 px-6 py-3 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white hover:shadow-xl group"
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl border-2 bg-white/80 px-4 py-2 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white hover:shadow-xl group sm:px-6 sm:py-3"
                 style={{
                   borderColor: "var(--brand-primary-30)",
                 }}
@@ -245,30 +274,28 @@ export function KioskPageClient({
                   style={{ color: "var(--brand-primary)" }}
                 />
                 <span
-                  className="text-lg font-bold"
+                  className="text-base font-bold sm:text-lg"
                   style={{ color: "var(--brand-primary)" }}
                 >
                   홈으로
                 </span>
               </Link>
 
-              <div className="absolute left-1/2 -translate-x-1/2 text-center">
-                <h1
-                  className="mb-4 whitespace-nowrap text-5xl font-black"
-                  style={{ color: "var(--brand-primary)" }}
-                >
-                  {config.kioskTitle}
-                </h1>
-              </div>
+              <h1
+                className="order-last w-full min-w-0 truncate text-center text-3xl font-black md:text-4xl lg:order-none lg:flex-1 lg:text-5xl"
+                style={{ color: "var(--brand-primary)" }}
+              >
+                {config.kioskTitle}
+              </h1>
 
-              <div className="ml-4 flex shrink-0 items-center gap-3">
-                {config.showFilters &&
-                  categories.map((category) => (
+              {config.showFilters && (
+                <div className="flex max-w-full shrink-0 items-center gap-2 overflow-x-auto scrollbar-hidden sm:gap-3">
+                  {categories.map((category) => (
                     <button
                       key={category}
                       onClick={() => handleCategoryChange(category)}
                       className={cn(
-                        "whitespace-nowrap rounded-2xl px-6 py-3 font-bold shadow-lg transition-all duration-300 hover:scale-105",
+                        "shrink-0 whitespace-nowrap rounded-2xl px-4 py-2 font-bold shadow-lg transition-all duration-300 hover:scale-105 sm:px-6 sm:py-3",
                         selectedCategory === category
                           ? "border-2 text-white"
                           : "border-2 bg-white/80 hover:bg-white"
@@ -288,7 +315,8 @@ export function KioskPageClient({
                       {category}
                     </button>
                   ))}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 

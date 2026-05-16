@@ -94,6 +94,7 @@ export async function updateSiteConfigMedia(input: {
   backgroundPath?: string | null;
   backgroundType?: "image" | "video" | null;
   logoPath?: string | null;
+  defaultItemImagePath?: string | null;
 }) {
   await ensureSiteConfigRow();
 
@@ -107,6 +108,9 @@ export async function updateSiteConfigMedia(input: {
         ? { backgroundType: input.backgroundType }
         : {}),
       ...(input.logoPath !== undefined ? { logoPath: input.logoPath } : {}),
+      ...(input.defaultItemImagePath !== undefined
+        ? { defaultItemImagePath: input.defaultItemImagePath }
+        : {}),
       updatedAt: sql`CURRENT_TIMESTAMP`,
     })
     .where(eq(siteConfig.id, SITE_CONFIG_ID));

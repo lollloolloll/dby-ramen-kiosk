@@ -79,6 +79,12 @@
   --brand-accent-30: color-mix(in srgb, var(--brand-accent) 30%, transparent);
   --brand-accent-40: color-mix(in srgb, var(--brand-accent) 40%, transparent);
   --brand-accent-60: color-mix(in srgb, var(--brand-accent) 60%, transparent);
+  /* DESIGN.md surface tokens (PlayStation-style canvas system) */
+  --surface-card: color-mix(in srgb, var(--brand-bg) 94%, var(--brand-primary));
+  --surface-soft: color-mix(in srgb, var(--brand-bg) 96%, var(--brand-text));
+  --hairline: color-mix(in srgb, var(--brand-text) 8%, transparent);
+  --hairline-strong: color-mix(in srgb, var(--brand-text) 15%, transparent);
+  --body-muted: color-mix(in srgb, var(--brand-text) 60%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

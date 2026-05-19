@@ -229,13 +229,13 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             />
             <ColorField
               label="글자 색"
-              helper="본문 텍스트 색"
+              helper="본문 텍스트 · 홈 hero 배경 · 상단 nav 배경에 사용 (어두운 색 권장)"
               value={form.watch("colorTextMain")}
               onChange={(value) => form.setValue("colorTextMain", value, { shouldDirty: true })}
             />
             <ColorField
               label="페이지 배경"
-              helper="화면 전체 바탕색"
+              helper="카탈로그 바탕색 · hero 위 글자 색에도 사용 (밝은 색 권장)"
               value={form.watch("colorBackground")}
               onChange={(value) => form.setValue("colorBackground", value, { shouldDirty: true })}
             />
@@ -350,6 +350,40 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                     onClick={() => form.setValue("kioskGridCols", cols, { shouldDirty: true })}
                   >
                     {cols}개
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>배경 효과</Label>
+              <p className="text-xs text-muted-foreground">
+                홈/카탈로그 화면 뒤에서 움직이는 시각 효과입니다. "끄기"로 두면 단색 배경만 보입니다.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "aurora", label: "오로라" },
+                  { value: "wave", label: "파티클 웨이브" },
+                  { value: "lava", label: "그라데이션 (라바램프)" },
+                  { value: "none", label: "끄기" },
+                ].map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={
+                      form.watch("visualPreset") === option.value
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() =>
+                      form.setValue(
+                        "visualPreset",
+                        option.value as "aurora" | "wave" | "lava" | "none",
+                        { shouldDirty: true }
+                      )
+                    }
+                  >
+                    {option.label}
                   </Button>
                 ))}
               </div>

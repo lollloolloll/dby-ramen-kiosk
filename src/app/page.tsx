@@ -66,7 +66,7 @@ function HomeContent() {
   const visualMode = resolveVisualMode(config, searchParams, "lava");
   const waveMode: WaveMode = resolveWaveMode(searchParams);
 
-  // 프로모션 파일 fetch — 기능 보존
+  // 프로모션 fetch (기능 보존)
   useEffect(() => {
     const fetchPromotionFiles = async () => {
       try {
@@ -97,7 +97,6 @@ function HomeContent() {
     fetchPromotionFiles();
   }, []);
 
-  // kiosk 복귀 후 프로모션 재노출 플래그 처리 — 기능 보존
   useEffect(() => {
     if (isPreview) {
       hasCheckedKioskFlag.current = true;
@@ -215,79 +214,78 @@ function HomeContent() {
 
   return (
     <>
+      {/* Hero band — 색은 var(--brand-text) / var(--brand-bg). 운영자가 ThemeBuilder에서 직접 제어 */}
       <main
-        className="relative flex min-h-screen w-full flex-col overflow-hidden bg-(--brand-bg) text-(--brand-text) selection:bg-(--brand-primary-20)"
+        className="relative flex min-h-screen w-full flex-col overflow-hidden bg-(--brand-text) text-(--brand-bg) selection:bg-(--brand-primary)/30"
         style={{ fontFamily: "var(--font-sans)" }}
       >
+        {/* 배경 미디어가 있으면 chrome 위에 */}
         <ThemeBackground
           backgroundPath={config.backgroundPath}
           backgroundType={config.backgroundType}
         />
 
+        {/* visual preset — aurora/wave/lava 셰이더 배경 */}
         {visualMode === "aurora" && (
           <AuroraBackground
             colorCore={config.colorPrimary}
             colorFringe={config.colorAccent}
-            className="pointer-events-none absolute inset-0 z-0 opacity-90"
-            interactive
+            className="pointer-events-none absolute inset-0 z-0 opacity-70"
             paused={isPreview}
           />
         )}
-
         {visualMode === "wave" && (
           <ParticleWaveBackground
             color={config.colorPrimary}
             mode={waveMode}
-            className="pointer-events-none absolute inset-0 z-0"
+            className="pointer-events-none absolute inset-0 z-0 opacity-70"
             paused={isPreview}
           />
         )}
-
         {visualMode === "lava" && (
           <div className="pointer-events-none absolute inset-0 z-0">
             <div
-              className="absolute -left-[10%] -top-[10%] h-[60vw] w-[60vw] rounded-full blur-[140px]"
-              style={{ backgroundColor: "var(--brand-primary-20)" }}
+              className="absolute -left-[10%] -top-[10%] h-[60vw] w-[60vw] rounded-full blur-[160px] opacity-50"
+              style={{ backgroundColor: "var(--brand-primary)" }}
             />
             <div
-              className="absolute -bottom-[10%] -right-[10%] h-[60vw] w-[60vw] rounded-full blur-[160px]"
-              style={{ backgroundColor: "var(--brand-accent-20)" }}
+              className="absolute -bottom-[10%] -right-[10%] h-[60vw] w-[60vw] rounded-full blur-[180px] opacity-40"
+              style={{ backgroundColor: "var(--brand-accent)" }}
             />
           </div>
         )}
 
-        {/* 미세 그레인 노이즈 — atmosphere */}
-        <NoiseOverlay />
-
-        {/* ── 헤더 ────────────────────────────────────────── */}
-        <header className="relative z-20 flex items-start justify-between px-8 pt-8 sm:px-12 sm:pt-10">
-          <div className="flex items-center gap-4 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
+        {/* ── Primary nav strip (PS-style dark) ───────── */}
+        <nav className="relative z-20 flex h-12 items-center justify-between border-b border-(--brand-bg)/10 px-6 sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
+          <div className="flex items-center gap-5">
             {config.logoPath ? (
               <img
                 src={config.logoPath}
                 alt={config.orgName}
-                className="h-9 w-auto sm:h-11"
+                className="h-7 w-auto"
               />
             ) : (
-              <span
-                className="text-base font-semibold tracking-tight sm:text-lg"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {config.orgName || "키오스크"}
+              <span className="text-sm font-medium tracking-wide">
+                {config.orgName || "KIOSK"}
               </span>
             )}
             {FLOOR && (
-              <div className="flex items-center gap-2 border-l border-(--brand-text)/15 pl-4 text-[11px] uppercase tracking-[0.18em] text-(--brand-muted) sm:text-xs">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-primary) shadow-[0_0_0_3px_var(--brand-primary-20)]" />
+              <span className="flex items-center gap-1.5 border-l border-(--brand-bg)/15 pl-5 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/60">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{
+                    backgroundColor: "var(--brand-primary)",
+                    boxShadow: "0 0 0 3px color-mix(in srgb, var(--brand-primary) 25%, transparent)",
+                  }}
+                />
                 Floor {FLOOR}
-              </div>
+              </span>
             )}
           </div>
-
-          <nav className="flex items-center gap-5 text-[11px] uppercase tracking-[0.18em] text-(--brand-muted) sm:text-xs animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700 delay-100">
+          <div className="flex items-center gap-6 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/60">
             <button
               type="button"
-              className="transition-colors hover:text-(--brand-text)"
+              className="transition-colors hover:text-(--brand-bg)"
               onClick={async (event) => {
                 event.stopPropagation();
                 if (isPreview) return;
@@ -306,39 +304,41 @@ function HomeContent() {
               href="/admin"
               prefetch={false}
               onClick={stopBubble}
-              className="transition-colors hover:text-(--brand-text)"
+              className="transition-colors hover:text-(--brand-bg)"
             >
               관리자
             </Link>
-          </nav>
-        </header>
+          </div>
+        </nav>
 
-        {/* ── 본문 ────────────────────────────────────────── */}
-        <section className="relative z-10 flex flex-1 flex-col justify-end px-8 pb-16 sm:px-12 sm:pb-20">
-          <div className="grid w-full grid-cols-1 items-end gap-12 lg:grid-cols-[1.4fr_1fr]">
-            <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards duration-1000 delay-200">
+        {/* ── Hero band — PS display-xl weight 300 ──── */}
+        <section className="relative z-10 flex flex-1 flex-col justify-center px-6 py-24 sm:px-12 sm:py-32">
+          <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 items-end gap-16 lg:grid-cols-[1.3fr_1fr] lg:gap-24">
+            <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-100">
               {(config.homeBadge1.trim() || config.homeBadge2.trim()) && (
-                <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-(--brand-muted)">
+                <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-(--brand-bg)/55">
                   {config.homeBadge1.trim() && <span>{config.homeBadge1}</span>}
                   {config.homeBadge1.trim() && config.homeBadge2.trim() && (
-                    <span className="text-(--brand-text)/20">/</span>
+                    <span className="text-(--brand-bg)/20">·</span>
                   )}
                   {config.homeBadge2.trim() && <span>{config.homeBadge2}</span>}
                 </div>
               )}
 
+              {/* PS display-xl: weight 300, tight tracking */}
               <h1
-                className="text-[clamp(3.5rem,12vw,9rem)] font-semibold leading-[0.92] tracking-[-0.04em] text-(--brand-text)"
+                className="font-light leading-[1.05] tracking-[-0.02em]"
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontVariationSettings: '"opsz" 96',
+                  fontSize: "clamp(3rem, 9vw, 6.5rem)",
+                  fontVariationSettings: '"wght" 300, "opsz" 96',
                 }}
               >
                 {config.homeHeadlineTop}
                 {config.homeHeadlineBottom && (
                   <>
                     <br />
-                    <span className="text-(--brand-primary)">
+                    <span style={{ color: "var(--brand-primary)" }}>
                       {config.homeHeadlineBottom}
                     </span>
                   </>
@@ -346,47 +346,62 @@ function HomeContent() {
               </h1>
 
               {(config.orgName.trim() || config.homeSubcopy.trim()) && (
-                <p className="max-w-xl text-lg text-(--brand-muted) sm:text-xl">
+                <p className="max-w-xl text-lg leading-relaxed text-(--brand-bg)/70 sm:text-xl">
                   {config.orgName.trim() && (
-                    <span className="font-medium text-(--brand-text)">
+                    <span className="font-medium text-(--brand-bg)">
                       {config.orgName}
                     </span>
                   )}
                   {config.homeSubcopy}
                 </p>
               )}
+
+              {/* PS-style primary pill CTA */}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  className="group inline-flex items-center gap-3 rounded-full px-7 py-4 text-base font-bold uppercase tracking-[0.045em] transition-[transform,filter] hover:-translate-y-0.5 active:translate-y-0 active:brightness-90"
+                  style={{
+                    backgroundColor: "var(--brand-primary)",
+                    color: "white",
+                    letterSpacing: "0.045em",
+                  }}
+                >
+                  <span>{config.homeCtaLabel}</span>
+                  <ArrowRight />
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col items-stretch gap-8 lg:items-end animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards duration-1000 delay-300">
+            {/* Right slot: live clock + status (editorial moment) */}
+            <div className="flex flex-col items-start gap-6 lg:items-end animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-200">
               <LiveClock />
-              <button
-                type="button"
-                onClick={handleStart}
-                className="group relative inline-flex w-full items-center justify-between gap-6 overflow-hidden rounded-none border border-(--brand-text)/20 bg-(--brand-text) px-7 py-6 text-left text-(--brand-bg) transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-12px_var(--brand-primary-40)] active:translate-y-0 lg:w-[18rem]"
-              >
-                <span className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-(--brand-bg)/60">
-                    Start
-                  </span>
-                  <span
-                    className="text-2xl font-semibold tracking-tight"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {config.homeCtaLabel}
-                  </span>
-                </span>
-                <Arrow />
-              </button>
+              <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-(--brand-bg)/45">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "var(--brand-primary)" }}
+                />
+                Online
+              </div>
             </div>
           </div>
         </section>
 
-        {/* 푸터 — sys info */}
-        <footer className="relative z-10 flex items-center justify-between border-t border-(--brand-text)/8 px-8 py-4 text-[10px] uppercase tracking-[0.2em] text-(--brand-muted)/70 sm:px-12">
-          <span>{config.orgName || "Kiosk"} · Lounge</span>
-          <span className="font-mono normal-case tracking-normal">
-            v{FLOOR ? `F${FLOOR}` : "—"}
-          </span>
+        {/* ── BRAND BAND footer (PS-style blue strip) ─ */}
+        <footer
+          className="relative z-10 px-6 py-6 sm:px-12"
+          style={{
+            backgroundColor: "var(--brand-primary)",
+            color: "white",
+          }}
+        >
+          <div className="mx-auto flex max-w-[1280px] items-center justify-between text-[11px] font-medium uppercase tracking-[0.2em]">
+            <span>{config.orgName || "Kiosk"} · Lounge</span>
+            <span className="font-mono text-[10px] normal-case tracking-normal opacity-70">
+              {FLOOR ? `F${FLOOR}` : "—"}
+            </span>
+          </div>
         </footer>
       </main>
 
@@ -431,7 +446,7 @@ function ThemeBackground({
         />
       )}
       <div
-        className="absolute inset-0 bg-black"
+        className="absolute inset-0 bg-(--brand-text)"
         style={{ opacity: "var(--bg-overlay-opacity)" }}
       />
     </div>
@@ -447,9 +462,7 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
 
-  if (!now) {
-    return <div className="h-[5.5rem]" aria-hidden />;
-  }
+  if (!now) return <div className="h-[5rem]" aria-hidden />;
 
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
@@ -463,49 +476,35 @@ function LiveClock() {
   return (
     <div className="flex flex-col gap-1 lg:items-end" aria-hidden>
       <div
-        className="font-mono text-5xl font-light tracking-tight text-(--brand-text) tabular-nums sm:text-6xl"
-        style={{ fontVariationSettings: '"opsz" 72' }}
+        className="font-mono text-5xl font-light tabular-nums tracking-tight text-(--brand-bg) sm:text-6xl"
+        style={{ fontVariationSettings: '"wght" 300' }}
       >
         {hh}
-        <span className="mx-0.5 animate-pulse text-(--brand-muted)">:</span>
+        <span className="mx-0.5 animate-pulse text-(--brand-bg)/40">:</span>
         {mm}
       </div>
-      <div className="text-[11px] uppercase tracking-[0.2em] text-(--brand-muted)">
+      <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-(--brand-bg)/45">
         {dateStr}
       </div>
     </div>
   );
 }
 
-function Arrow() {
+function ArrowRight() {
   return (
     <svg
-      width="32"
-      height="16"
-      viewBox="0 0 32 16"
+      width="20"
+      height="10"
+      viewBox="0 0 20 10"
       fill="none"
-      className="shrink-0 transition-transform duration-500 group-hover:translate-x-1"
+      className="shrink-0 transition-transform duration-300 group-hover:translate-x-1"
       aria-hidden
     >
       <path
-        d="M0 8H30M30 8L23 1M30 8L23 15"
+        d="M0 5H19M19 5L14 1M19 5L14 9"
         stroke="currentColor"
         strokeWidth="1.5"
       />
     </svg>
-  );
-}
-
-/** SVG 노이즈 — 단색 배경에 미세 grain. opacity 매우 낮음. */
-function NoiseOverlay() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-[1] opacity-[0.04] mix-blend-overlay"
-      aria-hidden
-      style={{
-        backgroundImage:
-          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-      }}
-    />
   );
 }

@@ -11,10 +11,12 @@ interface ItemCardProps {
 }
 
 /**
- * Editorial 스타일 카드:
- * - 정사각 이미지 / 얇은 보더 / 그림자 없음
- * - 상단에 상태 마이크로 라벨, 하단에 이름 + 카운트
- * - hover 시 색만 미세 변화, scale 변형 X
+ * PlayStation-style product card (DESIGN.md `game-tile` / `product-card`):
+ * - 8px radius (`rounded.md`)
+ * - flat, no resting shadow (depth from surface color)
+ * - imagery 70%, copy slot bottom 30%
+ * - badge-info pill (full rounded) — primary blue, top-right
+ * - subtle border (hairline-light)
  */
 export function ItemCard({ item, onOrder }: ItemCardProps) {
   const config = useTheme();
@@ -27,39 +29,45 @@ export function ItemCard({ item, onOrder }: ItemCardProps) {
     <button
       type="button"
       onClick={() => onOrder(item)}
-      className="group relative flex h-full w-full flex-col overflow-hidden border border-(--brand-text)/10 bg-(--brand-bg) text-left transition-colors duration-300 hover:border-(--brand-text)/30"
+      className="group relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-(--hairline) bg-(--surface-card) text-left transition-[border-color,transform] duration-300 hover:border-(--hairline-strong) active:scale-[0.99]"
     >
-      <div className="relative aspect-square overflow-hidden bg-(--brand-primary-05)">
+      {/* Imagery dominant — 70% */}
+      <div className="relative aspect-square overflow-hidden">
         <Image
           src={imageSrc}
           alt={item.name}
           fill
-          className="object-cover transition-opacity duration-500 group-hover:opacity-90"
+          className="object-cover transition-opacity duration-500"
         />
 
-        {/* 상태 마이크로 라벨 — 우상단 */}
-        <div className="absolute right-3 top-3 flex items-center gap-1.5 bg-(--brand-bg)/85 px-2 py-1 text-[10px] uppercase tracking-[0.18em] backdrop-blur-sm">
+        {/* badge-info pill — PS-style: full rounded, primary blue */}
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
           <span
-            className={
-              isRented
-                ? "inline-block h-1.5 w-1.5 rounded-full bg-(--brand-accent)"
-                : "inline-block h-1.5 w-1.5 rounded-full bg-(--brand-primary)"
-            }
-          />
-          <span className="text-(--brand-text)/80">
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
+            style={{
+              backgroundColor: isRented
+                ? "var(--brand-accent)"
+                : "var(--brand-primary)",
+              color: "white",
+              letterSpacing: "0.045em",
+            }}
+          >
             {isRented ? "대여중" : "가능"}
           </span>
           {waitingCount > 0 && (
-            <span className="ml-1 text-(--brand-muted)">+{waitingCount}</span>
+            <span className="inline-flex items-center rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
+              +{waitingCount}
+            </span>
           )}
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col justify-between gap-1 px-4 py-4">
-        <h3 className="line-clamp-2 text-base font-semibold leading-tight tracking-tight text-(--brand-text) sm:text-lg">
+      {/* Copy slot — 30%, body-md */}
+      <div className="flex flex-1 flex-col justify-between gap-2 px-5 py-4">
+        <h3 className="line-clamp-2 text-base font-semibold leading-tight text-(--brand-text) sm:text-lg">
           {item.name}
         </h3>
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-(--brand-muted)/80">
+        <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.18em] text-(--body-muted)">
           <span>{item.category}</span>
           {item.isTimeLimited && item.rentalTimeMinutes ? (
             <span className="font-mono normal-case tracking-normal">

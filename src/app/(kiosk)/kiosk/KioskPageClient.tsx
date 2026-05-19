@@ -231,7 +231,6 @@ export function KioskPageClient({
             colorCore={config.colorPrimary}
             colorFringe={config.colorAccent}
             className="absolute inset-0 z-0"
-            interactive
             paused={isPreview}
           />
         )}
@@ -249,122 +248,161 @@ export function KioskPageClient({
           className="relative flex min-h-screen flex-col"
           style={{ fontFamily: "var(--font-sans)" }}
         >
-          {/* ── 헤더 ───────────────────────────────────────── */}
-          <header className="relative z-10 border-b border-(--brand-text)/8 px-8 py-6 sm:px-12 sm:py-8 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-              <div className="flex items-center gap-5">
-                <Link
-                  href="/"
-                  onClick={(event) => {
-                    if (isPreview) event.preventDefault();
-                  }}
-                  className="group inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-(--brand-muted) transition-colors hover:text-(--brand-text)"
-                >
-                  <ArrowLeft />
-                  <span>홈으로</span>
-                </Link>
-                {FLOOR && (
-                  <div className="flex items-center gap-2 border-l border-(--brand-text)/15 pl-5 text-[11px] uppercase tracking-[0.18em] text-(--brand-muted)">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-primary) shadow-[0_0_0_3px_var(--brand-primary-20)]" />
-                    Floor {FLOOR}
-                  </div>
-                )}
+          {/* ── PS-style dark primary nav ─────────────── */}
+          <nav className="relative z-20 flex h-12 items-center justify-between bg-(--brand-text) px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
+            <div className="flex items-center gap-5">
+              <Link
+                href="/"
+                onClick={(event) => {
+                  if (isPreview) event.preventDefault();
+                }}
+                className="group inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/70 transition-colors hover:text-(--brand-bg)"
+              >
+                <ArrowLeft />
+                <span>홈으로</span>
+              </Link>
+              {FLOOR && (
+                <span className="flex items-center gap-1.5 border-l border-(--brand-bg)/15 pl-5 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/60">
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{
+                      backgroundColor: "var(--brand-primary)",
+                      boxShadow:
+                        "0 0 0 3px color-mix(in srgb, var(--brand-primary) 25%, transparent)",
+                    }}
+                  />
+                  Floor {FLOOR}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-(--brand-bg)/40">
+              {config.orgName || "Catalog"}
+            </span>
+          </nav>
+
+          {/* ── Light canvas utility — PS-style hero band ───── */}
+          <header className="relative z-10 border-b border-(--hairline) bg-(--brand-bg) px-6 pt-16 pb-12 sm:px-12 sm:pt-20 sm:pb-14 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
+            <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+              <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
+                <span>Catalog</span>
+                <span>
+                  {filteredItems.length}
+                  <span className="mx-1.5 text-(--brand-text)/20">/</span>
+                  {items.length} items
+                </span>
               </div>
 
+              {/* PS display-xl: weight 300, large */}
               <h1
-                className="text-[clamp(2rem,6vw,3.5rem)] font-semibold leading-[0.95] tracking-[-0.03em] text-(--brand-text)"
+                className="font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text)"
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontVariationSettings: '"opsz" 48',
+                  fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
+                  fontVariationSettings: '"wght" 300, "opsz" 60',
                 }}
               >
                 {config.kioskTitle}
               </h1>
 
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-(--brand-muted)/80 lg:justify-end">
-                <span>{filteredItems.length}</span>
-                <span className="text-(--brand-text)/20">/</span>
-                <span>{items.length} items</span>
-              </div>
+              {config.showFilters && categories.length > 1 && (
+                <div className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
+                  {categories.map((category) => {
+                    const active = selectedCategory === category;
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => handleCategoryChange(category)}
+                        className={cn(
+                          "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase transition-colors",
+                          active
+                            ? "text-(--brand-bg)"
+                            : "border border-(--hairline-strong) bg-transparent text-(--brand-text)/70 hover:border-(--brand-text)/40 hover:text-(--brand-text)"
+                        )}
+                        style={
+                          active
+                            ? {
+                                backgroundColor: "var(--brand-primary)",
+                                letterSpacing: "0.045em",
+                              }
+                            : { letterSpacing: "0.045em" }
+                        }
+                      >
+                        {category}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-
-            {config.showFilters && categories.length > 1 && (
-              <div className="mt-6 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
-                {categories.map((category) => {
-                  const active = selectedCategory === category;
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => handleCategoryChange(category)}
-                      className={cn(
-                        "shrink-0 whitespace-nowrap px-4 py-2 text-sm transition-colors",
-                        "border",
-                        active
-                          ? "border-(--brand-text) bg-(--brand-text) text-(--brand-bg)"
-                          : "border-(--brand-text)/15 text-(--brand-muted) hover:border-(--brand-text)/40 hover:text-(--brand-text)"
-                      )}
-                    >
-                      {category}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </header>
 
-          {/* ── 카탈로그 ─────────────────────────────────────── */}
-          <main className="relative z-10 flex-1 px-8 py-10 sm:px-12 animate-in fade-in fill-mode-backwards duration-1000 delay-150">
-            {filteredItems.length > 0 ? (
-              <div
-                className={cn(
-                  "grid gap-5 auto-rows-fr sm:gap-6",
-                  getGridColsClass(config.kioskGridCols)
-                )}
-              >
-                {filteredItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="h-full w-full animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards"
-                    style={{
-                      animationDelay: `${Math.min(index * 40, 600)}ms`,
-                      animationDuration: "500ms",
-                    }}
-                  >
-                    <ItemCard item={item} onOrder={handleOrder} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-[60vh] items-center justify-center">
-                <div className="max-w-lg text-center">
-                  <div className="mb-6 inline-block text-[10px] uppercase tracking-[0.3em] text-(--brand-muted)">
-                    Empty
-                  </div>
-                  <p
-                    className="mb-3 text-3xl font-semibold tracking-tight text-(--brand-text) sm:text-4xl"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {selectedCategory === "전체"
-                      ? config.kioskEmptyTitle
-                      : `${selectedCategory} 카테고리에 대여가능한 상품이 없습니다.`}
-                  </p>
-                  <p className="text-base text-(--brand-muted) sm:text-lg">
-                    {selectedCategory === "전체"
-                      ? config.kioskEmptySubtitle
-                      : "다른 카테고리를 선택해주세요."}
-                  </p>
+          {/* ── Catalog grid ────────────────────────────── */}
+          <main className="relative z-10 flex-1 bg-(--brand-bg) px-6 py-12 sm:px-12 sm:py-16 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
+            <div className="mx-auto max-w-[1280px]">
+              {filteredItems.length > 0 ? (
+                <div
+                  className={cn(
+                    "grid gap-4 auto-rows-fr sm:gap-6",
+                    getGridColsClass(config.kioskGridCols)
+                  )}
+                >
+                  {filteredItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="h-full w-full animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards"
+                      style={{
+                        animationDelay: `${Math.min(index * 40, 600)}ms`,
+                        animationDuration: "500ms",
+                      }}
+                    >
+                      <ItemCard item={item} onOrder={handleOrder} />
+                    </div>
+                  ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="flex min-h-[50vh] items-center justify-center">
+                  <div className="max-w-lg text-center">
+                    <div className="mb-6 inline-block text-[10px] font-medium uppercase tracking-[0.3em] text-(--body-muted)">
+                      Empty
+                    </div>
+                    <p
+                      className="mb-3 font-light leading-tight tracking-tight text-(--brand-text)"
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: "clamp(1.5rem, 4vw, 2.25rem)",
+                        fontVariationSettings: '"wght" 300',
+                      }}
+                    >
+                      {selectedCategory === "전체"
+                        ? config.kioskEmptyTitle
+                        : `${selectedCategory} 카테고리에 대여가능한 상품이 없습니다.`}
+                    </p>
+                    <p className="text-base text-(--body-muted) sm:text-lg">
+                      {selectedCategory === "전체"
+                        ? config.kioskEmptySubtitle
+                        : "다른 카테고리를 선택해주세요."}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </main>
 
-          {/* ── 푸터 ─────────────────────────────────────── */}
-          <footer className="relative z-10 flex items-center justify-between border-t border-(--brand-text)/8 px-8 py-4 text-[10px] uppercase tracking-[0.2em] text-(--brand-muted)/70 sm:px-12">
-            <span>{config.orgName || "Kiosk"} · Catalog</span>
-            <span className="font-mono normal-case tracking-normal">
-              v{FLOOR ? `F${FLOOR}` : "—"}
-            </span>
+          {/* ── PS-style brand footer band ────────────── */}
+          <footer
+            className="relative z-10 px-6 py-6 sm:px-12"
+            style={{
+              backgroundColor: "var(--brand-primary)",
+              color: "white",
+            }}
+          >
+            <div className="mx-auto flex max-w-[1280px] items-center justify-between text-[11px] font-medium uppercase tracking-[0.2em]">
+              <span>{config.orgName || "Kiosk"} · Catalog</span>
+              <span className="font-mono text-[10px] normal-case tracking-normal opacity-70">
+                {FLOOR ? `F${FLOOR}` : "—"}
+              </span>
+            </div>
           </footer>
 
           <RentalDialog
@@ -421,7 +459,7 @@ function ThemeBackground({
         />
       )}
       <div
-        className="absolute inset-0 bg-black"
+        className="absolute inset-0 bg-(--brand-text)"
         style={{ opacity: "var(--bg-overlay-opacity)" }}
       />
     </div>

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Home } from "lucide-react";
 import { PromotionSlider } from "@/components/PromotionSlider";
 import { ItemCard } from "@/components/item/ItemCard";
 import { RentalDialog } from "@/components/item/RentalDialog";
@@ -11,7 +10,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { cn } from "@/lib/utils";
-import { getGridColsClass, hasBackgroundMedia } from "@/lib/theme/theme-utils";
+import { getGridColsClass } from "@/lib/theme/theme-utils";
 import { AuroraBackground } from "@/components/visuals/AuroraBackground";
 import {
   ParticleWaveBackground,
@@ -19,6 +18,8 @@ import {
 } from "@/components/visuals/ParticleWaveBackground";
 import { resolveVisualMode, resolveWaveMode } from "@/lib/theme/visual-mode";
 import type { Item } from "@/app/(admin)/admin/items/columns";
+
+const FLOOR = process.env.NEXT_PUBLIC_FLOOR;
 
 interface KioskPageClientProps {
   items: Item[];
@@ -55,12 +56,8 @@ export function KioskPageClient({
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const hasBackground = hasBackgroundMedia(config.backgroundPath);
-  // 키오스크는 lava lamp 대신 그라데이션이라 fallback이 'gradient' 의미로 'lava' 슬롯 재활용
   const visualMode = resolveVisualMode(config, searchParams, "lava");
   const waveMode: WaveMode = resolveWaveMode(searchParams);
-  const effectiveShowKioskGradient =
-    visualMode === "lava" && config.showKioskBgGradient && !hasBackground;
 
   const categories = useMemo(() => {
     const uniqueCategories = Array.from(
@@ -223,7 +220,7 @@ export function KioskPageClient({
 
   return (
     <>
-      <div className="relative min-h-screen overflow-hidden">
+      <div className="relative min-h-screen overflow-hidden bg-(--brand-bg)">
         <ThemeBackground
           backgroundPath={config.backgroundPath}
           backgroundType={config.backgroundType}
@@ -249,106 +246,110 @@ export function KioskPageClient({
         )}
 
         <div
-          className={cn(
-            "relative min-h-screen",
-            effectiveShowKioskGradient &&
-              "bg-linear-to-br from-(--brand-primary-15) via-(--brand-accent-15) to-(--brand-accent-15)"
-          )}
+          className="relative flex min-h-screen flex-col"
+          style={{ fontFamily: "var(--font-sans)" }}
         >
-          <div className="container relative z-10 mx-auto px-6 py-10">
-            <div className="mb-8 flex flex-wrap items-center justify-between gap-4 lg:flex-nowrap lg:gap-6">
-              <Link
-                href="/"
-                onClick={(event) => {
-                  if (isPreview) {
-                    event.preventDefault();
-                  }
-                }}
-                className="inline-flex shrink-0 items-center gap-2 rounded-2xl border-2 bg-white/80 px-4 py-2 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white hover:shadow-xl group sm:px-6 sm:py-3"
-                style={{
-                  borderColor: "var(--brand-primary-30)",
-                }}
-              >
-                <Home
-                  className="h-5 w-5 transition-transform duration-300 group-hover:scale-110"
-                  style={{ color: "var(--brand-primary)" }}
-                />
-                <span
-                  className="text-base font-bold sm:text-lg"
-                  style={{ color: "var(--brand-primary)" }}
+          {/* ── 헤더 ───────────────────────────────────────── */}
+          <header className="relative z-10 border-b border-(--brand-text)/8 px-8 py-6 sm:px-12 sm:py-8 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+              <div className="flex items-center gap-5">
+                <Link
+                  href="/"
+                  onClick={(event) => {
+                    if (isPreview) event.preventDefault();
+                  }}
+                  className="group inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-(--brand-muted) transition-colors hover:text-(--brand-text)"
                 >
-                  홈으로
-                </span>
-              </Link>
+                  <ArrowLeft />
+                  <span>홈으로</span>
+                </Link>
+                {FLOOR && (
+                  <div className="flex items-center gap-2 border-l border-(--brand-text)/15 pl-5 text-[11px] uppercase tracking-[0.18em] text-(--brand-muted)">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-primary) shadow-[0_0_0_3px_var(--brand-primary-20)]" />
+                    Floor {FLOOR}
+                  </div>
+                )}
+              </div>
 
               <h1
-                className="order-last w-full min-w-0 truncate text-center text-3xl font-black md:text-4xl lg:order-none lg:flex-1 lg:text-5xl"
-                style={{ color: "var(--brand-primary)" }}
+                className="text-[clamp(2rem,6vw,3.5rem)] font-semibold leading-[0.95] tracking-[-0.03em] text-(--brand-text)"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontVariationSettings: '"opsz" 48',
+                }}
               >
                 {config.kioskTitle}
               </h1>
 
-              {config.showFilters && (
-                <div className="flex max-w-full shrink-0 items-center gap-2 overflow-x-auto scrollbar-hidden sm:gap-3">
-                  {categories.map((category) => (
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-(--brand-muted)/80 lg:justify-end">
+                <span>{filteredItems.length}</span>
+                <span className="text-(--brand-text)/20">/</span>
+                <span>{items.length} items</span>
+              </div>
+            </div>
+
+            {config.showFilters && categories.length > 1 && (
+              <div className="mt-6 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
+                {categories.map((category) => {
+                  const active = selectedCategory === category;
+                  return (
                     <button
                       key={category}
+                      type="button"
                       onClick={() => handleCategoryChange(category)}
                       className={cn(
-                        "shrink-0 whitespace-nowrap rounded-2xl px-4 py-2 font-bold shadow-lg transition-all duration-300 hover:scale-105 sm:px-6 sm:py-3",
-                        selectedCategory === category
-                          ? "border-2 text-white"
-                          : "border-2 bg-white/80 hover:bg-white"
+                        "shrink-0 whitespace-nowrap px-4 py-2 text-sm transition-colors",
+                        "border",
+                        active
+                          ? "border-(--brand-text) bg-(--brand-text) text-(--brand-bg)"
+                          : "border-(--brand-text)/15 text-(--brand-muted) hover:border-(--brand-text)/40 hover:text-(--brand-text)"
                       )}
-                      style={
-                        selectedCategory === category
-                          ? {
-                              backgroundColor: "var(--brand-filter-active)",
-                              borderColor: "var(--brand-filter-active)",
-                            }
-                          : {
-                              color: "var(--brand-primary)",
-                              borderColor: "var(--brand-primary-30)",
-                            }
-                      }
                     >
                       {category}
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </header>
 
-          <div className="container relative z-10 mx-auto min-h-0 flex-1 px-6 pb-10">
+          {/* ── 카탈로그 ─────────────────────────────────────── */}
+          <main className="relative z-10 flex-1 px-8 py-10 sm:px-12 animate-in fade-in fill-mode-backwards duration-1000 delay-150">
             {filteredItems.length > 0 ? (
               <div
                 className={cn(
-                  "grid gap-6 auto-rows-fr",
+                  "grid gap-5 auto-rows-fr sm:gap-6",
                   getGridColsClass(config.kioskGridCols)
                 )}
               >
-                {filteredItems.map((item) => (
-                  <div key={item.id} className="h-full w-full">
+                {filteredItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="h-full w-full animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards"
+                    style={{
+                      animationDelay: `${Math.min(index * 40, 600)}ms`,
+                      animationDuration: "500ms",
+                    }}
+                  >
                     <ItemCard item={item} onOrder={handleOrder} />
                   </div>
                 ))}
               </div>
             ) : (
-              <div
-                className="flex h-full items-center justify-center rounded-2xl border-2 bg-card shadow-lg"
-                style={{ borderColor: "var(--brand-primary-20)" }}
-              >
-                <div className="text-center">
+              <div className="flex h-[60vh] items-center justify-center">
+                <div className="max-w-lg text-center">
+                  <div className="mb-6 inline-block text-[10px] uppercase tracking-[0.3em] text-(--brand-muted)">
+                    Empty
+                  </div>
                   <p
-                    className="mb-2 text-3xl font-bold"
-                    style={{ color: "var(--brand-primary)" }}
+                    className="mb-3 text-3xl font-semibold tracking-tight text-(--brand-text) sm:text-4xl"
+                    style={{ fontFamily: "var(--font-display)" }}
                   >
                     {selectedCategory === "전체"
                       ? config.kioskEmptyTitle
                       : `${selectedCategory} 카테고리에 대여가능한 상품이 없습니다.`}
                   </p>
-                  <p className="text-lg text-muted-foreground">
+                  <p className="text-base text-(--brand-muted) sm:text-lg">
                     {selectedCategory === "전체"
                       ? config.kioskEmptySubtitle
                       : "다른 카테고리를 선택해주세요."}
@@ -356,7 +357,15 @@ export function KioskPageClient({
                 </div>
               </div>
             )}
-          </div>
+          </main>
+
+          {/* ── 푸터 ─────────────────────────────────────── */}
+          <footer className="relative z-10 flex items-center justify-between border-t border-(--brand-text)/8 px-8 py-4 text-[10px] uppercase tracking-[0.2em] text-(--brand-muted)/70 sm:px-12">
+            <span>{config.orgName || "Kiosk"} · Catalog</span>
+            <span className="font-mono normal-case tracking-normal">
+              v{FLOOR ? `F${FLOOR}` : "—"}
+            </span>
+          </footer>
 
           <RentalDialog
             item={selectedItem}
@@ -416,5 +425,24 @@ function ThemeBackground({
         style={{ opacity: "var(--bg-overlay-opacity)" }}
       />
     </div>
+  );
+}
+
+function ArrowLeft() {
+  return (
+    <svg
+      width="20"
+      height="10"
+      viewBox="0 0 20 10"
+      fill="none"
+      className="transition-transform duration-300 group-hover:-translate-x-0.5"
+      aria-hidden
+    >
+      <path
+        d="M20 5H1M1 5L6 1M1 5L6 9"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </svg>
   );
 }

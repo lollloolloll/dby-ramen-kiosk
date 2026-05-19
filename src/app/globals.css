@@ -12,8 +12,9 @@
   --color-brand-muted: var(--brand-muted);
   --color-brand-cta: var(--brand-cta-bg);
   --color-brand-filter: var(--brand-filter-active);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: "Pretendard Variable", var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display), "Pretendard Variable", system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -55,6 +56,7 @@
   --brand-accent: #e896c0;
   --brand-text: #1e293b;
   --brand-muted: #64748b;
+  --brand-bg: #f8fafc;
   --brand-cta-bg: var(--brand-primary);
   --brand-headline-from: var(--brand-primary);
   --brand-headline-to: var(--brand-accent);

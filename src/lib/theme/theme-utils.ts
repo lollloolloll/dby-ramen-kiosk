@@ -6,6 +6,7 @@ type ThemeVarsSource = Pick<
   | "colorAccent"
   | "colorTextMain"
   | "colorTextMuted"
+  | "colorBackground"
   | "overrideCtaBg"
   | "overrideHeadlineGradFrom"
   | "overrideHeadlineGradTo"
@@ -19,6 +20,7 @@ export function toThemeCssVars(config: ThemeVarsSource) {
     "--brand-accent": config.colorAccent,
     "--brand-text": config.colorTextMain,
     "--brand-muted": config.colorTextMuted,
+    "--brand-bg": config.colorBackground,
     "--brand-cta-bg": config.overrideCtaBg ?? config.colorPrimary,
     "--brand-headline-from":
       config.overrideHeadlineGradFrom ?? config.colorPrimary,

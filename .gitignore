@@ -74,3 +74,4 @@ public/workbox-*.js*
 
 public/workbox-*.js*
 public/sw.js
+.gstack/

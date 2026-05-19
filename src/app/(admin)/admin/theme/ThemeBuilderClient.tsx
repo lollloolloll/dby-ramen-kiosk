@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, RefreshCcw, RotateCw, Trash2, Upload } from "lucide-react";
+import { ChevronDown, Loader2, RefreshCcw, RotateCw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -167,101 +167,117 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
         <div>
           <h1 className="text-2xl font-semibold">테마 빌더</h1>
           <p className="text-sm text-muted-foreground">
-            홈과 키오스크 화면의 색상, 문구, 배경, 토글을 관리자에서 바로 편집합니다.
+            기관 정보, 색상, 이미지를 수정하면 홈과 키오스크 화면에 바로 반영됩니다.
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>브랜드 색상</CardTitle>
-            <CardDescription>전역 브랜드 토큰과 개별 요소 오버라이드를 관리합니다.</CardDescription>
+            <CardTitle>우리 기관</CardTitle>
+            <CardDescription>홈 화면에 표시될 기관 이름과 인사말 문구입니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <TextField
+              label="기관 이름"
+              helper="예: 쌍청문 · D.Base"
+              {...form.register("orgName")}
+            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField
+                label="홈 큰 글씨 (윗줄)"
+                helper="예: 학교 끝나고"
+                {...form.register("homeHeadlineTop")}
+              />
+              <TextField
+                label="홈 큰 글씨 (아랫줄)"
+                helper="예: 뭐하고 놀래?"
+                {...form.register("homeHeadlineBottom")}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField
+                label="홈 참여 버튼 글자"
+                helper="예: 😎 놀 준비 완료!"
+                {...form.register("homeCtaLabel")}
+              />
+              <TextField
+                label="키오스크 페이지 제목"
+                helper="대여 목록 화면 상단에 표시됩니다"
+                {...form.register("kioskTitle")}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>색상</CardTitle>
+            <CardDescription>키오스크 전체에 적용되는 4가지 기본 색입니다.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <ColorField
-              label="Primary"
+              label="메인 색상"
+              helper="타이틀·버튼·강조에 사용"
               value={form.watch("colorPrimary")}
               onChange={(value) => form.setValue("colorPrimary", value, { shouldDirty: true })}
             />
             <ColorField
-              label="Accent"
+              label="포인트 색상"
+              helper="보조 강조·뱃지에 사용"
               value={form.watch("colorAccent")}
               onChange={(value) => form.setValue("colorAccent", value, { shouldDirty: true })}
             />
             <ColorField
-              label="본문"
+              label="글자 색"
+              helper="본문 텍스트 색"
               value={form.watch("colorTextMain")}
               onChange={(value) => form.setValue("colorTextMain", value, { shouldDirty: true })}
             />
             <ColorField
-              label="보조 텍스트"
-              value={form.watch("colorTextMuted")}
-              onChange={(value) => form.setValue("colorTextMuted", value, { shouldDirty: true })}
-            />
-            <NullableColorField
-              label="CTA 배경"
-              value={form.watch("overrideCtaBg")}
-              onChange={(value) => form.setValue("overrideCtaBg", value, { shouldDirty: true })}
-            />
-            <NullableColorField
-              label="헤드라인 시작 색"
-              value={form.watch("overrideHeadlineGradFrom")}
-              onChange={(value) =>
-                form.setValue("overrideHeadlineGradFrom", value, { shouldDirty: true })
-              }
-            />
-            <NullableColorField
-              label="헤드라인 끝 색"
-              value={form.watch("overrideHeadlineGradTo")}
-              onChange={(value) =>
-                form.setValue("overrideHeadlineGradTo", value, { shouldDirty: true })
-              }
-            />
-            <NullableColorField
-              label="필터 활성 배경"
-              value={form.watch("overrideFilterActiveBg")}
-              onChange={(value) =>
-                form.setValue("overrideFilterActiveBg", value, { shouldDirty: true })
-              }
+              label="페이지 배경"
+              helper="화면 전체 바탕색"
+              value={form.watch("colorBackground")}
+              onChange={(value) => form.setValue("colorBackground", value, { shouldDirty: true })}
             />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>텍스트</CardTitle>
-            <CardDescription>홈/키오스크의 노출 문구를 편집합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <TextField label="기관명" {...form.register("orgName")} />
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextField label="홈 뱃지 1" {...form.register("homeBadge1")} />
-              <TextField label="홈 뱃지 2" {...form.register("homeBadge2")} />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextField label="헤드라인 상단" {...form.register("homeHeadlineTop")} />
-              <TextField label="헤드라인 하단" {...form.register("homeHeadlineBottom")} />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextField label="홈 서브카피" {...form.register("homeSubcopy")} />
-              <TextField label="홈 CTA" {...form.register("homeCtaLabel")} />
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <TextField label="키오스크 제목" {...form.register("kioskTitle")} />
-              <TextField label="빈 상태 제목" {...form.register("kioskEmptyTitle")} />
-              <TextField label="빈 상태 보조문구" {...form.register("kioskEmptySubtitle")} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>배경 / 로고</CardTitle>
-            <CardDescription>배경 미디어와 홈 상단 로고를 업로드합니다.</CardDescription>
+            <CardTitle>이미지와 레이아웃</CardTitle>
+            <CardDescription>로고, 배경, 아이템 기본 이미지를 업로드합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <AssetUploader
-              label="배경 미디어"
-              description="이미지 또는 MP4/WebM 동영상을 업로드합니다."
+              label="기관 로고"
+              description="홈 상단에 표시됩니다. 비워두면 표시되지 않습니다."
+              currentPath={form.watch("logoPath")}
+              isLoading={isUploadingLogo}
+              accept=".jpg,.jpeg,.png,.webp,.gif"
+              onUpload={async (file) => {
+                await uploadSingleAsset({
+                  file,
+                  endpoint: "/api/uploads/logo",
+                  setLoading: setIsUploadingLogo,
+                  onSuccess: (data) => {
+                    form.setValue("logoPath", data.path, { shouldDirty: true });
+                  },
+                });
+              }}
+              onDelete={() =>
+                deleteAsset({
+                  endpoint: "/api/uploads/logo",
+                  message: "로고를 삭제했습니다.",
+                  onSuccess: () => {
+                    form.setValue("logoPath", null, { shouldDirty: true });
+                  },
+                })
+              }
+            />
+
+            <AssetUploader
+              label="배경 이미지/영상"
+              description="키오스크 전체 배경. 이미지(JPG·PNG·WebP) 또는 영상(MP4·WebM) 업로드 가능."
               currentPath={form.watch("backgroundPath")}
               currentType={form.watch("backgroundType")}
               isLoading={isUploadingBackground}
@@ -289,57 +305,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
               }
             />
 
-            <Controller
-              control={form.control}
-              name="backgroundOverlayOpacity"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>배경 오버레이</Label>
-                    <span className="text-sm text-muted-foreground">{field.value}%</span>
-                  </div>
-                  <Input
-                    type="range"
-                    min={0}
-                    max={80}
-                    step={1}
-                    value={field.value}
-                    onChange={(event) => field.onChange(Number(event.target.value))}
-                  />
-                </div>
-              )}
-            />
-
-            <AssetUploader
-              label="로고"
-              description="홈 상단에 노출할 로고 이미지입니다."
-              currentPath={form.watch("logoPath")}
-              isLoading={isUploadingLogo}
-              accept=".jpg,.jpeg,.png,.webp,.gif"
-              onUpload={async (file) => {
-                await uploadSingleAsset({
-                  file,
-                  endpoint: "/api/uploads/logo",
-                  setLoading: setIsUploadingLogo,
-                  onSuccess: (data) => {
-                    form.setValue("logoPath", data.path, { shouldDirty: true });
-                  },
-                });
-              }}
-              onDelete={() =>
-                deleteAsset({
-                  endpoint: "/api/uploads/logo",
-                  message: "로고를 삭제했습니다.",
-                  onSuccess: () => {
-                    form.setValue("logoPath", null, { shouldDirty: true });
-                  },
-                })
-              }
-            />
-
             <AssetUploader
               label="아이템 기본 이미지"
-              description="개별 아이템에 이미지가 없을 때 보여줄 폴백 이미지입니다."
+              description="아이템에 이미지가 없을 때 대신 보여줄 이미지입니다."
               currentPath={form.watch("defaultItemImagePath")}
               isLoading={isUploadingDefaultItem}
               accept=".jpg,.jpeg,.png,.webp,.gif"
@@ -367,36 +335,12 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                 })
               }
             />
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>표시 토글 / 레이아웃</CardTitle>
-            <CardDescription>장식 요소, 필터, 그리드, 타이머를 조정합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <ToggleField
-                label="카테고리 필터"
-                checked={form.watch("showFilters")}
-                onCheckedChange={(checked) =>
-                  form.setValue("showFilters", checked, { shouldDirty: true })
-                }
-              />
-              <ToggleField
-                label="키오스크 배경 그라데이션"
-                checked={form.watch("showKioskBgGradient")}
-                disabled={hasBackground}
-                description={hasBackground ? "배경 미디어가 있으면 자동으로 숨겨집니다." : undefined}
-                onCheckedChange={(checked) =>
-                  form.setValue("showKioskBgGradient", checked, { shouldDirty: true })
-                }
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label>키오스크 그리드 열 수</Label>
+            <div className="space-y-2">
+              <Label>키오스크 그리드 (한 줄에 몇 개)</Label>
+              <p className="text-xs text-muted-foreground">
+                아이템 카드를 한 줄에 몇 개씩 보여줄지 선택합니다.
+              </p>
               <div className="flex gap-2">
                 {[2, 3, 4, 5].map((cols) => (
                   <Button
@@ -405,38 +349,140 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                     variant={form.watch("kioskGridCols") === cols ? "default" : "outline"}
                     onClick={() => form.setValue("kioskGridCols", cols, { shouldDirty: true })}
                   >
-                    {cols}열
+                    {cols}개
                   </Button>
                 ))}
               </div>
             </div>
-
-            <Controller
-              control={form.control}
-              name="inactivityTimeoutMs"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>비활성 타이머</Label>
-                  <Select
-                    value={String(field.value)}
-                    onValueChange={(value) => field.onChange(Number(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="타이머 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30000">30초</SelectItem>
-                      <SelectItem value="60000">1분</SelectItem>
-                      <SelectItem value="120000">2분</SelectItem>
-                      <SelectItem value="180000">3분</SelectItem>
-                      <SelectItem value="300000">5분</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            />
           </CardContent>
         </Card>
+
+        <details className="group rounded-xl border bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between p-5 font-semibold">
+            <div className="flex flex-col gap-1">
+              <span>고급 설정</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                작은 뱃지, 보조문구, 빈 상태 메시지, 색상 미세조정 등 자주 만질 일이 없는 항목
+              </span>
+            </div>
+            <ChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-6 border-t p-6">
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground">보조 문구</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  label="홈 작은 뱃지 1"
+                  helper="비우면 안 보임. 예: 우리들의 아지트"
+                  {...form.register("homeBadge1")}
+                />
+                <TextField
+                  label="홈 작은 뱃지 2"
+                  helper="비우면 안 보임"
+                  {...form.register("homeBadge2")}
+                />
+              </div>
+              <TextField
+                label="홈 큰 글씨 옆 보조문구"
+                helper="기관 이름 뒤에 붙는 한 줄. 비우면 안 보임. 예: 으로 다 모여! 🎉"
+                {...form.register("homeSubcopy")}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  label="빈 상태 제목"
+                  helper="키오스크에 아이템이 없을 때 큰 글씨"
+                  {...form.register("kioskEmptyTitle")}
+                />
+                <TextField
+                  label="빈 상태 보조문구"
+                  helper="빈 상태 아래에 보일 안내문"
+                  {...form.register("kioskEmptySubtitle")}
+                />
+              </div>
+            </section>
+
+            <section className="space-y-4 border-t pt-6">
+              <h3 className="text-sm font-semibold text-muted-foreground">색상 미세조정</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <ColorField
+                  label="흐린 글자 색"
+                  helper="보조 텍스트·설명문에 사용"
+                  value={form.watch("colorTextMuted")}
+                  onChange={(value) => form.setValue("colorTextMuted", value, { shouldDirty: true })}
+                />
+                <NullableColorField
+                  label="참여 버튼 배경"
+                  value={form.watch("overrideCtaBg")}
+                  onChange={(value) => form.setValue("overrideCtaBg", value, { shouldDirty: true })}
+                />
+                <NullableColorField
+                  label="홈 큰 글씨 그라데이션 시작색"
+                  value={form.watch("overrideHeadlineGradFrom")}
+                  onChange={(value) =>
+                    form.setValue("overrideHeadlineGradFrom", value, { shouldDirty: true })
+                  }
+                />
+                <NullableColorField
+                  label="홈 큰 글씨 그라데이션 끝색"
+                  value={form.watch("overrideHeadlineGradTo")}
+                  onChange={(value) =>
+                    form.setValue("overrideHeadlineGradTo", value, { shouldDirty: true })
+                  }
+                />
+                <NullableColorField
+                  label="활성 카테고리 배경"
+                  value={form.watch("overrideFilterActiveBg")}
+                  onChange={(value) =>
+                    form.setValue("overrideFilterActiveBg", value, { shouldDirty: true })
+                  }
+                />
+              </div>
+            </section>
+
+            <section className="space-y-4 border-t pt-6">
+              <h3 className="text-sm font-semibold text-muted-foreground">표시 옵션</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <ToggleField
+                  label="카테고리 필터 보이기"
+                  checked={form.watch("showFilters")}
+                  onCheckedChange={(checked) =>
+                    form.setValue("showFilters", checked, { shouldDirty: true })
+                  }
+                />
+                <ToggleField
+                  label="키오스크 배경 그라데이션"
+                  checked={form.watch("showKioskBgGradient")}
+                  disabled={hasBackground}
+                  description={hasBackground ? "배경 이미지/영상이 있으면 자동으로 숨겨집니다." : undefined}
+                  onCheckedChange={(checked) =>
+                    form.setValue("showKioskBgGradient", checked, { shouldDirty: true })
+                  }
+                />
+              </div>
+
+              <Controller
+                control={form.control}
+                name="backgroundOverlayOpacity"
+                render={({ field }) => (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>배경 어둡기 (배경 이미지/영상 위에 검은 막)</Label>
+                      <span className="text-sm text-muted-foreground">{field.value}%</span>
+                    </div>
+                    <Input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={1}
+                      value={field.value}
+                      onChange={(event) => field.onChange(Number(event.target.value))}
+                    />
+                  </div>
+                )}
+              />
+            </section>
+          </div>
+        </details>
 
         <div className="sticky bottom-0 flex items-center justify-end gap-3 rounded-lg border bg-background/95 p-4 backdrop-blur">
           <Button
@@ -578,26 +624,30 @@ function normalizeDraft(values: SiteConfigInput): SiteConfigInput {
   };
 }
 
-function TextField(props: ComponentProps<typeof Input> & { label: string }) {
-  const { label, ...rest } = props;
+function TextField(
+  props: ComponentProps<typeof Input> & { label: string; helper?: string }
+) {
+  const { label, helper, ...rest } = props;
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <Input {...rest} />
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
     </div>
   );
 }
 
 function ColorField({
   label,
+  helper,
   value,
   onChange,
 }: {
   label: string;
+  helper?: string;
   value: string;
   onChange: (value: string) => void;
 }) {
-
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -610,6 +660,7 @@ function ColorField({
         />
         <Input value={value} onChange={(event) => onChange(event.target.value)} />
       </div>
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
     </div>
   );
 }
@@ -624,14 +675,17 @@ function NullableColorField({
   onChange: (value: string | null) => void;
 }) {
   const fallback = value ?? "#000000";
+  const isUsingDefault = value === null;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label>{label}</Label>
-        <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
-          전역값 사용
-        </Button>
+        {!isUsingDefault && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+            기본값으로
+          </Button>
+        )}
       </div>
       <div className="flex gap-2">
         <Input
@@ -640,7 +694,11 @@ function NullableColorField({
           value={fallback}
           onChange={(event) => onChange(event.target.value)}
         />
-        <Input value={value ?? ""} onChange={(event) => onChange(event.target.value || null)} />
+        <Input
+          placeholder={isUsingDefault ? "기본값 사용 중 — 색을 지정하지 않음" : ""}
+          value={value ?? ""}
+          onChange={(event) => onChange(event.target.value || null)}
+        />
       </div>
     </div>
   );

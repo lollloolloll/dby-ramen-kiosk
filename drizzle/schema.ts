@@ -161,6 +161,7 @@ export const siteConfig = sqliteTable("site_config", {
   colorAccent: text("color_accent").default("#E896C0").notNull(),
   colorTextMain: text("color_text_main").default("#1e293b").notNull(),
   colorTextMuted: text("color_text_muted").default("#64748b").notNull(),
+  colorBackground: text("color_background").default("#f8fafc").notNull(),
 
   overrideCtaBg: text("override_cta_bg"),
   overrideHeadlineGradFrom: text("override_headline_grad_from"),

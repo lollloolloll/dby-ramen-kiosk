@@ -1,78 +1,148 @@
 ---
 slug: dbase-themebuilder-v2
-title: D.Base 인스턴스용 ThemeBuilder v2 완료
+title: D.Base 인스턴스용 ThemeBuilder v2 + 디자인 새로 만들기
 status: in_progress
 created: 2026-05-16
 updated: 2026-05-16
 ---
 
-# Thread: D.Base 인스턴스용 ThemeBuilder v2 완료
+# Thread: D.Base 인스턴스용 ThemeBuilder v2 + 디자인 새로 만들기
 
 ## Goal
 
-D.Base(도봉구청소년문화의집) 인스턴스를 띄울 수 있는 상태로 ThemeBuilder를 마무리한다. Aurora 비주얼 전면 적용, RentalDialog 색 토큰화, schema 다이어트+신규 필드, 그리드 가독성 점검, 데모 페이지 정리, 아이템 기본 이미지 시스템 추가.
+D.Base(도봉구청소년문화의집) 인스턴스를 띄울 수 있는 상태로 ThemeBuilder를 마무리하고, 홈/키오스크 화면을 D.Base 전용 디자인으로 새로 그린다. 기존 옛 디자인의 잔재(라바램프·스티커·마퀴·기울인 헤드라인)는 완전히 제거.
 
 상위 컨텍스트는 메모리 참조: [[project-context]], [[project-themebuilder-v2]], [[project-cart-flow-pending]].
 
-## Context
+## 이미 완료 (이전 단계)
 
-### 이미 끝난 것 (B)
-- `src/components/visuals/AuroraBackground.tsx` 구현 — 드래그 인터랙션만, 탭 액션 없음
-- `src/components/visuals/ParticleWaveBackground.tsx` 구현 (백업/비교용)
-- 홈 `src/app/page.tsx`에 `?bg=aurora|wave|lava` 쿼리 토글 배선 완료
-- 색은 `config.colorPrimary → core`, `config.colorAccent → fringe`로 자동 매핑
-- `/visual-test` 비교 페이지 — 비교 끝났으므로 **제거 예정**
+- AuroraBackground / ParticleWaveBackground 컴포넌트
+- visualPreset / defaultItemImagePath 컬럼 + zod schema + ThemeBuilder UI 정리
+- RentalDialog 118개 oklch 토큰화 (brand-* CSS 변수)
+- ItemCard 폴백 체인 + 토큰화
+- Badge 토큰화 (available/rented)
+- BroadcastChannel cross-tab 동기화
+- 배경 색상 컬럼 (`colorBackground` → `--brand-bg`)
+- 선택적 텍스트 필드 빈 값 허용 (homeBadge1/2, homeSubcopy, kioskEmpty*)
+- 시드 스크립트 (scripts/seed-items.mjs, 15개)
+- ThemeBuilder UI 1차 단순화 (메인 3카드 + 고급 collapsible)
 
-### 합의된 schema 변경
-- **제거**: `showLavaLamp`, `marqueeItemsJson`, `stickerEmojisJson` (쌍청문 전용 비주얼 필드)
-- **추가**: `visualPreset: "lava" | "aurora" | "none"` (관리자 폼에는 노출 X, seed로만)
-- **추가**: `defaultItemImagePath` (text, nullable) — 아이템 이미지 없을 때 폴백
-- migration 필요. 쌍청문 인스턴스 seed = `'lava'`, D.Base seed = `'aurora'`
+---
 
-### 결정된 작업 순서
-1. **C (RentalDialog 토큰화) 먼저** — 카트 흐름 리팩터([[project-cart-flow-pending]])가 같은 파일을 만지므로 충돌 방지
-2. 그 다음 visualPreset 컬럼+migration, ThemeBuilder UI 정리
-3. 마지막에 default item image 업로드 라우트 + 폼 + 아이템 카드 폴백 렌더
+## SPEC v1 — 디자인 새로 만들기 (현재 단계)
 
-### 미해결·짚어야 할 것
-- **확인됨 — kiosk 헤더 반응형 깨짐**: `KioskPageClient.tsx:230-292`. 타이틀이 `absolute left-1/2 + text-5xl whitespace-nowrap`이라 좌(홈으로)/우(카테고리 필터) 요소와 겹침. 좁은 뷰포트에서 텍스트도 안 줄어듦. 해결: 타이틀 `absolute` 제거 → flex item `flex-1 min-w-0 text-center`, 폰트 `text-3xl md:text-4xl lg:text-5xl`, 필터 영역 `overflow-x-auto` 또는 줄바꿈, 매우 좁으면 2단 스택
-- 아이템 다수일 때 grid 자체는 미검증 (사용자 추정으로는 OK)
-- 배경 이미지/영상 업로드와 aurora 동시 사용 충돌 — 현재 `hasBackground`면 aurora 자동 OFF. D.Base에선 aurora만 쓸 거면 OK. 의도 재확인
-- KioskPageClient는 아직 aurora 미배선 (홈만 됨)
+### 합의된 옵션: B
+**디자인만 새로. 기능은 기존 재활용. 새 기능 필요하면 사용자에게 질문.**
+카트는 보류 (다음 단계).
+
+### 1. 사용자
+- 4층 건물 라운지 청소년
+- 친구와 함께
+- 1대당 1분 내외 빠른 사용
+- 단골 비율 ↑
+- 디바이스: 태블릿 (가로 또는 세로)
+
+### 2. 핵심 잡
+"그 층의 대여물품을 빠르게 확인하고 빌린다."
+
+### 3. 시각 톤
+- "최근 지어진 건물 / 정돈 / 신기 / 현대적"
+- D.Base 사이트(https://dbase.or.kr) 톤: 파스텔, 청소년 친화, 정돈된 그래픽, "Dream. Be / Assist / Start / Experience"
+- 톤 결정은 **frontend-design 스킬에 위임** — refined minimal / editorial / soft pastel 사이
+- Aurora 셰이더 배경에 유지 (탈부착 가능, `visualPreset` enum)
+
+### 4. 명시적으로 제거 — 옛 쌍청문 잔재
+- FloatingSticker (회전·bounce·키치)
+- MarqueeText (`-rotate-1`)
+- 글래스모피즘 `bg-white/60 backdrop-blur` 뱃지
+- 가운데 큰 그라데이션 텍스트 헤드라인 ("학교 끝나고 / 뭐하고 놀래?" 톤)
+- "화면 아무 곳이나 터치하세요" + 전체 영역 클릭 → 명시적 시작 버튼
+- 살짝 기울인 요소 (`rotate-*`)
+
+### 5. 인스턴스 구분
+- **`NEXT_PUBLIC_FLOOR`** 환경변수 도입 (예: `2`)
+- 카탈로그 필터링은 **강제 X** (옵션). 운영자가 카테고리에 "2층/..." prefix 넣으면 자연스럽게 분리되지만 강제하지 않음
+- 추후 토글로 필터 강제 가능
+
+### 6. 화면 흐름 (기능 변경 없음)
+- 대기 (`/`) → 시작 → 카탈로그 (`/kiosk`) → 아이템 카드 탭 → RentalDialog (기존 단건 흐름 그대로) → 등록
+- PromotionSlider 자동 발동 유지
+- 비활성 60초 타이머 유지
+
+### 7. 화면별 명세
+
+**대기 (`/`)**
+- 필수: 층 표시 (env 있을 때만), 환영/안내 짧은 한 줄, **명시적 시작 버튼**, aurora 또는 단색 배경, 작은 admin/fullscreen 링크, 로고
+- 금지: 가사형 헤드라인, 마퀴, 스티커, 전체 영역 클릭
+
+**카탈로그 (`/kiosk`)**
+- 필수: 헤더(홈으로 + 페이지 제목 + 카테고리 필터, 반응형), 아이템 그리드, 빈 상태 메시지, 카드 탭 → RentalDialog
+- 금지: 카드 hover scale 과한 모션, 회전 변형
+
+**등록 후 (영수증 자리)**
+- 별도 페이지 만들지 않음. 기존 RentalDialog 안의 완료 단계가 "OO, OO를 빌렸어요" 정도만 보여주고 자동 복귀
+- **반납 안내 X** (반납 로직 없음)
+
+### 8. 살릴 기존 기능 (절대 변경 금지)
+- `useTheme` (config 자동 반영)
+- `useSearchParams` (?bg= 등 dev override)
+- `resolveVisualMode` / `resolveWaveMode` 헬퍼
+- `AuroraBackground` / `ParticleWaveBackground` 컴포넌트
+- `ItemCard` (chrome은 디자인에 맞게 다듬어도 됨, 폴백 체인은 유지)
+- `RentalDialog` (열림/닫힘 props만 호출, 내부 로직 그대로)
+- `PromotionSlider` 자동 발동
+- `processAndMutateExpiredRentals`
+- 비활성 60초 타이머 (`config.inactivityTimeoutMs`)
+- middleware (admin 경로 보호)
+- BroadcastChannel 동기화 (`ThemeProvider`)
+
+### 9. 기술 제약
+- Next.js 15 App Router + Turbopack
+- Tailwind v4 (`@theme inline`, `bg-(--brand-bg)`, `text-(--brand-primary)` 형식)
+- 색은 **반드시 `var(--brand-*)` CSS 변수 사용** (관리자 컬러피커 자동 반영)
+- 폰트 추가 OK (next/font/google 권장, distinctive 선택)
+- React Server vs Client 컴포넌트 적절히 분리
+- 옛 쌍청문 인스턴스도 같은 코드 쓰는 점 인지 — `visualPreset='lava'` row가 살아있어도 깨지지 않게
+
+### 10. 산출물
+- `src/app/page.tsx` 교체 (옛 디자인은 git history에 보존)
+- `src/app/(kiosk)/kiosk/KioskPageClient.tsx` 교체
+- 필요시 새 컴포넌트 `src/components/dbase/...`
+- 새 폰트 import (`src/app/layout.tsx` 또는 별도)
+
+### 11. 비범위 (B 옵션 한정)
+- 카트 / 다건 대여
+- 반납 로직
+- 새 DB 컬럼
+- 새 API 라우트
+- admin 페이지 디자인 변경
+
+### 12. 완료 조건
+- [ ] FloatingSticker / MarqueeText / 회전 변형 코드 0건
+- [ ] `bg-white/60` 글래스 뱃지 패턴 0건
+- [ ] 그라데이션 텍스트 헤드라인 제거
+- [ ] D.Base 톤(파스텔·정돈·현대적) 시각적으로 확인 가능
+- [ ] 사용자에게 "기존 느낌 안 남" 합격 받음
+- [ ] 색만 바꿔도 톤이 자동으로 따라옴
+- [ ] 태블릿 가로·세로 모두 깨짐 없음
+- [ ] `npx tsc --noEmit` 통과
+- [ ] RentalDialog 기능은 그대로 호출됨 (기존 사용자 흐름 유지)
+
+---
 
 ## References
 
 - 메모리: `~/.claude/projects/.../memory/MEMORY.md`
-- 기존 ThemeBuilder PLAN.md: `.planning/theme-builder/PLAN.md` (~540줄, 일부 stale)
 - D.Base 사이트: https://dbase.or.kr
 - 비주얼 컴포넌트: `src/components/visuals/`
-- 색 하드코딩 위치: `src/components/item/RentalDialog.tsx` (oklch 63개)
-- site_config schema: `drizzle/schema.ts`, `src/lib/schemas/siteConfig.ts`
-- 업로드 라우트 패턴: `src/app/api/uploads/background/route.ts`, `logo/route.ts` (참고)
+- 기존 page.tsx (참고용, 곧 교체): `src/app/page.tsx`
+- 기존 kiosk: `src/app/(kiosk)/kiosk/KioskPageClient.tsx`
+- 시드: `scripts/seed-items.mjs`
 
 ## Next Steps
 
-다음 세션 시작 시 이 순서로:
-
-1. **kiosk 헤더 반응형 수정** — 위 "확인됨" 참고. 타이틀 absolute 제거 + 반응형 폰트 + 필터 스크롤
-2. **C — RentalDialog 토큰화** 시작
-   - oklch 하드코딩 63개를 `--brand-primary`/`--brand-accent` (+ alpha 변형) CSS 변수로 치환
-   - 일부는 `bg-brand-primary/20` 같은 Tailwind 토큰으로, alpha 조합이 까다로운 건 `color-mix()` fallback
-   - `/admin/theme`에서 색 바꿔도 다이얼로그까지 즉시 반영되는지 검증
-3. **KioskPageClient에도 aurora 배선** — 홈 page.tsx 패턴 그대로 복제
-4. **D — visualPreset + defaultItemImagePath 컬럼 추가**
-   - Drizzle migration
-   - `src/lib/schemas/siteConfig.ts` zod 스키마 갱신
-   - 인스턴스별 seed (쌍청문=lava, D.Base=aurora)
-   - 아이템 카드 렌더에서 `item.imagePath ?? siteConfig.defaultItemImagePath ?? placeholder` 폴백 체인
-5. **E — ThemeBuilder UI 정리**
-   - 죽은 필드(showLavaLamp 토글, 마퀴 입력 등) 제거
-   - default item image 업로드 섹션 추가 (`/api/uploads/default-item/` 라우트 신규)
-   - visualPreset은 폼에 노출 X
-6. **/visual-test 폴더 제거**
-7. **검증**
-   - 홈/키오스크에서 aurora 정상 렌더
-   - RentalDialog 열어 색이 brand-* 반영되는지 확인
-   - 색 변경 시 다이얼로그 + 메인 다 따라오는지
-   - 아이템 이미지 없을 때 default image 표시
-   - 그리드 가독성 OK
+1. **frontend-design 스킬 호출** — 위 SPEC을 인풋으로
+2. 산출 코드를 page.tsx / KioskPageClient.tsx에 적용
+3. tsc 검증
+4. 사용자 비주얼 확인
+5. 통과 시 다음 단계 (운영자 편집 범위 검토, 실패 모드 검토, 카트 흐름)

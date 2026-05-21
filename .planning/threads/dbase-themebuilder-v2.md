@@ -3,7 +3,7 @@ slug: dbase-themebuilder-v2
 title: D.Base 인스턴스용 ThemeBuilder v2 + 디자인 새로 만들기
 status: in_progress
 created: 2026-05-16
-updated: 2026-05-20
+updated: 2026-05-21
 ---
 
 # Thread: D.Base 인스턴스용 ThemeBuilder v2 + 디자인 새로 만들기
@@ -172,11 +172,43 @@ D.Base(도봉구청소년문화의집) 인스턴스를 띄울 수 있는 상태�
 
 - **"개인정보 확인" = 회원정보 수정**을 뜻함 (사용자 명확화). 이미 RentalDialog 안 `edit` 액션(`IdentificationAction = "rent" | "edit"`)으로 구현돼 있음 → **모달 유지로 확정.** 위치 결정/리팩터 불필요.
 
+## 진행 로그 (2026-05-21 세션 3 — 비주얼 버그 + ThemeBuilder 보강)
+
+### 버그 수정 (3건, 모두 정적 분석으로 root cause 확정)
+
+- **3D 오브젝트 안 보임 (a)**: `AuroraBackground.tsx`/`ParticleWaveBackground.tsx`의 `animate()`가 `if(paused) return`을 `renderer.render()` 앞에서 해서 미리보기(`paused=isPreview`)가 단 한 프레임도 안 그려 빈 화면. → **항상 렌더하되 시간 진행만 멈춤**으로 수정.
+- **3D 안 보임 (b) + 옵션-데이터 불일치**: `KioskPageClient.tsx`에 `visualMode==="lava"` 분기가 없었음(home엔 있음). 기본 visualPreset이 lava라 kiosk가 기본값에서 아무 효과도 안 그림. → home과 동일한 그라데이션 블롭 lava 분기 추가. 이제 4개 효과 전부 kiosk·home에서 렌더.
+- **글자색/배경 매치**: footer·카트바·활성 카테고리 pill이 `--brand-primary` 위 **흰색 하드코딩** → 파스텔 primary면 안 보임. → `theme-utils.ts`에 `getReadableTextColor()`(WCAG 휘도) + `--brand-on-primary`/`--brand-on-cta` CSS 변수 추가, 하드코딩 white를 `var(--brand-on-primary)`로 교체. `globals.css`에 기본값 추가(FOUC 방지).
+
+### default 값 정리 (`src/lib/schemas/siteConfig.ts` `defaultSiteConfigValues`)
+
+- **텍스트**: 옛 쌍청문 가사형 → 담백·중립. orgName 라운지 / homeBadge1·2·subcopy 비움 / headline "필요한 물품"·"간편하게 대여" / ctaLabel "시작하기" / kioskTitle "대여 목록". (kioskEmpty·marquee·sticker 유지)
+- **레거시 토글**: `showLavaLamp`/`showStickers`/`showMarquee` true→false (옛 제거된 컴포넌트용 죽은 값).
+- **visualPreset**: `lava` 유지 (사용자 결정 — lava가 낫다).
+- ※ 주의: default는 *신규 인스턴스 초기값*만. 기존 쌍청문/D.Base는 DB값 사용하므로 화면 영향 없음.
+
+### ThemeBuilder 보강 (`ThemeBuilderClient.tsx`)
+
+- **색 모델 직관성**: 색 라벨 재정의 — "글자 색"→"메인 톤(어두운 색 권장)", "페이지 배경"→"배경 톤(밝은 색 권장)" + helper에 이중역할 명시. (사용자 결정: 라벨 재정의 방식. 색 역할 분리·클릭편집은 보류)
+- **옛 helper 예시 갱신** (학교 끝나고/😎 등 → 새 default 톤).
+- **색 프리셋 팔레트 추가**: `COLOR_PRESETS` 4종(파스텔/모던 다크/모노 미니멀/웜 선셋), 메인톤↔배경톤 대비 검증 완료. "색상" 카드 상단 버튼 행, 클릭 시 색 5개(primary/accent/textMain/textMuted/background) 일괄 setValue. 배경효과·문구는 안 건드림.
+
+### 보류 (다음 후보)
+
+- **대비 안전 경고**: 메인톤/배경톤/포인트색 대비 실시간 체크 → "글자 안 보일 수 있음" 경고. (자동대비의 연장)
+- **미리보기 클릭 → 요소 색 편집**: iframe 양방향 통신 필요한 큰 기능. 색 커플링(메인톤=글자+배경) 먼저 정리됐으니 이후 설계 가능.
+- **죽은 컨트롤 정리**: 고급설정 "홈 큰 글씨 그라데이션 시작/끝색"이 새 디자인(헤드라인 단색 포인트)에서 안 먹는지 확인 후 제거 검토.
+
+### 검증 (2026-05-21, WSL 정적 확인만)
+
+- 매 단계 `npx tsc --noEmit` 통과 (exit 0).
+- **실동작(브라우저) 미검증** — Windows에서 사용자 확인 필요: (1) ThemeBuilder 프리셋 4개 미리보기 즉시 반영, (2) 어떤 프리셋에서도 nav·footer 글자 안 깨짐, (3) 배경효과 4개 home·kiosk 모두 렌더, (4) 모던 다크 다크테마 적정성.
+
 ## Next Steps (다음 세션)
 
-1. ~~개인정보 확인 위치 결정~~ → **완료: 모달 유지** (식별=회원정보 수정, 이미 모달 edit 액션에 있음)
-2. **카트 흐름 실동작 검증** — 카드 탭→담김→대여하기→모달 카트모드 열림→등록까지. **사용자가 Windows에서 `npm run dev`로 직접 확인** (Claude는 WSL에서 실행 금지 — 환경 메모 참조). 코드 정합성은 검증됨: KioskPageClient cart state → RentalDialog isCartMode → rentMultipleItems → cartSuccess → onCartSuccess.
-3. 비주얼 사용자 합격 확인 (D.Base 톤 / 태블릿 가로·세로 / 폰트 weight 300 한글 가독성)
+1. **Windows 실동작 검증** — 위 4개 + 카트 흐름(카드 탭→담김→대여하기→모달 카트모드→등록). Claude는 WSL 실행 금지(환경 메모 참조).
+2. 비주얼 사용자 합격 확인 (D.Base 톤 / 태블릿 가로·세로 / 폰트 weight 300 한글 가독성)
+3. 보류 항목 중 택1 (대비 경고 / 클릭편집 / 죽은 컨트롤 정리)
 4. (이후) 운영자 편집 범위, 실패 모드 검토
 
 ### 코드 검증 완료 (2026-05-20, WSL에서 정적 확인만)

@@ -43,6 +43,68 @@ const DEVICE_PRESETS = {
 
 type DevicePresetKey = keyof typeof DEVICE_PRESETS;
 
+/**
+ * 검증된 색 조합 프리셋. 메인 톤 ↔ 배경 톤 명도 대비가 충분하도록 골라
+ * 어떤 걸 눌러도 글자가 안 깨지게 했다. 색만 채우고 배경효과/문구는 안 건드림.
+ */
+const COLOR_PRESETS: Array<{
+  name: string;
+  swatch: string;
+  values: Pick<
+    SiteConfigInput,
+    | "colorPrimary"
+    | "colorAccent"
+    | "colorTextMain"
+    | "colorTextMuted"
+    | "colorBackground"
+  >;
+}> = [
+  {
+    name: "파스텔",
+    swatch: "#5FD4A5",
+    values: {
+      colorPrimary: "#5FD4A5",
+      colorAccent: "#E896C0",
+      colorTextMain: "#1E293B",
+      colorTextMuted: "#64748B",
+      colorBackground: "#F8FAFC",
+    },
+  },
+  {
+    name: "모던 다크",
+    swatch: "#0F172A",
+    values: {
+      colorPrimary: "#6EE7B7",
+      colorAccent: "#F0ABFC",
+      colorTextMain: "#E5E7EB",
+      colorTextMuted: "#94A3B8",
+      colorBackground: "#0F172A",
+    },
+  },
+  {
+    name: "모노 미니멀",
+    swatch: "#18181B",
+    values: {
+      colorPrimary: "#18181B",
+      colorAccent: "#71717A",
+      colorTextMain: "#18181B",
+      colorTextMuted: "#71717A",
+      colorBackground: "#FAFAFA",
+    },
+  },
+  {
+    name: "웜 선셋",
+    swatch: "#FB923C",
+    values: {
+      colorPrimary: "#FB923C",
+      colorAccent: "#F472B6",
+      colorTextMain: "#292524",
+      colorTextMuted: "#78716C",
+      colorBackground: "#FFFBF5",
+    },
+  },
+];
+
 export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfig }) {
   const [activePreview, setActivePreview] = useState<keyof typeof PREVIEW_TABS>("home");
   const [isSaving, setIsSaving] = useState(false);
@@ -185,19 +247,19 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             <div className="grid gap-4 md:grid-cols-2">
               <TextField
                 label="홈 큰 글씨 (윗줄)"
-                helper="예: 학교 끝나고"
+                helper="예: 필요한 물품"
                 {...form.register("homeHeadlineTop")}
               />
               <TextField
                 label="홈 큰 글씨 (아랫줄)"
-                helper="예: 뭐하고 놀래?"
+                helper="예: 간편하게 대여"
                 {...form.register("homeHeadlineBottom")}
               />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <TextField
                 label="홈 참여 버튼 글자"
-                helper="예: 😎 놀 준비 완료!"
+                helper="예: 시작하기"
                 {...form.register("homeCtaLabel")}
               />
               <TextField
@@ -215,6 +277,38 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             <CardDescription>키오스크 전체에 적용되는 4가지 기본 색입니다.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label>색 조합 프리셋</Label>
+              <p className="text-xs text-muted-foreground">
+                검증된 색 조합을 한 번에 적용합니다. 적용 후 개별 색을 더 조정할 수 있습니다.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((presetItem) => (
+                  <Button
+                    key={presetItem.name}
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      (
+                        Object.entries(presetItem.values) as Array<
+                          [keyof typeof presetItem.values, string]
+                        >
+                      ).forEach(([key, value]) =>
+                        form.setValue(key, value, { shouldDirty: true })
+                      );
+                      toast.success(`'${presetItem.name}' 색 조합을 적용했습니다.`);
+                    }}
+                  >
+                    <span
+                      className="h-4 w-4 shrink-0 rounded-full border"
+                      style={{ backgroundColor: presetItem.swatch }}
+                    />
+                    {presetItem.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <ColorField
               label="메인 색상"
               helper="타이틀·버튼·강조에 사용"
@@ -228,14 +322,14 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
               onChange={(value) => form.setValue("colorAccent", value, { shouldDirty: true })}
             />
             <ColorField
-              label="글자 색"
-              helper="본문 텍스트 · 홈 hero 배경 · 상단 nav 배경에 사용 (어두운 색 권장)"
+              label="메인 톤 (어두운 색 권장)"
+              helper="이 색 하나가 본문 글자색 + 상단바·홈 hero의 배경을 함께 담당합니다."
               value={form.watch("colorTextMain")}
               onChange={(value) => form.setValue("colorTextMain", value, { shouldDirty: true })}
             />
             <ColorField
-              label="페이지 배경"
-              helper="카탈로그 바탕색 · hero 위 글자 색에도 사용 (밝은 색 권장)"
+              label="배경 톤 (밝은 색 권장)"
+              helper="이 색 하나가 카탈로그 바탕 + 상단바·홈 hero 위 글자색을 함께 담당합니다."
               value={form.watch("colorBackground")}
               onChange={(value) => form.setValue("colorBackground", value, { shouldDirty: true })}
             />
@@ -407,7 +501,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
               <div className="grid gap-4 md:grid-cols-2">
                 <TextField
                   label="홈 작은 뱃지 1"
-                  helper="비우면 안 보임. 예: 우리들의 아지트"
+                  helper="비우면 안 보임. 예: 4층 라운지"
                   {...form.register("homeBadge1")}
                 />
                 <TextField
@@ -418,7 +512,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
               </div>
               <TextField
                 label="홈 큰 글씨 옆 보조문구"
-                helper="기관 이름 뒤에 붙는 한 줄. 비우면 안 보임. 예: 으로 다 모여! 🎉"
+                helper="기관 이름 뒤에 붙는 한 줄. 비우면 안 보임. 예: 에서 빌려보세요"
                 {...form.register("homeSubcopy")}
               />
               <div className="grid gap-4 md:grid-cols-2">

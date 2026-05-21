@@ -4,10 +4,14 @@ import { Item } from "@/app/(admin)/admin/items/columns";
 import Image from "next/image";
 import bearImage from "@/assets/images/bear.png";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface ItemCardProps {
   item: Item;
-  onOrder: (item: Item) => void;
+  onOrder?: (item: Item) => void;
+  onAddToCart?: (item: Item) => void;
+  inCart?: boolean;
 }
 
 /**
@@ -18,18 +22,36 @@ interface ItemCardProps {
  * - badge-info pill (full rounded) — primary blue, top-right
  * - subtle border (hairline-light)
  */
-export function ItemCard({ item, onOrder }: ItemCardProps) {
+export function ItemCard({
+  item,
+  onOrder,
+  onAddToCart,
+  inCart = false,
+}: ItemCardProps) {
   const config = useTheme();
   const isRented = item.isTimeLimited ? item.status === "RENTED" : false;
   const waitingCount = item.waitingCount;
 
   const imageSrc = item.imageUrl ?? config.defaultItemImagePath ?? bearImage;
 
+  const handleClick = () => {
+    if (onAddToCart) {
+      onAddToCart(item);
+      return;
+    }
+    onOrder?.(item);
+  };
+
   return (
     <button
       type="button"
-      onClick={() => onOrder(item)}
-      className="group relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-(--hairline) bg-(--surface-card) text-left transition-[border-color,transform] duration-300 hover:border-(--hairline-strong) active:scale-[0.99]"
+      onClick={handleClick}
+      className={cn(
+        "group relative flex h-full w-full flex-col overflow-hidden rounded-lg border bg-(--surface-card) text-left transition-[border-color,transform,box-shadow] duration-300 active:scale-[0.99]",
+        inCart
+          ? "border-(--brand-primary) ring-2 ring-(--brand-primary)"
+          : "border-(--hairline) hover:border-(--hairline-strong)"
+      )}
     >
       {/* Imagery dominant — 70% */}
       <div className="relative aspect-square overflow-hidden">
@@ -60,6 +82,18 @@ export function ItemCard({ item, onOrder }: ItemCardProps) {
             </span>
           )}
         </div>
+
+        {/* 장바구니 담김 표시 */}
+        {inCart && (
+          <div className="absolute inset-0 flex items-center justify-center bg-(--brand-primary)/15">
+            <span
+              className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg"
+              style={{ backgroundColor: "var(--brand-primary)" }}
+            >
+              <Check className="h-7 w-7" strokeWidth={3} />
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Copy slot — 30%, body-md */}

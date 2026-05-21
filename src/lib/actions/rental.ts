@@ -205,6 +205,197 @@ export async function rentItem(
     };
   }
 }
+export type CartRentalResult = {
+  itemId: number;
+  itemName: string;
+  status: "rented" | "skipped";
+  reason?: string;
+};
+
+export async function rentMultipleItems(
+  userId: number,
+  itemIds: number[],
+  maleCount: number,
+  femaleCount: number,
+  participants?: Array<{ name: string; gender: "남" | "여" }>
+): Promise<{ success: boolean; results: CartRentalResult[]; error?: string }> {
+  await triggerExpiredRentalsCheck();
+  try {
+    const userToRent = await db
+      .select()
+      .from(generalUsers)
+      .where(eq(generalUsers.id, userId))
+      .get();
+
+    if (!userToRent) {
+      return {
+        success: false,
+        results: [],
+        error: "사용자 정보를 찾을 수 없습니다.",
+      };
+    }
+
+    const results: CartRentalResult[] = [];
+
+    for (const itemId of itemIds) {
+      const itemToRent = await db
+        .select()
+        .from(items)
+        .where(and(eq(items.id, itemId), eq(items.isDeleted, false)))
+        .get();
+
+      if (!itemToRent) {
+        results.push({
+          itemId,
+          itemName: "삭제된 물품",
+          status: "skipped",
+          reason: "물품 정보를 찾을 수 없습니다.",
+        });
+        continue;
+      }
+
+      // 성별 카운트 및 참여자 자동 할당 (아이템 설정 우선)
+      let finalMaleCount = maleCount;
+      let finalFemaleCount = femaleCount;
+      let finalParticipants = participants || [];
+
+      if (itemToRent.isAutomaticGenderCount) {
+        finalMaleCount = userToRent.gender === "남" ? 1 : 0;
+        finalFemaleCount = userToRent.gender === "여" ? 1 : 0;
+        if (itemToRent.enableParticipantTracking) {
+          finalParticipants = [
+            { name: userToRent.name, gender: userToRent.gender as "남" | "여" },
+          ];
+        }
+      }
+
+      // 시간제 아이템 검증 (재고/일일 한도) — 실패 시 throw 대신 skip
+      if (itemToRent.isTimeLimited) {
+        const currentRental = await db
+          .select({ id: rentalRecords.id })
+          .from(rentalRecords)
+          .where(
+            and(
+              eq(rentalRecords.itemsId, itemId),
+              eq(rentalRecords.isReturned, false)
+            )
+          )
+          .limit(1)
+          .get();
+
+        if (currentRental) {
+          results.push({
+            itemId,
+            itemName: itemToRent.name,
+            status: "skipped",
+            reason: "이미 다른 사람이 대여 중입니다.",
+          });
+          continue;
+        }
+
+        if (itemToRent.maxRentalsPerUser) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const startOfDay = Math.floor(today.getTime() / 1000);
+          const endOfDay = new Date(today);
+          endOfDay.setHours(23, 59, 59, 999);
+          const endOfDayTimestamp = Math.floor(endOfDay.getTime() / 1000);
+
+          const [userDailyRentals] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(rentalRecords)
+            .where(
+              and(
+                eq(rentalRecords.userId, userId),
+                eq(rentalRecords.itemsId, itemId),
+                gte(rentalRecords.rentalDate, startOfDay),
+                lte(rentalRecords.rentalDate, endOfDayTimestamp)
+              )
+            );
+
+          if ((userDailyRentals?.count || 0) >= itemToRent.maxRentalsPerUser) {
+            results.push({
+              itemId,
+              itemName: itemToRent.name,
+              status: "skipped",
+              reason: "오늘 최대 대여 횟수를 초과했습니다.",
+            });
+            continue;
+          }
+        }
+      }
+
+      const rentalDate = Math.floor(Date.now() / 1000);
+      let returnDueDate: number | undefined = undefined;
+      if (itemToRent.isTimeLimited && itemToRent.rentalTimeMinutes) {
+        returnDueDate = rentalDate + itemToRent.rentalTimeMinutes * 60;
+      }
+
+      const [newRental] = await db
+        .insert(rentalRecords)
+        .values({
+          userId,
+          itemsId: itemId,
+          maleCount: finalMaleCount,
+          femaleCount: finalFemaleCount,
+          userName: userToRent.name,
+          userPhone: userToRent.phoneNumber,
+          userSchool: userToRent.school,
+          userGender: userToRent.gender,
+          userBirthDate: userToRent.birthDate,
+          itemName: itemToRent.name,
+          itemCategory: itemToRent.category,
+          rentalDate,
+          returnDueDate,
+          isReturned: false,
+        })
+        .returning({ id: rentalRecords.id });
+
+      if (
+        itemToRent.enableParticipantTracking &&
+        finalParticipants.length > 0 &&
+        newRental?.id
+      ) {
+        const validParticipants = finalParticipants.filter(
+          (p) => p.name.trim() !== ""
+        );
+
+        if (validParticipants.length > 0) {
+          await db.insert(rentalRecordPeople).values(
+            validParticipants.map((participant) => ({
+              rentalRecordId: newRental.id,
+              name: participant.name.trim(),
+              gender: participant.gender,
+            }))
+          );
+        }
+      }
+
+      results.push({
+        itemId,
+        itemName: itemToRent.name,
+        status: "rented",
+      });
+    }
+
+    revalidatePath("/");
+    revalidatePath("/admin/items");
+    revalidatePath("/admin/records");
+
+    return { success: true, results };
+  } catch (error) {
+    console.error("Cart Rental Failed:", error);
+    return {
+      success: false,
+      results: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "대여 처리 중 예상치 못한 오류가 발생했습니다.",
+    };
+  }
+}
+
 export async function returnItem(rentalRecordId: number) {
   await processAndMutateExpiredRentals();
   try {

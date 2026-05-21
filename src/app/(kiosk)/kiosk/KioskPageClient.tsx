@@ -49,7 +49,7 @@ export function KioskPageClient({
   const isPreview = usePreviewMode();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [cart, setCart] = useState<Item[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPromotion, setShowPromotion] = useState(false);
   const [promotionItems, setPromotionItems] = useState<PromotionItem[]>([]);
@@ -208,9 +208,22 @@ export function KioskPageClient({
     await processAndMutateExpiredRentals();
   };
 
-  const handleOrder = (item: Item) => {
-    setSelectedItem(item);
+  const toggleCart = (item: Item) => {
+    setCart((prev) =>
+      prev.some((i) => i.id === item.id)
+        ? prev.filter((i) => i.id !== item.id)
+        : [...prev, item]
+    );
+    resetInactivityTimer();
+  };
+
+  const handleCheckout = () => {
+    if (cart.length === 0) return;
     setIsDialogOpen(true);
+  };
+
+  const handleCartSuccess = () => {
+    setCart([]);
   };
 
   const handleCategoryChange = (category: string) => {
@@ -244,12 +257,25 @@ export function KioskPageClient({
           />
         )}
 
+        {visualMode === "lava" && (
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <div
+              className="absolute -left-[10%] -top-[10%] h-[60vw] w-[60vw] rounded-full blur-[160px] opacity-50"
+              style={{ backgroundColor: "var(--brand-primary)" }}
+            />
+            <div
+              className="absolute -bottom-[10%] -right-[10%] h-[60vw] w-[60vw] rounded-full blur-[180px] opacity-40"
+              style={{ backgroundColor: "var(--brand-accent)" }}
+            />
+          </div>
+        )}
+
         <div
           className="relative flex min-h-screen flex-col"
           style={{ fontFamily: "var(--font-sans)" }}
         >
           {/* ── PS-style dark primary nav ─────────────── */}
-          <nav className="relative z-20 flex h-12 items-center justify-between bg-(--brand-text) px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
+          <nav className="relative z-20 flex h-12 items-center justify-between bg-brand-text px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
             <div className="flex items-center gap-5">
               <Link
                 href="/"
@@ -294,7 +320,7 @@ export function KioskPageClient({
 
               {/* PS display-xl: weight 300, large */}
               <h1
-                className="font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text)"
+                className="font-light leading-[1.05] tracking-[-0.02em] text-brand-text"
                 style={{
                   fontFamily: "var(--font-display)",
                   fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
@@ -315,14 +341,14 @@ export function KioskPageClient({
                         onClick={() => handleCategoryChange(category)}
                         className={cn(
                           "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase transition-colors",
-                          active
-                            ? "text-(--brand-bg)"
-                            : "border border-(--hairline-strong) bg-transparent text-(--brand-text)/70 hover:border-(--brand-text)/40 hover:text-(--brand-text)"
+                          !active &&
+                            "border border-(--hairline-strong) bg-transparent text-(--brand-text)/70 hover:border-(--brand-text)/40 hover:text-brand-text"
                         )}
                         style={
                           active
                             ? {
                                 backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-on-primary)",
                                 letterSpacing: "0.045em",
                               }
                             : { letterSpacing: "0.045em" }
@@ -356,7 +382,11 @@ export function KioskPageClient({
                         animationDuration: "500ms",
                       }}
                     >
-                      <ItemCard item={item} onOrder={handleOrder} />
+                      <ItemCard
+                        item={item}
+                        onAddToCart={toggleCart}
+                        inCart={cart.some((i) => i.id === item.id)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -394,7 +424,7 @@ export function KioskPageClient({
             className="relative z-10 px-6 py-6 sm:px-12"
             style={{
               backgroundColor: "var(--brand-primary)",
-              color: "white",
+              color: "var(--brand-on-primary)",
             }}
           >
             <div className="mx-auto flex max-w-[1280px] items-center justify-between text-[11px] font-medium uppercase tracking-[0.2em]">
@@ -406,13 +436,42 @@ export function KioskPageClient({
           </footer>
 
           <RentalDialog
-            item={selectedItem}
+            item={null}
+            cartItems={cart}
+            onCartSuccess={handleCartSuccess}
             open={isDialogOpen}
             onOpenChange={setIsDialogOpen}
             consentFile={consentFile}
             schoolReconfirmMode={schoolReconfirmMode}
           />
         </div>
+
+        {/* 하단 플로팅 장바구니 바 */}
+        {cart.length > 0 && (
+          <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-5 animate-in slide-in-from-bottom-4 fade-in duration-300">
+            <button
+              type="button"
+              onClick={handleCheckout}
+              className="flex w-full max-w-[1280px] items-center justify-between gap-4 rounded-2xl px-6 py-4 shadow-2xl transition-transform active:scale-[0.99]"
+              style={{
+                backgroundColor: "var(--brand-primary)",
+                color: "var(--brand-on-primary)",
+              }}
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-base font-black">
+                  {cart.length}
+                </span>
+                <span className="text-sm font-medium opacity-90">
+                  {cart.map((i) => i.name).join(", ")}
+                </span>
+              </span>
+              <span className="shrink-0 text-lg font-bold tracking-tight">
+                대여하기 →
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {!isPreview && showPromotion && promotionItems.length > 0 && (

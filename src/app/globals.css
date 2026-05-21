@@ -58,6 +58,9 @@
   --brand-muted: #64748b;
   --brand-bg: #f8fafc;
   --brand-cta-bg: var(--brand-primary);
+  /* brand-primary/cta 배경 위 글자색. 런타임에 applyThemeCssVars가 자동 대비로 덮어씀 */
+  --brand-on-primary: #0a0a0a;
+  --brand-on-cta: #0a0a0a;
   --brand-headline-from: var(--brand-primary);
   --brand-headline-to: var(--brand-accent);
   --brand-filter-active: var(--brand-primary);

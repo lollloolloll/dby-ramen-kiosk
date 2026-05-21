@@ -12,9 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Item } from "@/app/(admin)/admin/items/columns";
 import {
   rentItem,
+  rentMultipleItems,
   checkUserRentalStatus,
   getCurrentRenter,
 } from "@/lib/actions/rental";
+import type { CartRentalResult } from "@/lib/actions/rental";
 import {
   addToWaitingList,
   getWaitingListByItemId,
@@ -60,6 +62,10 @@ interface RentalDialogProps {
   onOpenChange: (open: boolean) => void;
   consentFile: { url: string; type: "pdf" | "image" | "doc" } | null;
   schoolReconfirmMode?: boolean;
+  /** 장바구니 모드: 식별 후 여러 아이템을 한 번에 대여 */
+  cartItems?: Item[] | null;
+  /** 장바구니 대여 성공(부분 성공 포함) 후 콜백 (카트 비우기 등) */
+  onCartSuccess?: () => void;
 }
 
 type Step =
@@ -67,6 +73,7 @@ type Step =
   | "register"
   | "success"
   | "waitingSuccess"
+  | "cartSuccess"
   | "resolveMatch"
   | "schoolReconfirm";
 
@@ -234,9 +241,23 @@ export function RentalDialog({
   onOpenChange,
   consentFile,
   schoolReconfirmMode = false,
+  cartItems,
+  onCartSuccess,
 }: RentalDialogProps) {
   const router = useRouter();
+  const isCartMode = Array.isArray(cartItems) && cartItems.length > 0;
+  // 장바구니 모드에서는 인원수를 1회 수동 입력받고, 참여자 추적은
+  // 카트에 추적 대상 아이템이 하나라도 있으면 활성화한다.
+  const cartParticipantTracking =
+    isCartMode && (cartItems ?? []).some((i) => i.enableParticipantTracking);
+  // 인원수 입력 노출: 단건은 아이템 설정, 카트는 항상 수동 입력
+  const requireManualCount = isCartMode || !item?.isAutomaticGenderCount;
+  // 참여자 이름 입력 노출/자동생성 여부
+  const trackParticipants = isCartMode
+    ? cartParticipantTracking
+    : !item?.isAutomaticGenderCount && !!item?.enableParticipantTracking;
   const [step, setStep] = useState<Step>("identification");
+  const [cartResults, setCartResults] = useState<CartRentalResult[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [waitingPosition, setWaitingPosition] = useState<number | null>(null);
@@ -366,8 +387,8 @@ export function RentalDialog({
   const femaleCount = identificationForm.watch("femaleCount") ?? 0;
 
   useEffect(() => {
-    // 자동 카운트 모드이거나 참여자 추적을 안 하면 리스트를 비움 (UI 숨김 처리)
-    if (item?.isAutomaticGenderCount || !item?.enableParticipantTracking) {
+    // 참여자 추적을 안 하면 리스트를 비움 (UI 숨김 처리)
+    if (!trackParticipants) {
       replace([]);
       return;
     }
@@ -390,13 +411,7 @@ export function RentalDialog({
       newParticipants.push(existingFemales[i] || { name: "", gender: "여" });
     }
     replace(newParticipants);
-  }, [
-    maleCount,
-    femaleCount,
-    item?.enableParticipantTracking,
-    item?.isAutomaticGenderCount,
-    replace,
-  ]);
+  }, [maleCount, femaleCount, trackParticipants, replace]);
 
   // [수정 포인트 1] 문제의 원인이었던 useEffect 제거
   // birthYear, birthMonth, birthDay가 변경될 때마다 폼을 업데이트하던 useEffect를 삭제했습니다.
@@ -415,7 +430,11 @@ export function RentalDialog({
   }, [schoolLevel, schoolName, isDirectInput, registerForm]);
 
   useEffect(() => {
-    if (step === "success" || step === "waitingSuccess") {
+    if (
+      step === "success" ||
+      step === "waitingSuccess" ||
+      step === "cartSuccess"
+    ) {
       setCountdown(5);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -528,6 +547,17 @@ export function RentalDialog({
     user: PinMatchedUser,
     values: IdentificationFormValues
   ) => {
+    // 장바구니 모드: 식별 후 곧바로 일괄 대여 (재고/대기열/학교 재확인 우회)
+    if (isCartMode) {
+      await handleCartRental(
+        user.id,
+        values.maleCount,
+        values.femaleCount,
+        values.participants
+      );
+      return;
+    }
+
     if (!item) {
       return;
     }
@@ -583,17 +613,17 @@ export function RentalDialog({
   const handleIdentificationSubmit = async (
     values: IdentificationFormValues
   ) => {
-    if (!item) return;
+    if (!item && !isCartMode) return;
 
-    // 자동 카운트가 꺼져있을 때(수동 입력 모드)만 인원수 체크
-    if (!item.isAutomaticGenderCount) {
+    // 수동 입력 모드일 때만 인원수 체크 (카트 모드는 항상 수동)
+    if (requireManualCount) {
       if (values.maleCount + values.femaleCount === 0) {
         toast.error("대여 인원을 최소 1명 이상 설정해주세요.");
         return;
       }
 
-      // 수동 입력 모드 + 참여자 추적 활성화 시 이름 체크
-      if (item.enableParticipantTracking && values.participants) {
+      // 참여자 추적 활성화 시 이름 체크
+      if (trackParticipants && values.participants) {
         const hasEmptyName = values.participants.some((p) => !p.name?.trim());
         if (hasEmptyName) {
           toast.error("모든 참여자의 이름을 입력해주세요.");
@@ -802,6 +832,39 @@ export function RentalDialog({
     }
   };
 
+  const handleCartRental = async (
+    userId: number,
+    maleCount: number,
+    femaleCount: number,
+    participants?: Array<{ name: string; gender: "남" | "여" }>
+  ) => {
+    if (!isCartMode || !cartItems) {
+      toast.error("장바구니 정보가 없습니다.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await rentMultipleItems(
+        userId,
+        cartItems.map((i) => i.id),
+        maleCount,
+        femaleCount,
+        participants
+      );
+      if (!result.success) {
+        throw new Error(result.error || "대여에 실패했습니다.");
+      }
+      setCartResults(result.results);
+      setStep("cartSuccess");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "대여에 실패했습니다."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleWaiting = async (
     userId: number,
     maleCount: number,
@@ -837,6 +900,9 @@ export function RentalDialog({
   };
 
   const handleSuccessConfirm = () => {
+    if (isCartMode) {
+      onCartSuccess?.();
+    }
     resetDialog();
     closeDialog();
     router.refresh();
@@ -844,6 +910,7 @@ export function RentalDialog({
 
   const resetDialog = () => {
     setStep("identification");
+    setCartResults([]);
     setCountdown(5);
     setWaitingPosition(null);
     setShowWaitingList(false);
@@ -939,7 +1006,8 @@ export function RentalDialog({
     return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   }, [birthYear, birthMonth]);
 
-  if (!item) return null;
+  // 단건 모드면 item 필수. 카트 모드면 cartItems로 동작하므로 item 없어도 렌더.
+  if (!item && !isCartMode) return null;
 
   const handleRegisterError = (errors: any) => {
     toast.error("필수 정보를 모두 입력해주세요.");
@@ -1066,16 +1134,38 @@ export function RentalDialog({
                 {/* ... 헤더 및 기타 필드 ... */}
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
-                    {isRentedMode
-                      ? `${item.name} 대기열 등록`
-                      : `${item.name} 대여`}
+                    {isCartMode
+                      ? `${cartItems!.length}개 물품 대여`
+                      : isRentedMode
+                      ? `${item!.name} 대기열 등록`
+                      : `${item!.name} 대여`}
                   </DialogTitle>
                   <DialogDescription>
-                    {isRentedMode
-                      ? `현재 '${item.name}'은(는) 대여 중입니다.`
-                      : `'${item.name}'을(를) 이용하려면 이름과 PIN을 입력하세요.`}
+                    {isCartMode
+                      ? "대여하려면 이름과 PIN을 입력하세요."
+                      : isRentedMode
+                      ? `현재 '${item!.name}'은(는) 대여 중입니다.`
+                      : `'${item!.name}'을(를) 이용하려면 이름과 PIN을 입력하세요.`}
                   </DialogDescription>
                 </DialogHeader>
+
+                {isCartMode && (
+                  <div className="rounded-xl border border-[color:var(--brand-primary-20)] bg-[color:var(--brand-primary-06)] px-4 py-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--brand-primary)]">
+                      담은 물품 {cartItems!.length}개
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cartItems!.map((cartItem) => (
+                        <span
+                          key={cartItem.id}
+                          className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm"
+                        >
+                          {cartItem.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-xl border border-[color:var(--brand-primary-20)] bg-[color:var(--brand-primary-06)] px-4 py-3 text-sm leading-relaxed text-slate-700">
                   <p className="font-semibold text-[color:var(--brand-primary)]">
@@ -1289,8 +1379,8 @@ export function RentalDialog({
                     </FormItem>
                   )}
                 />
-                {/* 1. 성별 인원 입력: 옵션이 켜져 있을 때만 보임 */}
-                {!item.isAutomaticGenderCount && (
+                {/* 1. 성별 인원 입력: 수동 입력 모드일 때만 보임 */}
+                {requireManualCount && (
                   <div className="flex gap-4">
                     {[
                       { name: "maleCount", label: "남자 인원" },
@@ -1349,9 +1439,7 @@ export function RentalDialog({
        성별 인원 입력을 받을 때만 친구 이름을 입력받는 것이 논리적으로 맞음.
        isAutomaticGenderCount가 꺼져 있으면 "본인 1명"으로 간주하므로 입력칸을 숨김. 
 */}
-                {!item.isAutomaticGenderCount &&
-                  item.enableParticipantTracking &&
-                  fields.length > 0 && (
+                {trackParticipants && fields.length > 0 && (
                     <div className="space-y-3 pt-4 border-t border-dashed">
                       <div className="flex items-center justify-between">
                         <FormLabel className="flex items-center gap-2 font-semibold">
@@ -1439,22 +1527,24 @@ export function RentalDialog({
                     >
                       신규 등록
                     </Button>
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      onClick={() => {
-                        identificationActionRef.current = "edit";
-                        setIdentificationAction("edit");
-                      }}
-                      disabled={
-                        isSubmitting || !identificationForm.formState.isValid
-                      }
-                      className="border-[color:var(--brand-primary-30)] text-gray-700 hover:bg-[color:var(--brand-primary-05)]"
-                    >
-                      {isSubmitting && identificationAction === "edit"
-                        ? "확인 중..."
-                        : "정보 수정"}
-                    </Button>
+                    {!isCartMode && (
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        onClick={() => {
+                          identificationActionRef.current = "edit";
+                          setIdentificationAction("edit");
+                        }}
+                        disabled={
+                          isSubmitting || !identificationForm.formState.isValid
+                        }
+                        className="border-[color:var(--brand-primary-30)] text-gray-700 hover:bg-[color:var(--brand-primary-05)]"
+                      >
+                        {isSubmitting && identificationAction === "edit"
+                          ? "확인 중..."
+                          : "정보 수정"}
+                      </Button>
+                    )}
                     <Button
                       type="submit"
                       onClick={() => {
@@ -2097,6 +2187,78 @@ export function RentalDialog({
             </div>
           );
         }
+        case "cartSuccess": {
+          const rentedItems = cartResults.filter((r) => r.status === "rented");
+          const skippedItems = cartResults.filter(
+            (r) => r.status === "skipped"
+          );
+          return (
+            <div
+              className="flex w-full flex-col bg-white px-8 py-10"
+              key="cartSuccess"
+            >
+              <DialogHeader className="items-center text-center">
+                <div className="mb-2 text-6xl">
+                  {rentedItems.length > 0 ? "🎉" : "🙏"}
+                </div>
+                <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
+                  {rentedItems.length > 0
+                    ? `${rentedItems.length}개 대여 완료!`
+                    : "대여하지 못했어요"}
+                </DialogTitle>
+                <DialogDescription className="text-base font-medium text-foreground">
+                  신나게 즐기고{" "}
+                  <span className="font-bold text-[color:var(--brand-accent)]">
+                    정리정돈
+                  </span>{" "}
+                  하는 거 잊지 말기!
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-6 max-h-[280px] space-y-2 overflow-y-auto pr-1 scrollbar-hidden">
+                {rentedItems.map((r) => (
+                  <div
+                    key={r.itemId}
+                    className="flex items-center justify-between rounded-lg border border-[color:var(--brand-primary-20)] bg-[color:var(--brand-primary-06)] px-4 py-3"
+                  >
+                    <span className="font-semibold text-slate-800">
+                      {r.itemName}
+                    </span>
+                    <span className="text-sm font-bold text-[color:var(--brand-primary)]">
+                      대여완료 ✓
+                    </span>
+                  </div>
+                ))}
+                {skippedItems.map((r) => (
+                  <div
+                    key={r.itemId}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+                  >
+                    <span className="font-medium text-slate-500 line-through">
+                      {r.itemName}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400">
+                      {r.reason ?? "대여 불가"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <DialogFooter className="mt-6 w-full">
+                <Button
+                  onClick={handleSuccessConfirm}
+                  className="h-12 w-full text-lg font-bold text-white"
+                  style={{ backgroundColor: "var(--brand-primary)" }}
+                >
+                  확인 ✓
+                </Button>
+              </DialogFooter>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                {countdown}초 후 자동으로 닫힙니다
+              </p>
+            </div>
+          );
+        }
         case "success":
           // 성공 화면용 원 둘레 계산 (반지름 40)
           const rSuccess = 40;
@@ -2143,7 +2305,9 @@ export function RentalDialog({
                     대여 완료!
                   </DialogTitle>
                   <div className="text-5xl font-bold text-[color:var(--brand-primary)]">
-                    {item.name}
+                    {isCartMode
+                      ? `${cartItems?.length ?? 0}개 물품`
+                      : item?.name}
                   </div>
                 </div>
 
@@ -2357,6 +2521,8 @@ export function RentalDialog({
             "gap-0 p-0 transition-all duration-300 ease-in-out",
             step === "success" || step === "waitingSuccess"
               ? "sm:max-w-[425px] border-0 overflow-hidden bg-transparent shadow-none"
+              : step === "cartSuccess"
+              ? "sm:max-w-[480px] overflow-hidden"
               : showSchoolPanel
               ? "sm:max-w-[850px] w-[90vw]" // 패널 열리면 넓어짐
               : "sm:max-w-[425px]"
@@ -2369,7 +2535,9 @@ export function RentalDialog({
               ref={formScrollRef}
               className={cn(
                 "min-w-0 flex-1 overflow-y-auto transition-all scrollbar-hidden",
-                step === "success" || step === "waitingSuccess"
+                step === "success" ||
+                  step === "waitingSuccess" ||
+                  step === "cartSuccess"
                   ? "p-0"
                   : "px-6 py-6"
               )}

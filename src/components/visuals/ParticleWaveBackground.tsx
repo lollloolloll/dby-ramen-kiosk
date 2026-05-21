@@ -155,12 +155,14 @@ export function ParticleWaveBackground({
     let frameId = 0;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
-      if (pausedRef.current) return;
-      const t = clock.getElapsedTime();
-      material.uniforms.uTime.value = t;
-      camera.position.x = 20 + Math.sin(t * 0.2) * 5;
-      camera.position.y = Math.cos(t * 0.15) * 5;
-      camera.lookAt(20, 0, 0);
+      // paused여도 최소 한 프레임은 그려야 미리보기에서 빈 화면이 안 됨. 시간 진행만 멈춤.
+      if (!pausedRef.current) {
+        const t = clock.getElapsedTime();
+        material.uniforms.uTime.value = t;
+        camera.position.x = 20 + Math.sin(t * 0.2) * 5;
+        camera.position.y = Math.cos(t * 0.15) * 5;
+        camera.lookAt(20, 0, 0);
+      }
       renderer.render(scene, camera);
     };
     animate();

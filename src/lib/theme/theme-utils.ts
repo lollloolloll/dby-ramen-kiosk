@@ -14,14 +14,49 @@ type ThemeVarsSource = Pick<
   | "backgroundOverlayOpacity"
 >;
 
+/**
+ * 배경색 위에 올라갈 글자색을 자동으로 검정/흰색 중 가독성 높은 쪽으로 고른다.
+ * WCAG 상대 휘도 기준. 운영자가 파스텔 등 밝은 색을 골라도 글자가 안 깨지게.
+ */
+export function getReadableTextColor(hex: string): string {
+  const normalized = hex.trim().replace(/^#/, "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : normalized;
+
+  if (full.length !== 6 || /[^0-9a-fA-F]/.test(full)) {
+    return "#ffffff";
+  }
+
+  const toLinear = (channel: number) => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+
+  const r = toLinear(parseInt(full.slice(0, 2), 16));
+  const g = toLinear(parseInt(full.slice(2, 4), 16));
+  const b = toLinear(parseInt(full.slice(4, 6), 16));
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return luminance > 0.5 ? "#0a0a0a" : "#ffffff";
+}
+
 export function toThemeCssVars(config: ThemeVarsSource) {
+  const ctaBg = config.overrideCtaBg ?? config.colorPrimary;
   return {
     "--brand-primary": config.colorPrimary,
     "--brand-accent": config.colorAccent,
     "--brand-text": config.colorTextMain,
     "--brand-muted": config.colorTextMuted,
     "--brand-bg": config.colorBackground,
-    "--brand-cta-bg": config.overrideCtaBg ?? config.colorPrimary,
+    "--brand-cta-bg": ctaBg,
+    // brand-primary / cta 배경 위 글자색 (footer·카트바·CTA 버튼). 자동 대비.
+    "--brand-on-primary": getReadableTextColor(config.colorPrimary),
+    "--brand-on-cta": getReadableTextColor(ctaBg),
     "--brand-headline-from":
       config.overrideHeadlineGradFrom ?? config.colorPrimary,
     "--brand-headline-to": config.overrideHeadlineGradTo ?? config.colorAccent,

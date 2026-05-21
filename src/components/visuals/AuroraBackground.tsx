@@ -154,10 +154,12 @@ export function AuroraBackground({
     let frameId = 0;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
-      if (pausedRef.current) return;
-      material.uniforms.u_time.value = clock.getElapsedTime();
-      // interactive=false면 targetMouse는 (0.5, 0.5) 고정 → u_mouse도 그쪽으로 수렴 → 영향 없음
-      material.uniforms.u_mouse.value.lerp(targetMouse, 0.18);
+      // paused여도 최소 한 프레임은 그려야 미리보기에서 빈 화면이 안 됨. 시간 진행만 멈춤.
+      if (!pausedRef.current) {
+        material.uniforms.u_time.value = clock.getElapsedTime();
+        // interactive=false면 targetMouse는 (0.5, 0.5) 고정 → u_mouse도 그쪽으로 수렴 → 영향 없음
+        material.uniforms.u_mouse.value.lerp(targetMouse, 0.18);
+      }
       renderer.render(scene, camera);
     };
     animate();

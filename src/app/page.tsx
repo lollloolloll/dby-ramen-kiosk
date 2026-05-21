@@ -216,7 +216,8 @@ function HomeContent() {
     <>
       {/* Hero band — 색은 var(--brand-text) / var(--brand-bg). 운영자가 ThemeBuilder에서 직접 제어 */}
       <main
-        className="relative flex min-h-screen w-full flex-col overflow-hidden bg-(--brand-text) text-(--brand-bg) selection:bg-(--brand-primary)/30"
+        onClick={handleStart}
+        className="relative flex min-h-screen w-full cursor-pointer flex-col overflow-hidden bg-(--brand-text) text-(--brand-bg) selection:bg-(--brand-primary)/30"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         {/* 배경 미디어가 있으면 chrome 위에 */}
@@ -356,21 +357,13 @@ function HomeContent() {
                 </p>
               )}
 
-              {/* PS-style primary pill CTA */}
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={handleStart}
-                  className="group inline-flex items-center gap-3 rounded-full px-7 py-4 text-base font-bold uppercase tracking-[0.045em] transition-[transform,filter] hover:-translate-y-0.5 active:translate-y-0 active:brightness-90"
-                  style={{
-                    backgroundColor: "var(--brand-primary)",
-                    color: "white",
-                    letterSpacing: "0.045em",
-                  }}
-                >
-                  <span>{config.homeCtaLabel}</span>
-                  <ArrowRight />
-                </button>
+              {/* 화면 어디든 탭하면 키오스크로 진입 — 별도 CTA 없음 */}
+              <div className="mt-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-(--brand-bg)/55">
+                <span
+                  className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
+                  style={{ backgroundColor: "var(--brand-primary)" }}
+                />
+                <span>화면을 터치하여 시작</span>
               </div>
             </div>
 
@@ -393,7 +386,7 @@ function HomeContent() {
           className="relative z-10 px-6 py-6 sm:px-12"
           style={{
             backgroundColor: "var(--brand-primary)",
-            color: "white",
+            color: "var(--brand-on-primary)",
           }}
         >
           <div className="mx-auto flex max-w-[1280px] items-center justify-between text-[11px] font-medium uppercase tracking-[0.2em]">
@@ -490,21 +483,3 @@ function LiveClock() {
   );
 }
 
-function ArrowRight() {
-  return (
-    <svg
-      width="20"
-      height="10"
-      viewBox="0 0 20 10"
-      fill="none"
-      className="shrink-0 transition-transform duration-300 group-hover:translate-x-1"
-      aria-hidden
-    >
-      <path
-        d="M0 5H19M19 5L14 1M19 5L14 9"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-    </svg>
-  );
-}

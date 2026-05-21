@@ -25,6 +25,10 @@ export async function getConsentFile() {
     }
     return null;
   } catch (error) {
+    // 약관 디렉터리가 아직 없는 경우(미등록)는 정상 상태이므로 조용히 무시
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return null;
+    }
     console.error("Error fetching consent file:", error);
     return null;
   }

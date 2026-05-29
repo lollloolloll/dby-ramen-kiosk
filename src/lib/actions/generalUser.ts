@@ -345,7 +345,8 @@ export async function updateGeneralUserForKiosk(
       })
       .where(eq(generalUsers.id, id));
 
-    revalidatePath("/kiosk");
+    revalidatePath("/kiosk/dby");
+    revalidatePath("/kiosk/smy");
     revalidatePath("/admin/users");
 
     return { success: true };

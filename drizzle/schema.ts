@@ -78,6 +78,21 @@ export const kioskSettings = sqliteTable("kiosk_settings", {
     .notNull(),
 });
 
+export const visitSessions = sqliteTable("visit_sessions", {
+  id: integer().primaryKey({ autoIncrement: true }).notNull(),
+  generalUserId: integer("general_user_id")
+    .notNull()
+    .references(() => generalUsers.id, { onDelete: "cascade" }),
+  totalCount: integer("total_count").notNull(),
+  youthMale: integer("youth_male").default(0).notNull(),
+  youthFemale: integer("youth_female").default(0).notNull(),
+  adultMale: integer("adult_male").default(0).notNull(),
+  adultFemale: integer("adult_female").default(0).notNull(),
+  createdAt: integer("created_at")
+    .default(sql`(CURRENT_TIMESTAMP)`)
+    .notNull(),
+});
+
 export const rentalRecords = sqliteTable("rental_records", {
   id: integer().primaryKey({ autoIncrement: true }).notNull(),
 
@@ -92,6 +107,13 @@ export const rentalRecords = sqliteTable("rental_records", {
   userSchool: text("user_school"), //대여 시점의 사용자 학교
   userGender: text("user_gender"), // '남' | '여'
   userBirthDate: text("user_birth_date"), // 'YYYY-MM-DD' (나이 계산용)
+
+  visitSessionId: integer("visit_session_id").references(
+    () => visitSessions.id,
+    {
+      onDelete: "set null",
+    }
+  ),
 
   itemsId: integer("items_id").references(() => items.id, {
     onDelete: "set null",

@@ -75,3 +75,6 @@ public/workbox-*.js*
 public/workbox-*.js*
 public/sw.js
 .gstack/
+
+# 와이어프레임 원본 (기획용, 트랙 안 함)
+src/assets/wireframe/

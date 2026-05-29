@@ -32,7 +32,7 @@ export async function setSchoolReconfirmMode(enabled: boolean) {
       await db.update(generalUsers).set({ schoolConfirmed: false });
     }
     revalidatePath("/admin/settings");
-    revalidatePath("/kiosk");
+    revalidatePath("/kiosk/smy");
     return { success: true };
   } catch (error) {
     console.error("Error setting schoolreconfirm mode:", error);

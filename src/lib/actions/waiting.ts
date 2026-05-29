@@ -155,7 +155,7 @@ export async function addToWaitingList(
 
     const waitingPosition = positionCount[0].value;
 
-    revalidatePath("/(kiosk)/kiosk");
+    revalidatePath("/kiosk/smy");
     revalidatePath("/admin/waitings");
 
     return {

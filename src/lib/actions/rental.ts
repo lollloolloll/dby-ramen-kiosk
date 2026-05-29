@@ -7,6 +7,7 @@ import {
   generalUsers,
   waitingQueue,
   rentalRecordPeople,
+  visitSessions,
 } from "@drizzle/schema";
 import {
   eq,
@@ -722,10 +723,20 @@ export async function getRentalRecords(
         itemCategory: sql<string>`COALESCE(${items.category}, ${rentalRecords.itemCategory})`,
         maleCount: rentalRecords.maleCount,
         femaleCount: rentalRecords.femaleCount,
+        visitSessionId: rentalRecords.visitSessionId,
+        visitTotalCount: visitSessions.totalCount,
+        visitYouthMale: visitSessions.youthMale,
+        visitYouthFemale: visitSessions.youthFemale,
+        visitAdultMale: visitSessions.adultMale,
+        visitAdultFemale: visitSessions.adultFemale,
       })
       .from(rentalRecords)
       .leftJoin(generalUsers, eq(rentalRecords.userId, generalUsers.id))
-      .leftJoin(items, eq(rentalRecords.itemsId, items.id));
+      .leftJoin(items, eq(rentalRecords.itemsId, items.id))
+      .leftJoin(
+        visitSessions,
+        eq(rentalRecords.visitSessionId, visitSessions.id)
+      );
 
     const filteredQuery =
       whereConditions.length > 0
@@ -753,6 +764,10 @@ export async function getRentalRecords(
       .from(rentalRecords)
       .leftJoin(generalUsers, eq(rentalRecords.userId, generalUsers.id))
       .leftJoin(items, eq(rentalRecords.itemsId, items.id))
+      .leftJoin(
+        visitSessions,
+        eq(rentalRecords.visitSessionId, visitSessions.id)
+      )
       .where(and(...whereConditions));
 
     const [data, total] = await Promise.all([dataQuery, countQuery]);

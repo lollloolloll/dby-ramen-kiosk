@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { formatDbaseHeadcount } from "@/lib/dbase/session";
 
 export type RentalRecord = {
   id: number;
@@ -24,6 +25,12 @@ export type RentalRecord = {
   itemName: string | null;
   maleCount: number | null;
   femaleCount: number | null;
+  visitSessionId?: number | null;
+  visitTotalCount?: number | null;
+  visitYouthMale?: number | null;
+  visitYouthFemale?: number | null;
+  visitAdultMale?: number | null;
+  visitAdultFemale?: number | null;
 };
 
 export const columns: ColumnDef<RentalRecord>[] = [
@@ -52,6 +59,24 @@ export const columns: ColumnDef<RentalRecord>[] = [
       const maleCount = row.original.maleCount ?? 0;
       const femaleCount = row.original.femaleCount ?? 0;
       return `남: ${maleCount}, 여: ${femaleCount}`;
+    },
+  },
+  {
+    header: "D.BASE 방문",
+    cell: ({ row }) => {
+      const record = row.original;
+      const summary =
+        record.visitSessionId && typeof record.visitTotalCount === "number"
+          ? {
+              totalCount: record.visitTotalCount,
+              youthMale: record.visitYouthMale ?? 0,
+              youthFemale: record.visitYouthFemale ?? 0,
+              adultMale: record.visitAdultMale ?? 0,
+              adultFemale: record.visitAdultFemale ?? 0,
+            }
+          : null;
+
+      return <span className="text-xs">{formatDbaseHeadcount(summary)}</span>;
     },
   },
   {

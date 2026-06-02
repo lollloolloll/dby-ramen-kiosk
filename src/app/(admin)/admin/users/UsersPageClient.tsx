@@ -169,7 +169,7 @@ export function UsersPageClient({
                 if (result.success && result.buffer && result.mimeType) {
                   const link = document.createElement("a");
                   link.href = `data:${result.mimeType};base64,${result.buffer}`;
-                  link.download = `쌍청문_쉬다_사용자정보_${new Date().toISOString()}.xlsx`;
+                  link.download = `D.base_사용자정보_${new Date().toISOString()}.xlsx`;
                   document.body.appendChild(link);
                   link.click();
                   document.body.removeChild(link);

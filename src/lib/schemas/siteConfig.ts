@@ -2,42 +2,29 @@ import { z } from "zod";
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
-export const marqueeItemSchema = z.object({
-  emoji: z.string().min(1).max(4),
-  label: z.string().min(1).max(20),
-});
-
-export const stickerEmojiSchema = z.object({
-  emoji: z.string().min(1).max(4),
-});
-
-export const defaultMarqueeItems = [
-  { emoji: "🎮", label: "닌텐도 스위치" },
-  { emoji: "🍜", label: "라면" },
-  { emoji: "🎲", label: "보드게임" },
-  { emoji: "🏸", label: "배드민턴" },
-  { emoji: "🍿", label: "맛있는 간식" },
-  { emoji: "🏀", label: "농구" },
-  { emoji: "🏓", label: "탁구" },
-] as const;
-
-export const defaultStickerEmojis = [
-  { emoji: "🎮" },
-  { emoji: "🎤" },
-  { emoji: "🎲" },
-  { emoji: "🍜" },
-] as const;
+// D.BASE 키오스크 문구 override. 편집 가능한 키만, 전부 optional(비우면 copy.ts 기본값).
+export const dbaseCopyOverrideSchema = z
+  .object({
+    brandEyebrow: z.string().trim().max(40),
+    entryTitle: z.string().trim().max(40),
+    entryFirstTime: z.string().trim().max(20),
+    entryReturning: z.string().trim().max(20),
+    registerTitle: z.string().trim().max(40),
+    identifyTitle: z.string().trim().max(40),
+    mismatchTitle: z.string().trim().max(50),
+    mismatchBody: z.string().trim().max(40),
+    headcountTitle: z.string().trim().max(40),
+    contentsTitle: z.string().trim().max(40),
+    doneTitle: z.string().trim().max(40),
+    doneSubtitle: z.string().trim().max(50),
+  })
+  .partial();
 
 export const siteConfigSchema = z.object({
   colorPrimary: hexColor,
   colorAccent: hexColor,
   colorTextMain: hexColor,
-  colorTextMuted: hexColor,
   colorBackground: hexColor,
-  overrideCtaBg: hexColor.nullable(),
-  overrideHeadlineGradFrom: hexColor.nullable(),
-  overrideHeadlineGradTo: hexColor.nullable(),
-  overrideFilterActiveBg: hexColor.nullable(),
 
   orgName: z.string().trim().min(1).max(20),
   homeBadge1: z.string().trim().max(30),
@@ -47,17 +34,6 @@ export const siteConfigSchema = z.object({
   homeSubcopy: z.string().trim().max(40),
   homeCtaLabel: z.string().trim().min(1).max(20),
   kioskTitle: z.string().trim().min(1).max(30),
-  kioskEmptyTitle: z.string().trim().max(50),
-  kioskEmptySubtitle: z.string().trim().max(50),
-
-  marqueeItems: z.array(marqueeItemSchema).min(1).max(20),
-  stickerEmojis: z.array(stickerEmojiSchema).length(4),
-
-  showLavaLamp: z.boolean(),
-  showStickers: z.boolean(),
-  showMarquee: z.boolean(),
-  showFilters: z.boolean(),
-  showKioskBgGradient: z.boolean(),
 
   backgroundType: z.enum(["image", "video"]).nullable(),
   backgroundPath: z.string().nullable(),
@@ -69,10 +45,12 @@ export const siteConfigSchema = z.object({
 
   visualPreset: z.enum(["lava", "aurora", "wave", "none"]),
   defaultItemImagePath: z.string().nullable(),
+
+  // .default() 를 쓰면 input(optional)≠output(required) 발산으로 zodResolver 타입이
+  // useForm<SiteConfigInput>(output)과 안 맞는다. 항상 값을 제공하므로 required로 둔다.
+  dbaseCopy: dbaseCopyOverrideSchema,
 });
 
-export type MarqueeItem = z.infer<typeof marqueeItemSchema>;
-export type StickerEmoji = z.infer<typeof stickerEmojiSchema>;
 export type SiteConfigInput = z.infer<typeof siteConfigSchema>;
 
 export interface SiteConfig extends SiteConfigInput {
@@ -80,26 +58,17 @@ export interface SiteConfig extends SiteConfigInput {
   updatedAt: number | string;
 }
 
-export type SiteConfigRow = Omit<
-  SiteConfigInput,
-  "marqueeItems" | "stickerEmojis"
-> & {
+export type SiteConfigRow = Omit<SiteConfigInput, "dbaseCopy"> & {
   id: number;
   updatedAt: number | string;
-  marqueeItemsJson: string;
-  stickerEmojisJson: string;
+  dbaseCopyJson: string;
 };
 
 export const defaultSiteConfigValues: SiteConfigInput = {
   colorPrimary: "#5FD4A5",
   colorAccent: "#E896C0",
   colorTextMain: "#1e293b",
-  colorTextMuted: "#64748b",
   colorBackground: "#f8fafc",
-  overrideCtaBg: null,
-  overrideHeadlineGradFrom: null,
-  overrideHeadlineGradTo: null,
-  overrideFilterActiveBg: null,
   orgName: "D.Base",
   homeBadge1: "",
   homeBadge2: "",
@@ -108,15 +77,6 @@ export const defaultSiteConfigValues: SiteConfigInput = {
   homeSubcopy: "",
   homeCtaLabel: "시작하기",
   kioskTitle: "대여 목록",
-  kioskEmptyTitle: "현재 대여가능한 상품이 없습니다.",
-  kioskEmptySubtitle: "관리자에게 문의해주세요.",
-  marqueeItems: [...defaultMarqueeItems],
-  stickerEmojis: [...defaultStickerEmojis],
-  showLavaLamp: false,
-  showStickers: false,
-  showMarquee: false,
-  showFilters: true,
-  showKioskBgGradient: true,
   backgroundType: null,
   backgroundPath: null,
   backgroundOverlayOpacity: 30,
@@ -125,32 +85,33 @@ export const defaultSiteConfigValues: SiteConfigInput = {
   inactivityTimeoutMs: 60_000,
   visualPreset: "lava",
   defaultItemImagePath: null,
+  dbaseCopy: {},
 };
 
-function parseJsonArray<T>(raw: string, fallback: T[]): T[] {
+function parseJsonObject<T extends Record<string, unknown>>(
+  raw: string,
+  fallback: T
+): T {
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : fallback;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as T)
+      : fallback;
   } catch {
     return fallback;
   }
 }
 
 export function normalizeSiteConfigRow(row: SiteConfigRow): SiteConfig {
-  const marqueeItems = parseJsonArray(
-    row.marqueeItemsJson,
-    [...defaultMarqueeItems]
-  );
-  const stickerEmojis = parseJsonArray(
-    row.stickerEmojisJson,
-    [...defaultStickerEmojis]
+  const dbaseCopy = parseJsonObject<Record<string, string>>(
+    row.dbaseCopyJson ?? "{}",
+    {}
   );
 
   const parsed = siteConfigSchema.parse({
     ...defaultSiteConfigValues,
     ...row,
-    marqueeItems,
-    stickerEmojis,
+    dbaseCopy,
   });
 
   return {
@@ -162,11 +123,10 @@ export function normalizeSiteConfigRow(row: SiteConfigRow): SiteConfig {
 
 export function toSiteConfigDbValues(input: SiteConfigInput) {
   const parsed = siteConfigSchema.parse(input);
-  const { marqueeItems, stickerEmojis, ...rest } = parsed;
+  const { dbaseCopy, ...rest } = parsed;
 
   return {
     ...rest,
-    marqueeItemsJson: JSON.stringify(marqueeItems),
-    stickerEmojisJson: JSON.stringify(stickerEmojis),
+    dbaseCopyJson: JSON.stringify(dbaseCopy ?? {}),
   };
 }

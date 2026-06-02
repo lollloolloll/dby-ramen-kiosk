@@ -1056,7 +1056,7 @@ export function RentalDialog({
                   className={cn(
                     "h-12 w-full justify-center px-4 text-center transition-all",
                     isSelected
-                      ? "bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)] ring-offset-1 ring-[color:var(--brand-primary)]"
+                      ? "bg-brand-primary hover:bg-[color:var(--brand-primary)] ring-offset-1 ring-[color:var(--brand-primary)]"
                       : "border-slate-200 hover:border-[color:var(--brand-primary)]"
                   )}
                 >

@@ -23,6 +23,7 @@ import {
   inArray,
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { getSchoolLevel } from "@/lib/shared/school";
 import { Workbook } from "exceljs";
 import { AnalyticsData } from "@/lib/types/analytics";
 
@@ -1271,7 +1272,7 @@ export async function exportRentalRecordsToExcel(
     }
 
     const workbook = new Workbook();
-    const worksheet = workbook.addWorksheet("쌍청문 쉬다 대여 기록");
+    const worksheet = workbook.addWorksheet("D.Base 대여 기록");
 
     // 헤더 설정
     worksheet.columns = [
@@ -1280,6 +1281,7 @@ export async function exportRentalRecordsToExcel(
       { header: "사용자 이름", key: "userName", width: 15 },
       { header: "나이(만)", key: "age", width: 10 },
       { header: "연령대", key: "ageGroup", width: 10 },
+      { header: "교급", key: "schoolLevel", width: 12 },
       { header: "학교", key: "userSchool", width: 15 },
       { header: "아이템 이름", key: "itemName", width: 20 },
       { header: "아이템 카테고리", key: "itemCategory", width: 15 },
@@ -1319,6 +1321,7 @@ export async function exportRentalRecordsToExcel(
         userName: record.userName,
         age: age !== null ? age : "-", // 나이 데이터 매핑
         ageGroup: ageGroup, // 나이대 데이터 매핑
+        schoolLevel: getSchoolLevel(record.userSchool), // 교급 (대여 시점 학교 스냅샷 기준)
         userSchool: record.userSchool,
         itemName: record.itemName,
         itemCategory: record.itemCategory,

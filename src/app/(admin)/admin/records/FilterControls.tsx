@@ -193,7 +193,7 @@ export function FilterControls({ items, sort, order }: FilterControlsProps) {
             if (result.success && result.buffer && result.mimeType) {
               const link = document.createElement("a");
               link.href = `data:${result.mimeType};base64,${result.buffer}`;
-              link.download = `쌍청문_쉬다_대여기록_${new Date().toISOString()}.xlsx`;
+              link.download = `D.Base_대여기록_${new Date().toISOString()}.xlsx`;
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);

@@ -5,12 +5,7 @@ type ThemeVarsSource = Pick<
   | "colorPrimary"
   | "colorAccent"
   | "colorTextMain"
-  | "colorTextMuted"
   | "colorBackground"
-  | "overrideCtaBg"
-  | "overrideHeadlineGradFrom"
-  | "overrideHeadlineGradTo"
-  | "overrideFilterActiveBg"
   | "backgroundOverlayOpacity"
 >;
 
@@ -46,22 +41,13 @@ export function getReadableTextColor(hex: string): string {
 }
 
 export function toThemeCssVars(config: ThemeVarsSource) {
-  const ctaBg = config.overrideCtaBg ?? config.colorPrimary;
   return {
     "--brand-primary": config.colorPrimary,
     "--brand-accent": config.colorAccent,
     "--brand-text": config.colorTextMain,
-    "--brand-muted": config.colorTextMuted,
     "--brand-bg": config.colorBackground,
-    "--brand-cta-bg": ctaBg,
-    // brand-primary / cta 배경 위 글자색 (footer·카트바·CTA 버튼). 자동 대비.
+    // brand-primary 배경 위 글자색 (footer·카트바·CTA 버튼). 자동 대비.
     "--brand-on-primary": getReadableTextColor(config.colorPrimary),
-    "--brand-on-cta": getReadableTextColor(ctaBg),
-    "--brand-headline-from":
-      config.overrideHeadlineGradFrom ?? config.colorPrimary,
-    "--brand-headline-to": config.overrideHeadlineGradTo ?? config.colorAccent,
-    "--brand-filter-active":
-      config.overrideFilterActiveBg ?? config.colorPrimary,
     "--bg-overlay-opacity": `${config.backgroundOverlayOpacity / 100}`,
   } satisfies Record<string, string>;
 }

@@ -190,7 +190,7 @@ export const siteConfig = sqliteTable("site_config", {
   overrideHeadlineGradTo: text("override_headline_grad_to"),
   overrideFilterActiveBg: text("override_filter_active_bg"),
 
-  orgName: text("org_name").default("쌍청문").notNull(),
+  orgName: text("org_name").default("D.Base").notNull(),
   homeBadge1: text("home_badge_1").default("우리들의 아지트").notNull(),
   homeBadge2: text("home_badge_2")
     .default("나의 미성숙함이 머물다 가는 곳")
@@ -209,24 +209,6 @@ export const siteConfig = sqliteTable("site_config", {
     .default("관리자에게 문의해주세요.")
     .notNull(),
 
-  marqueeItemsJson: text("marquee_items_json")
-    .default(
-      '[{"emoji":"🎮","label":"닌텐도 스위치"},{"emoji":"🍜","label":"라면"},{"emoji":"🎲","label":"보드게임"},{"emoji":"🏸","label":"배드민턴"},{"emoji":"🍿","label":"맛있는 간식"},{"emoji":"🏀","label":"농구"},{"emoji":"🏓","label":"탁구"}]'
-    )
-    .notNull(),
-  stickerEmojisJson: text("sticker_emojis_json")
-    .default('[{"emoji":"🎮"},{"emoji":"🎤"},{"emoji":"🎲"},{"emoji":"🍜"}]')
-    .notNull(),
-
-  showLavaLamp: integer("show_lava_lamp", { mode: "boolean" })
-    .default(true)
-    .notNull(),
-  showStickers: integer("show_stickers", { mode: "boolean" })
-    .default(true)
-    .notNull(),
-  showMarquee: integer("show_marquee", { mode: "boolean" })
-    .default(true)
-    .notNull(),
   showFilters: integer("show_filters", { mode: "boolean" })
     .default(true)
     .notNull(),
@@ -256,6 +238,9 @@ export const siteConfig = sqliteTable("site_config", {
 
   // 아이템 이미지가 없을 때 보여줄 폴백 이미지 경로. nullable이면 정적 placeholder 사용
   defaultItemImagePath: text("default_item_image_path"),
+
+  // D.BASE 키오스크 전용 문구 override (JSON map). 비어있으면 src/lib/dbase/copy.ts 기본값 사용.
+  dbaseCopyJson: text("dbase_copy_json").default("{}").notNull(),
 
   updatedAt: integer("updated_at")
     .default(sql`(CURRENT_TIMESTAMP)`)

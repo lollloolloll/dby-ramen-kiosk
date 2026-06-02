@@ -217,7 +217,7 @@ function HomeContent() {
       {/* Hero band — 색은 var(--brand-text) / var(--brand-bg). 운영자가 ThemeBuilder에서 직접 제어 */}
       <main
         onClick={handleStart}
-        className="relative flex min-h-screen w-full cursor-pointer flex-col overflow-hidden bg-(--brand-text) text-(--brand-bg) selection:bg-(--brand-primary)/30"
+        className="relative flex min-h-screen w-full cursor-pointer flex-col overflow-hidden bg-(--brand-bg) text-(--brand-text) selection:bg-(--brand-primary)/30"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         {/* 배경 미디어가 있으면 chrome 위에 */}
@@ -257,7 +257,7 @@ function HomeContent() {
         )}
 
         {/* ── Primary nav strip (PS-style dark) ───────── */}
-        <nav className="relative z-20 flex h-12 items-center justify-between border-b border-(--brand-bg)/10 px-6 sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
+        <nav className="relative z-20 flex h-12 items-center justify-between bg-brand-text px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
           <div className="flex items-center gap-5">
             {config.logoPath ? (
               <img
@@ -317,10 +317,10 @@ function HomeContent() {
           <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 items-end gap-16 lg:grid-cols-[1.3fr_1fr] lg:gap-24">
             <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-100">
               {(config.homeBadge1.trim() || config.homeBadge2.trim()) && (
-                <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-(--brand-bg)/55">
+                <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-(--body-muted)">
                   {config.homeBadge1.trim() && <span>{config.homeBadge1}</span>}
                   {config.homeBadge1.trim() && config.homeBadge2.trim() && (
-                    <span className="text-(--brand-bg)/20">·</span>
+                    <span className="text-(--brand-text)/20">·</span>
                   )}
                   {config.homeBadge2.trim() && <span>{config.homeBadge2}</span>}
                 </div>
@@ -347,9 +347,9 @@ function HomeContent() {
               </h1>
 
               {(config.orgName.trim() || config.homeSubcopy.trim()) && (
-                <p className="max-w-xl text-lg leading-relaxed text-(--brand-bg)/70 sm:text-xl">
+                <p className="max-w-xl text-lg leading-relaxed text-(--body-muted) sm:text-xl">
                   {config.orgName.trim() && (
-                    <span className="font-medium text-(--brand-bg)">
+                    <span className="font-medium text-(--brand-text)">
                       {config.orgName}
                     </span>
                   )}
@@ -358,7 +358,7 @@ function HomeContent() {
               )}
 
               {/* 화면 어디든 탭하면 키오스크로 진입 — 별도 CTA 없음 */}
-              <div className="mt-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-(--brand-bg)/55">
+              <div className="mt-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
                 <span
                   className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
                   style={{ backgroundColor: "var(--brand-primary)" }}
@@ -370,7 +370,7 @@ function HomeContent() {
             {/* Right slot: live clock + status (editorial moment) */}
             <div className="flex flex-col items-start gap-6 lg:items-end animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-200">
               <LiveClock />
-              <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-(--brand-bg)/45">
+              <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-(--body-muted)">
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full"
                   style={{ backgroundColor: "var(--brand-primary)" }}
@@ -438,10 +438,13 @@ function ThemeBackground({
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
-      <div
-        className="absolute inset-0 bg-(--brand-text)"
-        style={{ opacity: "var(--bg-overlay-opacity)" }}
-      />
+      {/* 음영 오버레이는 이미지 배경에만 적용 (동영상은 원본 그대로) */}
+      {backgroundType !== "video" && (
+        <div
+          className="absolute inset-0 bg-(--brand-text)"
+          style={{ opacity: "var(--bg-overlay-opacity)" }}
+        />
+      )}
     </div>
   );
 }
@@ -469,14 +472,14 @@ function LiveClock() {
   return (
     <div className="flex flex-col gap-1 lg:items-end" aria-hidden>
       <div
-        className="font-mono text-5xl font-light tabular-nums tracking-tight text-(--brand-bg) sm:text-6xl"
+        className="font-mono text-5xl font-light tabular-nums tracking-tight text-(--brand-text) sm:text-6xl"
         style={{ fontVariationSettings: '"wght" 300' }}
       >
         {hh}
-        <span className="mx-0.5 animate-pulse text-(--brand-bg)/40">:</span>
+        <span className="mx-0.5 animate-pulse text-(--brand-text)/40">:</span>
         {mm}
       </div>
-      <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-(--brand-bg)/45">
+      <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-(--body-muted)">
         {dateStr}
       </div>
     </div>

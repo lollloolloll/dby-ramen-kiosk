@@ -330,7 +330,7 @@ export function KioskPageClient({
                 {config.kioskTitle}
               </h1>
 
-              {config.showFilters && categories.length > 1 && (
+              {categories.length > 1 && (
                 <div className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
                   {categories.map((category) => {
                     const active = selectedCategory === category;
@@ -405,12 +405,12 @@ export function KioskPageClient({
                       }}
                     >
                       {selectedCategory === "전체"
-                        ? config.kioskEmptyTitle
+                        ? "현재 대여가능한 상품이 없습니다."
                         : `${selectedCategory} 카테고리에 대여가능한 상품이 없습니다.`}
                     </p>
                     <p className="text-base text-(--body-muted) sm:text-lg">
                       {selectedCategory === "전체"
-                        ? config.kioskEmptySubtitle
+                        ? "관리자에게 문의해주세요."
                         : "다른 카테고리를 선택해주세요."}
                     </p>
                   </div>
@@ -517,10 +517,13 @@ function ThemeBackground({
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
-      <div
-        className="absolute inset-0 bg-(--brand-text)"
-        style={{ opacity: "var(--bg-overlay-opacity)" }}
-      />
+      {/* 음영 오버레이는 이미지 배경에만 적용 (동영상은 원본 그대로) */}
+      {backgroundType !== "video" && (
+        <div
+          className="absolute inset-0 bg-(--brand-text)"
+          style={{ opacity: "var(--bg-overlay-opacity)" }}
+        />
+      )}
     </div>
   );
 }

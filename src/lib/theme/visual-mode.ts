@@ -38,9 +38,6 @@ export function resolveVisualMode(
     return preset as VisualMode;
   }
 
-  // 레거시: showLavaLamp 토글이 켜져 있으면 lava
-  if (config.showLavaLamp) return "lava";
-
   return fallback;
 }
 

@@ -23,9 +23,9 @@ const dbaseUserSchema = z.object({
   birthDate: z
     .string()
     .regex(/^\d{4}-\d{1,2}-\d{1,2}$/, "생년월일을 선택해주세요."),
-  personalInfoConsent: z.literal(true, {
-    message: "개인정보 동의가 필요합니다.",
-  }),
+  school: z.string().trim().min(1, "학교를 선택해주세요."),
+  // 개인정보 동의는 선택(옵셔널). 미동의여도 등록 가능.
+  personalInfoConsent: z.boolean().optional().default(false),
 });
 
 const dbaseVisitSchema = z.object({
@@ -62,11 +62,12 @@ export async function registerDbaseUser(
         parsed.error.flatten().fieldErrors.phoneNumber?.[0] ||
         parsed.error.flatten().fieldErrors.gender?.[0] ||
         parsed.error.flatten().fieldErrors.birthDate?.[0] ||
+        parsed.error.flatten().fieldErrors.school?.[0] ||
         "유효하지 않은 사용자 정보입니다.",
     };
   }
 
-  const { name, phoneNumber, gender, birthDate, personalInfoConsent } =
+  const { name, phoneNumber, gender, birthDate, school, personalInfoConsent } =
     parsed.data;
 
   try {
@@ -91,7 +92,7 @@ export async function registerDbaseUser(
         phoneNumber,
         gender,
         birthDate,
-        school: "",
+        school,
         personalInfoConsent,
       })
       .returning({ id: generalUsers.id, name: generalUsers.name });

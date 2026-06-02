@@ -16,8 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateSiteConfig } from "@/lib/actions/siteConfig";
 import {
   defaultSiteConfigValues,
@@ -25,13 +24,25 @@ import {
   type SiteConfig,
   type SiteConfigInput,
 } from "@/lib/schemas/siteConfig";
+import {
+  DBASE_COPY,
+  EDITABLE_DBASE_COPY_KEYS,
+  type EditableDbaseCopyKey,
+} from "@/lib/dbase/copy";
 import { useDebounce } from "@/lib/shared/use-debounce";
 import { broadcastSiteConfigChanged } from "@/lib/theme/broadcast";
 
+// 미리보기 탭. /kiosk 는 /kiosk/dby 로 redirect 되며 ?preview=1 이 유실되므로
+// dby 경로를 직접 가리킨다. (key는 탭 식별자)
 const PREVIEW_TABS = {
   home: "/?preview=1",
-  kiosk: "/kiosk?preview=1",
+  dbase: "/kiosk/dby?preview=1",
 } as const;
+
+const PREVIEW_TAB_LABELS: Record<keyof typeof PREVIEW_TABS, string> = {
+  home: "홈",
+  dbase: "키오스크",
+};
 
 const DEVICE_PRESETS = {
   ipad: { label: "iPad", width: 1024, height: 768 },
@@ -42,6 +53,22 @@ const DEVICE_PRESETS = {
 } as const;
 
 type DevicePresetKey = keyof typeof DEVICE_PRESETS;
+
+// D.BASE 문구 편집 필드 라벨 (편집 가능한 키만 노출 — copy.ts EDITABLE_DBASE_COPY_KEYS)
+const DBASE_COPY_FIELD_LABELS: Record<EditableDbaseCopyKey, string> = {
+  brandEyebrow: "상단 작은 문구 (기관)",
+  entryTitle: "입장 큰 글씨",
+  entryFirstTime: "입장 버튼 — 처음",
+  entryReturning: "입장 버튼 — 재방문",
+  registerTitle: "신규 등록 제목",
+  identifyTitle: "재방문 확인 제목",
+  mismatchTitle: "정보 불일치 제목",
+  mismatchBody: "정보 불일치 보조문구",
+  headcountTitle: "인원수 제목",
+  contentsTitle: "컨텐츠 선택 제목",
+  doneTitle: "완료 제목",
+  doneSubtitle: "완료 보조문구",
+};
 
 /**
  * 검증된 색 조합 프리셋. 메인 톤 ↔ 배경 톤 명도 대비가 충분하도록 골라
@@ -55,7 +82,6 @@ const COLOR_PRESETS: Array<{
     | "colorPrimary"
     | "colorAccent"
     | "colorTextMain"
-    | "colorTextMuted"
     | "colorBackground"
   >;
 }> = [
@@ -66,7 +92,6 @@ const COLOR_PRESETS: Array<{
       colorPrimary: "#5FD4A5",
       colorAccent: "#E896C0",
       colorTextMain: "#1E293B",
-      colorTextMuted: "#64748B",
       colorBackground: "#F8FAFC",
     },
   },
@@ -77,7 +102,6 @@ const COLOR_PRESETS: Array<{
       colorPrimary: "#6EE7B7",
       colorAccent: "#F0ABFC",
       colorTextMain: "#E5E7EB",
-      colorTextMuted: "#94A3B8",
       colorBackground: "#0F172A",
     },
   },
@@ -88,7 +112,6 @@ const COLOR_PRESETS: Array<{
       colorPrimary: "#18181B",
       colorAccent: "#71717A",
       colorTextMain: "#18181B",
-      colorTextMuted: "#71717A",
       colorBackground: "#FAFAFA",
     },
   },
@@ -99,14 +122,13 @@ const COLOR_PRESETS: Array<{
       colorPrimary: "#FB923C",
       colorAccent: "#F472B6",
       colorTextMain: "#292524",
-      colorTextMuted: "#78716C",
       colorBackground: "#FFFBF5",
     },
   },
 ];
 
 export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfig }) {
-  const [activePreview, setActivePreview] = useState<keyof typeof PREVIEW_TABS>("home");
+  const [activePreview, setActivePreview] = useState<keyof typeof PREVIEW_TABS>("dbase");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -128,7 +150,6 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
 
   const watchedValues = useWatch({ control: form.control });
   const debouncedDraft = useDebounce(watchedValues, 100);
-  const hasBackground = Boolean(form.watch("backgroundPath"));
 
   const previewSrc = PREVIEW_TABS[activePreview];
 
@@ -161,6 +182,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
     } finally {
       setIsSaving(false);
     }
+  }, () => {
+    // 검증 실패(글자 수 초과 등) 시 조용히 무시되지 않도록 피드백
+    toast.error("저장하지 못했습니다. 입력값(글자 수 제한 등)을 확인해주세요.");
   });
 
   const uploadSingleAsset = async ({
@@ -241,7 +265,7 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
           <CardContent className="grid gap-4">
             <TextField
               label="기관 이름"
-              helper="예: 쌍청문 · D.Base"
+              helper="예: D.Base"
               {...form.register("orgName")}
             />
             <div className="grid gap-4 md:grid-cols-2">
@@ -485,12 +509,31 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>D.BASE 문구</CardTitle>
+            <CardDescription>
+              D.BASE 키오스크 화면에 표시되는 문구입니다. 비워두면 기본값이 표시됩니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            {EDITABLE_DBASE_COPY_KEYS.map((key) => (
+              <TextField
+                key={key}
+                label={DBASE_COPY_FIELD_LABELS[key]}
+                placeholder={DBASE_COPY[key]}
+                {...form.register(`dbaseCopy.${key}`)}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
         <details className="group rounded-xl border bg-card">
           <summary className="flex cursor-pointer list-none items-center justify-between p-5 font-semibold">
             <div className="flex flex-col gap-1">
               <span>고급 설정</span>
               <span className="text-xs font-normal text-muted-foreground">
-                작은 뱃지, 보조문구, 빈 상태 메시지, 색상 미세조정 등 자주 만질 일이 없는 항목
+                작은 뱃지, 보조문구, 배경 어둡기 등 자주 만질 일이 없는 항목
               </span>
             </div>
             <ChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" />
@@ -515,86 +558,17 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                 helper="기관 이름 뒤에 붙는 한 줄. 비우면 안 보임. 예: 에서 빌려보세요"
                 {...form.register("homeSubcopy")}
               />
-              <div className="grid gap-4 md:grid-cols-2">
-                <TextField
-                  label="빈 상태 제목"
-                  helper="키오스크에 아이템이 없을 때 큰 글씨"
-                  {...form.register("kioskEmptyTitle")}
-                />
-                <TextField
-                  label="빈 상태 보조문구"
-                  helper="빈 상태 아래에 보일 안내문"
-                  {...form.register("kioskEmptySubtitle")}
-                />
-              </div>
             </section>
 
             <section className="space-y-4 border-t pt-6">
-              <h3 className="text-sm font-semibold text-muted-foreground">색상 미세조정</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <ColorField
-                  label="흐린 글자 색"
-                  helper="보조 텍스트·설명문에 사용"
-                  value={form.watch("colorTextMuted")}
-                  onChange={(value) => form.setValue("colorTextMuted", value, { shouldDirty: true })}
-                />
-                <NullableColorField
-                  label="참여 버튼 배경"
-                  value={form.watch("overrideCtaBg")}
-                  onChange={(value) => form.setValue("overrideCtaBg", value, { shouldDirty: true })}
-                />
-                <NullableColorField
-                  label="홈 큰 글씨 그라데이션 시작색"
-                  value={form.watch("overrideHeadlineGradFrom")}
-                  onChange={(value) =>
-                    form.setValue("overrideHeadlineGradFrom", value, { shouldDirty: true })
-                  }
-                />
-                <NullableColorField
-                  label="홈 큰 글씨 그라데이션 끝색"
-                  value={form.watch("overrideHeadlineGradTo")}
-                  onChange={(value) =>
-                    form.setValue("overrideHeadlineGradTo", value, { shouldDirty: true })
-                  }
-                />
-                <NullableColorField
-                  label="활성 카테고리 배경"
-                  value={form.watch("overrideFilterActiveBg")}
-                  onChange={(value) =>
-                    form.setValue("overrideFilterActiveBg", value, { shouldDirty: true })
-                  }
-                />
-              </div>
-            </section>
-
-            <section className="space-y-4 border-t pt-6">
-              <h3 className="text-sm font-semibold text-muted-foreground">표시 옵션</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <ToggleField
-                  label="카테고리 필터 보이기"
-                  checked={form.watch("showFilters")}
-                  onCheckedChange={(checked) =>
-                    form.setValue("showFilters", checked, { shouldDirty: true })
-                  }
-                />
-                <ToggleField
-                  label="키오스크 배경 그라데이션"
-                  checked={form.watch("showKioskBgGradient")}
-                  disabled={hasBackground}
-                  description={hasBackground ? "배경 이미지/영상이 있으면 자동으로 숨겨집니다." : undefined}
-                  onCheckedChange={(checked) =>
-                    form.setValue("showKioskBgGradient", checked, { shouldDirty: true })
-                  }
-                />
-              </div>
-
+              <h3 className="text-sm font-semibold text-muted-foreground">배경</h3>
               <Controller
                 control={form.control}
                 name="backgroundOverlayOpacity"
                 render={({ field }) => (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>배경 어둡기 (배경 이미지/영상 위에 검은 막)</Label>
+                      <Label>배경 어둡기 (이미지 배경에만 적용 · 영상은 원본 유지)</Label>
                       <span className="text-sm text-muted-foreground">{field.value}%</span>
                     </div>
                     <Input
@@ -691,11 +665,12 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
           <CardContent className="flex flex-col gap-4">
             <Tabs value={activePreview} onValueChange={(value) => setActivePreview(value as keyof typeof PREVIEW_TABS)}>
               <TabsList>
-                <TabsTrigger value="home">홈</TabsTrigger>
-                <TabsTrigger value="kiosk">키오스크</TabsTrigger>
+                {(Object.keys(PREVIEW_TABS) as Array<keyof typeof PREVIEW_TABS>).map((key) => (
+                  <TabsTrigger key={key} value={key}>
+                    {PREVIEW_TAB_LABELS[key]}
+                  </TabsTrigger>
+                ))}
               </TabsList>
-              <TabsContent value="home" />
-              <TabsContent value="kiosk" />
             </Tabs>
 
             <div
@@ -741,15 +716,24 @@ function stripMeta(config: SiteConfig): SiteConfigInput {
 function normalizeDraft(values: SiteConfigInput): SiteConfigInput {
   return {
     ...values,
-    overrideCtaBg: values.overrideCtaBg || null,
-    overrideHeadlineGradFrom: values.overrideHeadlineGradFrom || null,
-    overrideHeadlineGradTo: values.overrideHeadlineGradTo || null,
-    overrideFilterActiveBg: values.overrideFilterActiveBg || null,
     backgroundPath: values.backgroundPath || null,
     backgroundType: values.backgroundType || null,
     logoPath: values.logoPath || null,
     defaultItemImagePath: values.defaultItemImagePath || null,
+    dbaseCopy: pruneDbaseCopy(values.dbaseCopy),
   };
+}
+
+// 빈 문구는 제거해 저장 — 비운 항목은 copy.ts 기본값으로 폴백된다.
+function pruneDbaseCopy(
+  value: SiteConfigInput["dbaseCopy"]
+): SiteConfigInput["dbaseCopy"] {
+  if (!value) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([, v]) => typeof v === "string" && v.trim() !== ""
+    )
+  ) as SiteConfigInput["dbaseCopy"];
 }
 
 function TextField(
@@ -789,69 +773,6 @@ function ColorField({
         <Input value={value} onChange={(event) => onChange(event.target.value)} />
       </div>
       {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
-    </div>
-  );
-}
-
-function NullableColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string | null;
-  onChange: (value: string | null) => void;
-}) {
-  const fallback = value ?? "#000000";
-  const isUsingDefault = value === null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>{label}</Label>
-        {!isUsingDefault && (
-          <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
-            기본값으로
-          </Button>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <Input
-          type="color"
-          className="h-10 w-16 p-1"
-          value={fallback}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <Input
-          placeholder={isUsingDefault ? "기본값 사용 중 — 색을 지정하지 않음" : ""}
-          value={value ?? ""}
-          onChange={(event) => onChange(event.target.value || null)}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ToggleField({
-  label,
-  checked,
-  disabled,
-  description,
-  onCheckedChange,
-}: {
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  description?: string;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
-      <div className="space-y-1">
-        <p className="font-medium">{label}</p>
-        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
-      </div>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
     </div>
   );
 }

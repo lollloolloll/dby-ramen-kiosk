@@ -6,6 +6,7 @@ import { eq, asc, desc, like, or, sql, and, count } from "drizzle-orm";
 import { generalUserSchema } from "@/lib/validators/generalUser";
 import { revalidatePath } from "next/cache";
 import ExcelJS from "exceljs";
+import { getSchoolLevel } from "@/lib/shared/school";
 
 export type UserCheckResult =
   | { status: "exact_match"; user: typeof generalUsers.$inferSelect }
@@ -381,7 +382,7 @@ export async function exportGeneralUsersToExcel() {
     const allUsers = await db.select().from(generalUsers);
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("쌍청문 쉬다 사용자 정보");
+    const worksheet = workbook.addWorksheet("D.Base 사용자 정보");
 
     worksheet.columns = [
       { header: "ID", key: "id", width: 10 },
@@ -389,6 +390,7 @@ export async function exportGeneralUsersToExcel() {
       { header: "전화번호", key: "phoneNumber", width: 20 },
       { header: "성별", key: "gender", width: 10 },
       { header: "생년월일", key: "birthDate", width: 15 },
+      { header: "교급", key: "schoolLevel", width: 12 },
       { header: "학교", key: "school", width: 20 },
       { header: "개인정보동의", key: "personalInfoConsent", width: 15 },
     ];
@@ -429,6 +431,7 @@ export async function exportGeneralUsersToExcel() {
         phoneNumber: user.phoneNumber,
         gender: user.gender,
         birthDate: user.birthDate,
+        schoolLevel: getSchoolLevel(user.school), // 교급
         school: user.school,
         personalInfoConsent: user.personalInfoConsent ? "Y" : "N",
       });

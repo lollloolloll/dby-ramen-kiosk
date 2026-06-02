@@ -27,8 +27,8 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Item Kiosk",
-  description: "A self-service item ordering kiosk.",
+  title: "D.Base",
+  description: "도봉동청소년문화의집 플레이그라운드 D.Base 키오스크",
   manifest: "/manifest.json",
 };
 

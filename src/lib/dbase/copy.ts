@@ -30,11 +30,13 @@ export type DbaseCopy = {
   mismatchRetry: string;
   mismatchRegister: string;
   // 인원수
-  headcountEyebrowFallback: string;
+  headcountEyebrow: string;
   headcountTitle: string;
   // 컨텐츠 선택
   contentsEyebrow: string;
   contentsTitle: string;
+  // 최종 확인
+  confirmEyebrow: string;
   // 완료(Welcome)
   doneEyebrow: string;
   doneTitle: string;
@@ -64,11 +66,11 @@ export const DBASE_COPY: DbaseCopy = {
   entryFirstTime: "처음 왔어요",
   entryReturning: "또 왔어요",
 
-  registerEyebrow: "처음 왔어요",
+  registerEyebrow: "신규 등록",
   registerTitle: "처음 온 두리, 반가워~",
   consentLabel: "개인정보 수집 및 이용에 동의합니다",
 
-  identifyEyebrow: "또 왔어요",
+  identifyEyebrow: "재방문 확인",
   identifyTitle: "오늘도 반가워!",
 
   mismatchEyebrow: "확인 필요",
@@ -77,11 +79,13 @@ export const DBASE_COPY: DbaseCopy = {
   mismatchRetry: "다시 입력",
   mismatchRegister: "신규 등록",
 
-  headcountEyebrowFallback: "D.BASE",
+  headcountEyebrow: "인원 확인",
   headcountTitle: "몇 명이 왔어?",
 
-  contentsEyebrow: "하고 싶은 것 모두 선택",
+  contentsEyebrow: "활동 선택",
   contentsTitle: "두근두근, 오늘은 뭐해?",
+
+  confirmEyebrow: "최종 확인",
 
   doneEyebrow: "Welcome",
   doneTitle: "Welcome to D.BASE!",

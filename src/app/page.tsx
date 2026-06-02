@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PromotionSlider } from "@/components/PromotionSlider";
+import defaultLogo from "@/assets/images/default-logo.png";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
@@ -259,17 +260,12 @@ function HomeContent() {
         {/* ── Primary nav strip (PS-style dark) ───────── */}
         <nav className="relative z-20 flex h-12 items-center justify-between bg-brand-text px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
           <div className="flex items-center gap-5">
-            {config.logoPath ? (
-              <img
-                src={config.logoPath}
-                alt={config.orgName}
-                className="h-7 w-auto"
-              />
-            ) : (
-              <span className="text-sm font-medium tracking-wide">
-                {config.orgName || "KIOSK"}
-              </span>
-            )}
+            {/* 로고: 업로드된 게 없으면 번들 기본 로고(default-logo.png) 사용 */}
+            <img
+              src={config.logoPath ?? defaultLogo.src}
+              alt={config.orgName || "로고"}
+              className="h-7 w-auto"
+            />
             {FLOOR && (
               <span className="flex items-center gap-1.5 border-l border-(--brand-bg)/15 pl-5 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/60">
                 <span

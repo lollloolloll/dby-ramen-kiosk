@@ -2,7 +2,7 @@
 
 import { Item } from "@/app/(admin)/admin/items/columns";
 import Image from "next/image";
-import bearImage from "@/assets/images/bear.png";
+import youthFacilityImage from "@/assets/images/default-item.png";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
@@ -32,7 +32,8 @@ export function ItemCard({
   const isRented = item.isTimeLimited ? item.status === "RENTED" : false;
   const waitingCount = item.waitingCount;
 
-  const imageSrc = item.imageUrl ?? config.defaultItemImagePath ?? bearImage;
+  const imageSrc =
+    item.imageUrl ?? config.defaultItemImagePath ?? youthFacilityImage;
 
   const handleClick = () => {
     if (onAddToCart) {

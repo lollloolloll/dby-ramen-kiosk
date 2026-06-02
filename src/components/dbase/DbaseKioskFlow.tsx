@@ -15,7 +15,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import type { Item } from "@/app/(admin)/admin/items/columns";
-import bearImage from "@/assets/images/bear.png";
+import youthFacilityImage from "@/assets/images/default-item.png";
 import { AuroraBackground } from "@/components/visuals/AuroraBackground";
 import {
   ParticleWaveBackground,
@@ -283,6 +283,12 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
     setIsSubmitting(false);
   };
 
+  // "처음으로" / 완료 후 복귀 — 홈(랜딩)으로 이동. 유휴 타이머와 동일 동작.
+  const goHome = () => {
+    if (isPreview) return;
+    router.push("/");
+  };
+
   const resetInactivityTimer = () => {
     if (isPreview) return;
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
@@ -338,7 +344,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
 
   useEffect(() => {
     if (step !== "done" || isPreview) return;
-    const timeout = setTimeout(resetFlow, 8000);
+    const timeout = setTimeout(goHome, 8000);
     return () => clearTimeout(timeout);
   }, [step, isPreview]);
 
@@ -486,9 +492,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
           <div className="flex items-center gap-5">
             <button
               type="button"
-              onClick={() => {
-                if (!isPreview) resetFlow();
-              }}
+              onClick={goHome}
               className="group inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/70 transition-colors hover:text-(--brand-bg)"
             >
               <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-0.5" />
@@ -1000,7 +1004,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
 
             {step === "headcount" && (
               <Panel
-                eyebrow={visitor?.name ?? copy.headcountEyebrowFallback}
+                eyebrow={copy.headcountEyebrow}
                 title={copy.headcountTitle}
                 footer={
                   <FlowFooter
@@ -1148,7 +1152,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
 
             {step === "confirm" && (
               <Panel
-                eyebrow={visitor?.name ?? copy.headcountEyebrowFallback}
+                eyebrow={copy.confirmEyebrow}
                 title="이대로 등록할까?"
                 footer={
                   <FlowFooter
@@ -1243,7 +1247,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                 <Button
                   type="button"
                   className="h-14 px-10 text-lg"
-                  onClick={resetFlow}
+                  onClick={goHome}
                 >
                   {copy.buttonRestart}
                 </Button>
@@ -1504,14 +1508,26 @@ function Counter({
       <div className="mb-4 text-xs font-semibold uppercase tracking-[0.14em] text-(--body-muted)">
         {label}
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <Button type="button" variant="outline" size="icon" onClick={onMinus}>
+      <div className="flex items-center justify-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          onClick={onMinus}
+        >
           <Minus className="h-4 w-4" />
         </Button>
-        <span className="min-w-10 text-center text-4xl font-light tabular-nums">
+        <span className="w-10 text-center text-3xl font-light tabular-nums">
           {value}
         </span>
-        <Button type="button" variant="outline" size="icon" onClick={onPlus}>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          onClick={onPlus}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -1532,7 +1548,7 @@ function ContentCard({
   fallbackImage: string | null;
   onToggle: () => void;
 }) {
-  const imageSrc = item.imageUrl ?? fallbackImage ?? bearImage;
+  const imageSrc = item.imageUrl ?? fallbackImage ?? youthFacilityImage;
 
   return (
     <button

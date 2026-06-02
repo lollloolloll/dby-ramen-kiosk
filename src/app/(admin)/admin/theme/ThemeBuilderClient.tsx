@@ -1,12 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, Loader2, RefreshCcw, RotateCw, Trash2, Upload } from "lucide-react";
+import {
+  ChevronDown,
+  Loader2,
+  RefreshCcw,
+  RotateCw,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,21 +52,25 @@ import { useDebounce } from "@/lib/shared/use-debounce";
 import { broadcastSiteConfigChanged } from "@/lib/theme/broadcast";
 
 // 미리보기 탭. /kiosk 는 /kiosk/dby 로 redirect 되며 ?preview=1 이 유실되므로
-// dby 경로를 직접 가리킨다. (key는 탭 식별자)
+// 각 경로를 직접 가리킨다. (key는 탭 식별자)
+//  - entry: D.Base 방문 등록 플로우(DbaseKioskFlow)
+//  - kiosk: 아이템 카드 카탈로그(smy 인스턴스)
 const PREVIEW_TABS = {
   home: "/?preview=1",
-  dbase: "/kiosk/dby?preview=1",
+  entry: "/kiosk/dby?preview=1",
+  kiosk: "/kiosk/smy?preview=1",
 } as const;
 
 const PREVIEW_TAB_LABELS: Record<keyof typeof PREVIEW_TABS, string> = {
   home: "홈",
-  dbase: "키오스크",
+  entry: "엔트리페이지",
+  kiosk: "키오스크",
 };
 
 const DEVICE_PRESETS = {
   ipad: { label: "iPad", width: 1024, height: 768 },
-  ipadPro11: { label: "iPad Pro 11\"", width: 1194, height: 834 },
-  ipadPro13: { label: "iPad Pro 13\"", width: 1366, height: 1024 },
+  ipadPro11: { label: 'iPad Pro 11"', width: 1194, height: 834 },
+  ipadPro13: { label: 'iPad Pro 13"', width: 1366, height: 1024 },
   iphone: { label: "iPhone 14 Pro", width: 393, height: 852 },
   desktop: { label: "Desktop", width: 1440, height: 900 },
 } as const;
@@ -79,10 +102,7 @@ const COLOR_PRESETS: Array<{
   swatch: string;
   values: Pick<
     SiteConfigInput,
-    | "colorPrimary"
-    | "colorAccent"
-    | "colorTextMain"
-    | "colorBackground"
+    "colorPrimary" | "colorAccent" | "colorTextMain" | "colorBackground"
   >;
 }> = [
   {
@@ -127,8 +147,13 @@ const COLOR_PRESETS: Array<{
   },
 ];
 
-export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfig }) {
-  const [activePreview, setActivePreview] = useState<keyof typeof PREVIEW_TABS>("dbase");
+export function ThemeBuilderClient({
+  initialConfig,
+}: {
+  initialConfig: SiteConfig;
+}) {
+  const [activePreview, setActivePreview] =
+    useState<keyof typeof PREVIEW_TABS>("entry");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -168,24 +193,29 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
     postPreviewDraft();
   }, [debouncedDraft, postPreviewDraft]);
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    setIsSaving(true);
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      setIsSaving(true);
 
-    try {
-      const saved = await updateSiteConfig(normalizeDraft(values));
-      form.reset(stripMeta(saved));
-      broadcastSiteConfigChanged();
-      toast.success("테마 설정을 저장했습니다.");
-    } catch (error) {
-      console.error(error);
-      toast.error("테마 저장에 실패했습니다.");
-    } finally {
-      setIsSaving(false);
+      try {
+        const saved = await updateSiteConfig(normalizeDraft(values));
+        form.reset(stripMeta(saved));
+        broadcastSiteConfigChanged();
+        toast.success("테마 설정을 저장했습니다.");
+      } catch (error) {
+        console.error(error);
+        toast.error("테마 저장에 실패했습니다.");
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    () => {
+      // 검증 실패(글자 수 초과 등) 시 조용히 무시되지 않도록 피드백
+      toast.error(
+        "저장하지 못했습니다. 입력값(글자 수 제한 등)을 확인해주세요."
+      );
     }
-  }, () => {
-    // 검증 실패(글자 수 초과 등) 시 조용히 무시되지 않도록 피드백
-    toast.error("저장하지 못했습니다. 입력값(글자 수 제한 등)을 확인해주세요.");
-  });
+  );
 
   const uploadSingleAsset = async ({
     file,
@@ -203,7 +233,10 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
     setLoading(true);
 
     try {
-      const response = await fetch(endpoint, { method: "POST", body: formData });
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
       const data = await response.json();
 
       if (!response.ok) {
@@ -215,7 +248,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
       toast.success("파일을 업로드했습니다.");
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "업로드에 실패했습니다.");
+      toast.error(
+        error instanceof Error ? error.message : "업로드에 실패했습니다."
+      );
     } finally {
       setLoading(false);
     }
@@ -248,19 +283,25 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
   };
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 xl:grid-cols-[minmax(420px,1fr)_auto] xl:items-start">
+    <form
+      onSubmit={onSubmit}
+      className="grid gap-6 xl:grid-cols-[minmax(420px,1fr)_auto] xl:items-start"
+    >
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">테마 빌더</h1>
           <p className="text-sm text-muted-foreground">
-            기관 정보, 색상, 이미지를 수정하면 홈과 키오스크 화면에 바로 반영됩니다.
+            기관 정보, 색상, 이미지를 수정하면 홈과 키오스크 화면에 바로
+            반영됩니다.
           </p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>우리 기관</CardTitle>
-            <CardDescription>홈 화면에 표시될 기관 이름과 인사말 문구입니다.</CardDescription>
+            <CardDescription>
+              홈 화면에 표시될 기관 이름과 인사말 문구입니다.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <TextField
@@ -298,13 +339,16 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
         <Card>
           <CardHeader>
             <CardTitle>색상</CardTitle>
-            <CardDescription>키오스크 전체에 적용되는 4가지 기본 색입니다.</CardDescription>
+            <CardDescription>
+              키오스크 전체에 적용되는 4가지 기본 색입니다.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label>색 조합 프리셋</Label>
               <p className="text-xs text-muted-foreground">
-                검증된 색 조합을 한 번에 적용합니다. 적용 후 개별 색을 더 조정할 수 있습니다.
+                검증된 색 조합을 한 번에 적용합니다. 적용 후 개별 색을 더 조정할
+                수 있습니다.
               </p>
               <div className="flex flex-wrap gap-2">
                 {COLOR_PRESETS.map((presetItem) => (
@@ -321,7 +365,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                       ).forEach(([key, value]) =>
                         form.setValue(key, value, { shouldDirty: true })
                       );
-                      toast.success(`'${presetItem.name}' 색 조합을 적용했습니다.`);
+                      toast.success(
+                        `'${presetItem.name}' 색 조합을 적용했습니다.`
+                      );
                     }}
                   >
                     <span
@@ -337,25 +383,33 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
               label="메인 색상"
               helper="타이틀·버튼·강조에 사용"
               value={form.watch("colorPrimary")}
-              onChange={(value) => form.setValue("colorPrimary", value, { shouldDirty: true })}
+              onChange={(value) =>
+                form.setValue("colorPrimary", value, { shouldDirty: true })
+              }
             />
             <ColorField
               label="포인트 색상"
               helper="보조 강조·뱃지에 사용"
               value={form.watch("colorAccent")}
-              onChange={(value) => form.setValue("colorAccent", value, { shouldDirty: true })}
+              onChange={(value) =>
+                form.setValue("colorAccent", value, { shouldDirty: true })
+              }
             />
             <ColorField
               label="메인 톤 (어두운 색 권장)"
               helper="이 색 하나가 본문 글자색 + 상단바·홈 hero의 배경을 함께 담당합니다."
               value={form.watch("colorTextMain")}
-              onChange={(value) => form.setValue("colorTextMain", value, { shouldDirty: true })}
+              onChange={(value) =>
+                form.setValue("colorTextMain", value, { shouldDirty: true })
+              }
             />
             <ColorField
               label="배경 톤 (밝은 색 권장)"
               helper="이 색 하나가 카탈로그 바탕 + 상단바·홈 hero 위 글자색을 함께 담당합니다."
               value={form.watch("colorBackground")}
-              onChange={(value) => form.setValue("colorBackground", value, { shouldDirty: true })}
+              onChange={(value) =>
+                form.setValue("colorBackground", value, { shouldDirty: true })
+              }
             />
           </CardContent>
         </Card>
@@ -363,12 +417,14 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
         <Card>
           <CardHeader>
             <CardTitle>이미지와 레이아웃</CardTitle>
-            <CardDescription>로고, 배경, 아이템 기본 이미지를 업로드합니다.</CardDescription>
+            <CardDescription>
+              로고, 배경, 아이템 기본 이미지를 업로드합니다.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <AssetUploader
               label="기관 로고"
-              description="홈 상단에 표시됩니다. 비워두면 표시되지 않습니다."
+              description="홈 상단에 표시됩니다. 비워두면 기본 로고가 표시됩니다."
               currentPath={form.watch("logoPath")}
               isLoading={isUploadingLogo}
               accept=".jpg,.jpeg,.png,.webp,.gif"
@@ -406,8 +462,12 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                   endpoint: "/api/uploads/background",
                   setLoading: setIsUploadingBackground,
                   onSuccess: (data) => {
-                    form.setValue("backgroundPath", data.path, { shouldDirty: true });
-                    form.setValue("backgroundType", data.type ?? "image", { shouldDirty: true });
+                    form.setValue("backgroundPath", data.path, {
+                      shouldDirty: true,
+                    });
+                    form.setValue("backgroundType", data.type ?? "image", {
+                      shouldDirty: true,
+                    });
                   },
                 });
               }}
@@ -416,8 +476,12 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                   endpoint: "/api/uploads/background",
                   message: "배경을 삭제했습니다.",
                   onSuccess: () => {
-                    form.setValue("backgroundPath", null, { shouldDirty: true });
-                    form.setValue("backgroundType", null, { shouldDirty: true });
+                    form.setValue("backgroundPath", null, {
+                      shouldDirty: true,
+                    });
+                    form.setValue("backgroundType", null, {
+                      shouldDirty: true,
+                    });
                   },
                 })
               }
@@ -464,8 +528,16 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                   <Button
                     key={cols}
                     type="button"
-                    variant={form.watch("kioskGridCols") === cols ? "default" : "outline"}
-                    onClick={() => form.setValue("kioskGridCols", cols, { shouldDirty: true })}
+                    variant={
+                      form.watch("kioskGridCols") === cols
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() =>
+                      form.setValue("kioskGridCols", cols, {
+                        shouldDirty: true,
+                      })
+                    }
                   >
                     {cols}개
                   </Button>
@@ -476,7 +548,8 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             <div className="space-y-2">
               <Label>배경 효과</Label>
               <p className="text-xs text-muted-foreground">
-                홈/카탈로그 화면 뒤에서 움직이는 시각 효과입니다. "끄기"로 두면 단색 배경만 보입니다.
+                홈/카탈로그 화면 뒤에서 움직이는 시각 효과입니다. "끄기"로 두면
+                단색 배경만 보입니다.
               </p>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -513,7 +586,8 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
           <CardHeader>
             <CardTitle>D.BASE 문구</CardTitle>
             <CardDescription>
-              D.BASE 키오스크 화면에 표시되는 문구입니다. 비워두면 기본값이 표시됩니다.
+              D.BASE 키오스크 화면에 표시되는 문구입니다. 비워두면 기본값이
+              표시됩니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -540,7 +614,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
           </summary>
           <div className="space-y-6 border-t p-6">
             <section className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">보조 문구</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                보조 문구
+              </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <TextField
                   label="홈 작은 뱃지 1"
@@ -561,15 +637,21 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             </section>
 
             <section className="space-y-4 border-t pt-6">
-              <h3 className="text-sm font-semibold text-muted-foreground">배경</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                배경
+              </h3>
               <Controller
                 control={form.control}
                 name="backgroundOverlayOpacity"
                 render={({ field }) => (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>배경 어둡기 (이미지 배경에만 적용 · 영상은 원본 유지)</Label>
-                      <span className="text-sm text-muted-foreground">{field.value}%</span>
+                      <Label>
+                        배경 어둡기 (이미지 배경에만 적용 · 영상은 원본 유지)
+                      </Label>
+                      <span className="text-sm text-muted-foreground">
+                        {field.value}%
+                      </span>
                     </div>
                     <Input
                       type="range"
@@ -577,7 +659,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                       max={80}
                       step={1}
                       value={field.value}
-                      onChange={(event) => field.onChange(Number(event.target.value))}
+                      onChange={(event) =>
+                        field.onChange(Number(event.target.value))
+                      }
                     />
                   </div>
                 )}
@@ -596,7 +680,9 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             기본값으로 초기화
           </Button>
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {isSaving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
             저장
           </Button>
         </div>
@@ -608,11 +694,15 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             <div>
               <CardTitle>실시간 미리보기</CardTitle>
               <CardDescription>
-                {preset.label} {isRotated ? "세로" : "가로"} ({frameWidth} × {frameHeight}) · {Math.round(zoom * 100)}%
+                {preset.label} {isRotated ? "세로" : "가로"} ({frameWidth} ×{" "}
+                {frameHeight}) · {Math.round(zoom * 100)}%
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={device} onValueChange={(value) => setDevice(value as DevicePresetKey)}>
+              <Select
+                value={device}
+                onValueChange={(value) => setDevice(value as DevicePresetKey)}
+              >
                 <SelectTrigger className="h-8 w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -638,16 +728,22 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.05).toFixed(2)))}
+                  onClick={() =>
+                    setZoom((z) => Math.max(0.25, +(z - 0.05).toFixed(2)))
+                  }
                 >
                   −
                 </Button>
-                <span className="w-12 text-center text-xs tabular-nums">{Math.round(zoom * 100)}%</span>
+                <span className="w-12 text-center text-xs tabular-nums">
+                  {Math.round(zoom * 100)}%
+                </span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.05).toFixed(2)))}
+                  onClick={() =>
+                    setZoom((z) => Math.min(1.5, +(z + 0.05).toFixed(2)))
+                  }
                 >
                   +
                 </Button>
@@ -663,9 +759,16 @@ export function ThemeBuilderClient({ initialConfig }: { initialConfig: SiteConfi
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <Tabs value={activePreview} onValueChange={(value) => setActivePreview(value as keyof typeof PREVIEW_TABS)}>
+            <Tabs
+              value={activePreview}
+              onValueChange={(value) =>
+                setActivePreview(value as keyof typeof PREVIEW_TABS)
+              }
+            >
               <TabsList>
-                {(Object.keys(PREVIEW_TABS) as Array<keyof typeof PREVIEW_TABS>).map((key) => (
+                {(
+                  Object.keys(PREVIEW_TABS) as Array<keyof typeof PREVIEW_TABS>
+                ).map((key) => (
                   <TabsTrigger key={key} value={key}>
                     {PREVIEW_TAB_LABELS[key]}
                   </TabsTrigger>
@@ -770,7 +873,10 @@ function ColorField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
-        <Input value={value} onChange={(event) => onChange(event.target.value)} />
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
       </div>
       {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
     </div>
@@ -804,7 +910,11 @@ function AssetUploader({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium">
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Upload className="h-4 w-4" />
+          )}
           파일 선택
           <input
             type="file"
@@ -833,7 +943,9 @@ function AssetUploader({
           {currentType ? ` (${currentType})` : ""}
         </p>
       ) : (
-        <p className="text-sm text-muted-foreground">현재 업로드된 파일이 없습니다.</p>
+        <p className="text-sm text-muted-foreground">
+          현재 업로드된 파일이 없습니다.
+        </p>
       )}
     </div>
   );

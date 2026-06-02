@@ -1,7 +1,7 @@
 {
-  "name": "Ramen Kiosk",
-  "short_name": "RamenKiosk",
-  "description": "A PWA for renting ramen.",
+  "name": "D.Base",
+  "short_name": "D.Base",
+  "description": "도봉동청소년문화의집 플레이그라운드 D.Base 키오스크",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

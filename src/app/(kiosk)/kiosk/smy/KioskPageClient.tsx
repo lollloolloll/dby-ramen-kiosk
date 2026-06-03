@@ -7,6 +7,7 @@ import { PromotionSlider } from "@/components/PromotionSlider";
 import { ItemCard } from "@/components/item/ItemCard";
 import { RentalDialog } from "@/components/item/RentalDialog";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { useFooterAvoidanceOffset } from "@/lib/hooks/useFooterAvoidanceOffset";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { processAndMutateExpiredRentals } from "@/lib/actions/rental";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,8 @@ export function KioskPageClient({
   const isPreview = usePreviewMode();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { footerRef, cartBarBottomStyle } =
+    useFooterAvoidanceOffset<HTMLElement>();
   const [cart, setCart] = useState<Item[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPromotion, setShowPromotion] = useState(false);
@@ -421,6 +424,7 @@ export function KioskPageClient({
 
           {/* ── PS-style brand footer band ────────────── */}
           <footer
+            ref={footerRef}
             className="relative z-10 px-6 py-6 sm:px-12"
             style={{
               backgroundColor: "var(--brand-primary)",
@@ -448,7 +452,10 @@ export function KioskPageClient({
 
         {/* 하단 플로팅 장바구니 바 */}
         {cart.length > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-5 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div
+            className="fixed inset-x-0 z-30 flex justify-center px-4 pb-5 transition-[bottom] duration-200 ease-out animate-in slide-in-from-bottom-4 fade-in"
+            style={cartBarBottomStyle}
+          >
             <button
               type="button"
               onClick={handleCheckout}

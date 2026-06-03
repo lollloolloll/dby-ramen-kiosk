@@ -25,6 +25,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { useFooterAvoidanceOffset } from "@/lib/hooks/useFooterAvoidanceOffset";
 import {
   Select,
   SelectContent,
@@ -206,6 +207,8 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { footerRef, cartBarBottomStyle } =
+    useFooterAvoidanceOffset<HTMLElement>();
   const [step, setStep] = useState<Step>("entry");
   const [visitor, setVisitor] = useState<Visitor | null>(null);
   const [identifyName, setIdentifyName] = useState("");
@@ -1131,7 +1134,10 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
 
                 {/* 하단 플로팅 확정 바 (smy 카트바 이식) — 1개 이상 선택 시 등장 */}
                 {selectedItems.length > 0 && (
-                  <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-5 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                  <div
+                    className="fixed inset-x-0 z-30 flex justify-center px-4 pb-5 transition-[bottom] duration-200 ease-out animate-in slide-in-from-bottom-4 fade-in"
+                    style={cartBarBottomStyle}
+                  >
                     <button
                       type="button"
                       onClick={() => setStep("confirm")}
@@ -1264,6 +1270,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
 
         {/* ── 공통 브랜드 푸터 밴드 (smy 이식) ── */}
         <footer
+          ref={footerRef}
           className="relative z-10 px-6 py-5 sm:px-12"
           style={{
             backgroundColor: "var(--brand-primary)",

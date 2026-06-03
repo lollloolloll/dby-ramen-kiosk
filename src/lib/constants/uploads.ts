@@ -1,0 +1,2 @@
+export const ITEM_IMAGE_MAX_MB = 50;
+export const ITEM_IMAGE_MAX_BYTES = ITEM_IMAGE_MAX_MB * 1024 * 1024;

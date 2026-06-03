@@ -19,6 +19,10 @@ import * as z from "zod";
 import { Item } from "./columns";
 import { useRouter } from "next/navigation";
 import {
+  ITEM_IMAGE_MAX_BYTES,
+  ITEM_IMAGE_MAX_MB,
+} from "@/lib/constants/uploads";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -40,9 +44,9 @@ const updateItemClientSchema = z.object({
         if (!val || !(val instanceof File)) {
           return true; // 파일이 아니거나(기존 문자열 URL 등) 없으면 통과
         }
-        return val.size <= 1 * 1024 * 1024; // 1MB 제한
+        return val.size <= ITEM_IMAGE_MAX_BYTES;
       },
-      { message: "이미지 크기는 1MB 미만이어야 합니다." }
+      { message: `이미지 크기는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.` }
     ),
   isTimeLimited: z.boolean().optional(),
   rentalTimeMinutes: z.coerce
@@ -54,7 +58,7 @@ const updateItemClientSchema = z.object({
   maxRentalsPerUser: z.coerce
     .number()
     .int()
-    .positive("최대 대여 횟수는 양의 정수여야 합니다.")
+    .positive("보유 수량은 1 이상의 정수여야 합니다.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
   enableParticipantTracking: z.boolean().default(false).optional(),
@@ -203,10 +207,9 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                           onChange={(event) => {
                             const file = event.target.files?.[0];
                             if (file) {
-                              // ✅ 추가된 부분: 파일 크기 1MB 체크
-                              if (file.size > 1 * 1024 * 1024) {
+                              if (file.size > ITEM_IMAGE_MAX_BYTES) {
                                 toast.error(
-                                  "이미지 크기는 1MB 미만 이어야 합니다."
+                                  `이미지 크기는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.`
                                 );
                                 event.target.value = ""; // 입력값 초기화
                                 field.onChange(undefined);
@@ -329,11 +332,11 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                       name="maxRentalsPerUser"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>사용자별 최대 대여 횟수</FormLabel>
+                          <FormLabel>보유 수량(재고)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
-                              placeholder="ex) 3"
+                              placeholder="ex) 2"
                               {...field}
                             />
                           </FormControl>

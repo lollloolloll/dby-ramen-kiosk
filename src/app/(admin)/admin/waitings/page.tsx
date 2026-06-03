@@ -1,5 +1,8 @@
 import { getWaitingQueueEntries } from "@/lib/actions/waiting";
-import { getActiveRentalsWithWaitCount } from "@/lib/actions/rental";
+import {
+  getActiveRentalsWithWaitCount,
+  getItemOccupancyBoard,
+} from "@/lib/actions/rental";
 import { WaitingPageClient } from "./WaitingPageClient";
 
 export const dynamic = "force-dynamic";
@@ -20,18 +23,22 @@ export default async function WaitingPage({ searchParams }: WaitingPageProps) {
       : params?.per_page || "10"
   );
 
-  const [waitingResult, activeRentalsResult] = await Promise.all([
-    getWaitingQueueEntries({ page, per_page }),
-    getActiveRentalsWithWaitCount(),
-  ]);
+  const [waitingResult, activeRentalsResult, occupancyResult] =
+    await Promise.all([
+      getWaitingQueueEntries({ page, per_page }),
+      getActiveRentalsWithWaitCount(),
+      getItemOccupancyBoard(),
+    ]);
 
   const { data: waitingEntries, total_count } = waitingResult;
   const { data: activeRentals } = activeRentalsResult;
+  const { data: occupancy } = occupancyResult;
 
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-8">대기열 아이템 관제탑</h1>
       <WaitingPageClient
+        occupancy={occupancy || []}
         activeRentals={activeRentals || []}
         waitingEntries={waitingEntries || []}
         page={page}

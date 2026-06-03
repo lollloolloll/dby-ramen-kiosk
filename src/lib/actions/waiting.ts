@@ -7,7 +7,7 @@ import {
   generalUsers,
   waitingQueue,
 } from "@drizzle/schema";
-import { eq, and, gte, lte, sql, asc, count } from "drizzle-orm";
+import { eq, and, lte, sql, asc, count } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { triggerExpiredRentalsCheck } from "./rental"; // 경로 확인 필요
 
@@ -248,50 +248,27 @@ export async function grantWaitingEntry(entryId: number) {
       throw new Error("아이템 또는 사용자 정보를 찾을 수 없습니다.");
     }
 
-    // 3. [방어 로직] 아이템이 현재 사용 중인지 확인
-    const currentRental = await db.query.rentalRecords.findFirst({
-      where: and(
-        eq(rentalRecords.itemsId, entry.itemId),
-        eq(rentalRecords.isReturned, false)
-      ),
-    });
+    // 3. [방어 로직] 보유 수량(N) 초과 여부 확인 (점유 단위 = 대여 1건 = 1)
+    const quantity = itemToRent.maxRentalsPerUser ?? 1;
+    const [activeRow] = await db
+      .select({ value: count() })
+      .from(rentalRecords)
+      .where(
+        and(
+          eq(rentalRecords.itemsId, entry.itemId),
+          eq(rentalRecords.isReturned, false)
+        )
+      );
 
-    if (currentRental) {
+    if (itemToRent.isTimeLimited && (activeRow?.value ?? 0) >= quantity) {
       throw new Error(
-        "해당 아이템은 이미 다른 사용자가 이용 중입니다. 먼저 반납 처리를 해주세요."
+        "해당 아이템은 잔여 수량이 없습니다. 반납 후 승급해주세요."
       );
     }
 
-    // 4. [검증 로직] 사용자의 하루 최대 대여 횟수 확인
-    if (itemToRent.isTimeLimited && itemToRent.maxRentalsPerUser) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const startOfDay = Math.floor(today.getTime() / 1000);
-      const endOfDay = new Date(today);
-      endOfDay.setHours(23, 59, 59, 999);
-      const endOfDayTimestamp = Math.floor(endOfDay.getTime() / 1000);
-
-      const [result] = await db
-        .select({ value: count() })
-        .from(rentalRecords)
-        .where(
-          and(
-            eq(rentalRecords.userId, entry.userId),
-            eq(rentalRecords.itemsId, entry.itemId),
-            gte(rentalRecords.rentalDate, startOfDay),
-            lte(rentalRecords.rentalDate, endOfDayTimestamp)
-          )
-        );
-
-      if (result.value >= itemToRent.maxRentalsPerUser) {
-        // 횟수 초과 시, 대기열에서는 삭제하되 대여는 시키지 않음
-        await db.delete(waitingQueue).where(eq(waitingQueue.id, entryId));
-        revalidatePath("/admin/waitings");
-        throw new Error(
-          `사용자(ID: ${entry.userId})가 하루 최대 대여 횟수를 초과하여 대여할 수 없습니다. 대기열에서 삭제되었습니다.`
-        );
-      }
-    }
+    // 4. (제거됨) 과거 maxRentalsPerUser를 "하루 최대 횟수"로 해석하던 검증.
+    //    D.Base에선 이 컬럼을 "보유 수량(N)"으로 재사용하므로 daily-cap 검증은 삭제.
+    //    수량 초과는 위 3번(점유수 >= N) 방어로 처리한다.
 
     // 5. 대여 기록 생성
     const rentalDate = Math.floor(Date.now() / 1000);

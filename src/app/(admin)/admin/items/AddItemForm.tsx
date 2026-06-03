@@ -22,6 +22,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import {
+  ITEM_IMAGE_MAX_BYTES,
+  ITEM_IMAGE_MAX_MB,
+} from "@/lib/constants/uploads";
 
 const formSchema = z.object({
   name: z
@@ -46,10 +50,9 @@ const formSchema = z.object({
         if (!val || !(val instanceof File)) {
           return true;
         }
-        // 1MB
-        return val.size <= 1 * 1024 * 1024;
+        return val.size <= ITEM_IMAGE_MAX_BYTES;
       },
-      { message: "이미지 크기는 1MB 미만이어야 합니다." }
+      { message: `이미지 크기는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.` }
     )
     .transform((val) => {
       if (val instanceof File) {
@@ -67,7 +70,7 @@ const formSchema = z.object({
   maxRentalsPerUser: z.coerce
     .number()
     .int()
-    .positive("최대 대여 횟수는 양의 정수여야 합니다.")
+    .positive("보유 수량은 1 이상의 정수여야 합니다.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
   enableParticipantTracking: z.boolean().default(false),
@@ -200,8 +203,10 @@ export function AddItemForm() {
                       onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (file) {
-                          if (file.size > 1 * 1024 * 1024) {
-                            toast.error("파일사이즈는 1MB 미만이어야 합니다.");
+                          if (file.size > ITEM_IMAGE_MAX_BYTES) {
+                            toast.error(
+                              `파일사이즈는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.`
+                            );
                             event.target.value = "";
                             field.onChange(undefined);
                             return;
@@ -289,9 +294,13 @@ export function AddItemForm() {
                   name="maxRentalsPerUser"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>사용자별 최대 대여 횟수</FormLabel>
+                      <FormLabel>보유 수량(재고)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="ex) 3" {...field} />
+                        <Input
+                          type="number"
+                          placeholder="ex) 2 (동시에 빌려줄 수 있는 개수)"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

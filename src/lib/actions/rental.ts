@@ -1442,6 +1442,93 @@ export async function getCurrentRenter(itemId: number) {
   }
 }
 
+// ----------------------------------------------------------------------
+// [D.Base] 보유 수량 N 기반 점유/가용성 (점유 단위 = 대여 1건 = 1, 인원수 무관)
+// ----------------------------------------------------------------------
+
+/** 해당 아이템의 미반납 대여 건수(1대여=1). */
+export async function getActiveRentalCount(itemId: number): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(rentalRecords)
+    .where(
+      and(
+        eq(rentalRecords.itemsId, itemId),
+        eq(rentalRecords.isReturned, false)
+      )
+    );
+  return row?.value ?? 0;
+}
+
+/** 현재 점유 중인 대여 목록(여러 건). 관제탑/상태 표시용 (getCurrentRenter의 N 버전). */
+export async function getCurrentRenters(itemId: number) {
+  return db
+    .select({
+      id: rentalRecords.id,
+      userName: sql<string>`COALESCE(${generalUsers.name}, ${rentalRecords.userName})`,
+      rentalDate: rentalRecords.rentalDate,
+      returnDueDate: rentalRecords.returnDueDate,
+      maleCount: rentalRecords.maleCount,
+      femaleCount: rentalRecords.femaleCount,
+    })
+    .from(rentalRecords)
+    .leftJoin(generalUsers, eq(rentalRecords.userId, generalUsers.id))
+    .where(
+      and(
+        eq(rentalRecords.itemsId, itemId),
+        eq(rentalRecords.isReturned, false)
+      )
+    );
+}
+
+export type OccupancyRow = {
+  itemId: number;
+  itemName: string;
+  quantity: number;
+  occupied: number;
+  remaining: number;
+  waitCount: number;
+  nextDueDate: number | null;
+};
+
+/** 관제탑: 시간제 아이템별 점유 n/N · 잔여 · 대기수 · 다음 반납예정. */
+export async function getItemOccupancyBoard(): Promise<{
+  success: true;
+  data: OccupancyRow[];
+}> {
+  const timeLimited = await db
+    .select()
+    .from(items)
+    .where(and(eq(items.isTimeLimited, true), eq(items.isDeleted, false)));
+
+  const board: OccupancyRow[] = await Promise.all(
+    timeLimited.map(async (item) => {
+      const renters = await getCurrentRenters(item.id);
+      const [waitRow] = await db
+        .select({ value: count() })
+        .from(waitingQueue)
+        .where(eq(waitingQueue.itemId, item.id));
+      const n = item.maxRentalsPerUser ?? 1;
+      const occupied = renters.length;
+      const nextDue = renters
+        .map((r) => r.returnDueDate)
+        .filter((d): d is number => typeof d === "number")
+        .sort((a, b) => a - b)[0];
+      return {
+        itemId: item.id,
+        itemName: item.name,
+        quantity: n,
+        occupied,
+        remaining: Math.max(0, n - occupied),
+        waitCount: waitRow?.value ?? 0,
+        nextDueDate: nextDue ?? null,
+      };
+    })
+  );
+
+  return { success: true, data: board };
+}
+
 export async function extendRentalTime(rentalRecordId: number) {
   try {
     const rentalRecord = await db.query.rentalRecords.findFirst({

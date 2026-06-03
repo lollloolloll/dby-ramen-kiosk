@@ -7,6 +7,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { items, rentalRecords, waitingQueue } from "@drizzle/schema";
 import { itemSchema, updateItemSchema } from "@/lib/validators/item";
+import {
+  ITEM_IMAGE_MAX_BYTES,
+  ITEM_IMAGE_MAX_MB,
+} from "@/lib/constants/uploads";
 import { processAndMutateExpiredRentals } from "./rental";
 
 // ----------------------------------------------------------------------
@@ -138,6 +142,10 @@ export async function addItem(formData: FormData) {
 
   const imageFile = formData.get("image") as File | null;
   if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > ITEM_IMAGE_MAX_BYTES) {
+      return { error: `이미지 크기는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.` };
+    }
+
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadsDir, { recursive: true });
 
@@ -207,6 +215,10 @@ export async function updateItem(formData: FormData) {
   let newImageUrl: string | undefined | null;
 
   if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > ITEM_IMAGE_MAX_BYTES) {
+      return { error: `이미지 크기는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.` };
+    }
+
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
     try {
       await mkdir(uploadsDir, { recursive: true });

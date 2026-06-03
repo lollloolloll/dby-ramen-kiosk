@@ -35,7 +35,13 @@ import {
 } from "@/components/ui/select";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { findUsersByNameAndPin } from "@/lib/actions/generalUser";
-import { commitDbaseVisit, registerDbaseUser } from "@/lib/actions/dbase";
+import {
+  commitDbaseVisit,
+  registerDbaseUser,
+  getUserDbaseStatus,
+  type DbaseItemOutcome,
+  type UserDbaseStatus,
+} from "@/lib/actions/dbase";
 import {
   assertValidHeadcount,
   type DbaseHeadcount,
@@ -52,7 +58,8 @@ type Step =
   | "headcount"
   | "contents"
   | "confirm"
-  | "done";
+  | "done"
+  | "mystatus";
 
 type Visitor = {
   id: number;
@@ -232,7 +239,8 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
   const [registerAttempted, setRegisterAttempted] = useState(false);
   const [headcount, setHeadcount] = useState<DbaseHeadcount>(emptyHeadcount);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
-  const [doneContents, setDoneContents] = useState<string[]>([]);
+  const [outcomes, setOutcomes] = useState<DbaseItemOutcome[]>([]);
+  const [statusData, setStatusData] = useState<UserDbaseStatus | null>(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -283,7 +291,8 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
     setRegisterAttempted(false);
     setHeadcount(emptyHeadcount);
     setSelectedItemIds([]);
-    setDoneContents([]);
+    setOutcomes([]);
+    setStatusData(null);
     setError("");
     setIsSubmitting(false);
   };
@@ -465,7 +474,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
         setError(result.error);
         return;
       }
-      setDoneContents(result.data.contents);
+      setOutcomes(result.data.outcomes);
       setStep("done");
     } finally {
       setIsSubmitting(false);
@@ -566,6 +575,17 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                     }}
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetFlow();
+                    enterFullscreen();
+                    setStep("mystatus");
+                  }}
+                  className="mx-auto mt-2 text-sm font-medium text-(--body-muted) underline underline-offset-4 transition-colors hover:text-(--brand-text)"
+                >
+                  내 차례 확인
+                </button>
               </section>
             )}
 
@@ -1221,6 +1241,105 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
               </Panel>
             )}
 
+            {step === "mystatus" && (
+              <Panel
+                eyebrow=""
+                title="내 차례 확인"
+                footer={
+                  <FlowFooter
+                    backLabel={copy.buttonRestart}
+                    nextLabel={copy.buttonOk}
+                    onBack={() => setStep("entry")}
+                    onNext={async () => {
+                      setError("");
+                      const pin = identifyPin.replace(/[^\d]/g, "");
+                      if (!identifyName.trim() || pin.length !== 4) {
+                        setError("이름과 전화번호 가운데 4자리를 입력해주세요.");
+                        return;
+                      }
+                      setIsSubmitting(true);
+                      try {
+                        const res = await findUsersByNameAndPin(
+                          identifyName,
+                          pin
+                        );
+                        if (res.status !== "single_match") {
+                          setStatusData(null);
+                          setStep("mismatch");
+                          return;
+                        }
+                        const s = await getUserDbaseStatus(res.user.id);
+                        if ("error" in s) {
+                          setError(s.error);
+                          return;
+                        }
+                        setStatusData(s.data);
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
+                    disabled={isSubmitting}
+                  />
+                }
+              >
+                <div className="grid gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={copy.fieldName}>
+                      <Input
+                        value={identifyName}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        lang="ko"
+                        onChange={(event) => setIdentifyName(event.target.value)}
+                        className="h-14 text-lg"
+                      />
+                    </Field>
+                    <Field label={copy.fieldPin}>
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={identifyPin}
+                        onChange={(event) =>
+                          setIdentifyPin(
+                            event.target.value.replace(/[^\d]/g, "")
+                          )
+                        }
+                        className="h-14 text-lg tracking-[0.5em]"
+                      />
+                    </Field>
+                  </div>
+
+                  {statusData && (
+                    <div className="grid gap-2 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-5">
+                      {statusData.active.map((a, i) => (
+                        <p key={`a-${i}`} className="text-lg">
+                          <span className="font-semibold">{a.itemName}</span>
+                          <span className="text-(--body-muted)"> · 이용 중</span>
+                        </p>
+                      ))}
+                      {statusData.waiting.map((w, i) => (
+                        <p key={`w-${i}`} className="text-lg">
+                          <span className="font-semibold">{w.itemName}</span>
+                          <span className="text-(--body-muted)">
+                            {" · 대기 "}
+                            {w.position}번
+                          </span>
+                        </p>
+                      ))}
+                      {statusData.active.length === 0 &&
+                        statusData.waiting.length === 0 && (
+                          <p className="text-(--body-muted)">
+                            현재 이용·대기 중인 항목이 없습니다.
+                          </p>
+                        )}
+                    </div>
+                  )}
+                  {error && <ErrorText>{error}</ErrorText>}
+                </div>
+              </Panel>
+            )}
+
             {step === "done" && (
               <section className="grid min-h-[60vh] content-center justify-items-center gap-8 text-center animate-in fade-in zoom-in-95 fill-mode-backwards duration-500">
                 <span
@@ -1240,18 +1359,26 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                     {copy.doneSubtitle}
                   </p>
                 </div>
-                {doneContents.length > 0 && (
+                {outcomes.length > 0 && (
                   <div className="flex max-w-2xl flex-wrap justify-center gap-2">
-                    {doneContents.map((content) => (
+                    {outcomes.map((o) => (
                       <span
-                        key={content}
+                        key={o.itemId}
                         className="rounded-full px-4 py-2 text-sm font-semibold"
                         style={{
-                          backgroundColor: "var(--brand-primary)",
+                          backgroundColor:
+                            o.status === "queued"
+                              ? "var(--brand-accent)"
+                              : "var(--brand-primary)",
                           color: "var(--brand-on-primary)",
                         }}
                       >
-                        {content}
+                        {o.itemName}
+                        {o.status === "started"
+                          ? " · 이용 시작"
+                          : o.status === "queued"
+                          ? ` · 대기 ${o.queuePosition ?? ""}번`
+                          : ""}
                       </span>
                     ))}
                   </div>

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Suspense,
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PromotionSlider } from "@/components/PromotionSlider";
@@ -166,7 +160,9 @@ function HomeContent() {
       !hasShownInitialPromotion &&
       !sessionStorage.getItem("showPromotionOnHome")
     ) {
-      const hasSeenPromotion = sessionStorage.getItem("hasSeenInitialPromotion");
+      const hasSeenPromotion = sessionStorage.getItem(
+        "hasSeenInitialPromotion"
+      );
       if (!hasSeenPromotion) {
         setShowPromotion(true);
         setHasShownInitialPromotion(true);
@@ -218,7 +214,7 @@ function HomeContent() {
       {/* Hero band — 색은 var(--brand-text) / var(--brand-bg). 운영자가 ThemeBuilder에서 직접 제어 */}
       <main
         onClick={handleStart}
-        className="relative flex min-h-screen w-full cursor-pointer flex-col overflow-hidden bg-(--brand-bg) text-(--brand-text) selection:bg-(--brand-primary)/30"
+        className="home-shell relative flex min-h-[100dvh] w-full cursor-pointer flex-col overflow-hidden bg-(--brand-bg) text-(--brand-text) selection:bg-(--brand-primary)/30"
         style={{ fontFamily: "var(--font-sans)" }}
       >
         {/* 배경 미디어가 있으면 chrome 위에 */}
@@ -258,13 +254,13 @@ function HomeContent() {
         )}
 
         {/* ── Primary nav strip (PS-style dark) ───────── */}
-        <nav className="relative z-20 flex h-12 items-center justify-between bg-brand-text px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
+        <nav className="home-nav relative z-20 flex h-12 items-center justify-between bg-brand-text px-6 text-(--brand-bg) sm:px-12 animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-500">
           <div className="flex items-center gap-5">
             {/* 로고: 업로드된 게 없으면 번들 기본 로고(default-logo.png) 사용 */}
             <img
               src={config.logoPath ?? defaultLogo.src}
               alt={config.orgName || "로고"}
-              className="h-7 w-auto"
+              className="home-nav-logo h-7 w-auto"
             />
             {FLOOR && (
               <span className="flex items-center gap-1.5 border-l border-(--brand-bg)/15 pl-5 text-[11px] font-medium uppercase tracking-[0.18em] text-(--brand-bg)/60">
@@ -272,7 +268,8 @@ function HomeContent() {
                   className="inline-block h-1.5 w-1.5 rounded-full"
                   style={{
                     backgroundColor: "var(--brand-primary)",
-                    boxShadow: "0 0 0 3px color-mix(in srgb, var(--brand-primary) 25%, transparent)",
+                    boxShadow:
+                      "0 0 0 3px color-mix(in srgb, var(--brand-primary) 25%, transparent)",
                   }}
                 />
                 Floor {FLOOR}
@@ -309,62 +306,70 @@ function HomeContent() {
         </nav>
 
         {/* ── Hero band — PS display-xl weight 300 ──── */}
-        <section className="relative z-10 flex flex-1 flex-col justify-center px-6 py-24 sm:px-12 sm:py-32">
-          <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 items-end gap-16 lg:grid-cols-[1.3fr_1fr] lg:gap-24">
-            <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-100">
-              {(config.homeBadge1.trim() || config.homeBadge2.trim()) && (
-                <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-(--body-muted)">
-                  {config.homeBadge1.trim() && <span>{config.homeBadge1}</span>}
-                  {config.homeBadge1.trim() && config.homeBadge2.trim() && (
-                    <span className="text-(--brand-text)/20">·</span>
-                  )}
-                  {config.homeBadge2.trim() && <span>{config.homeBadge2}</span>}
-                </div>
-              )}
+        <section className="home-hero relative z-10 flex flex-1 flex-col justify-center px-6 py-24 sm:px-12 sm:py-32">
+          <div className="home-hero-grid mx-auto grid w-full max-w-[1280px] grid-cols-1 items-end gap-16 lg:grid-cols-[1.3fr_1fr] lg:gap-24">
+            <div className="home-copy flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-100">
+              <div className="home-copy-content flex max-w-[760px] flex-col items-start gap-8">
+                {(config.homeBadge1.trim() || config.homeBadge2.trim()) && (
+                  <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-(--body-muted)">
+                    {config.homeBadge1.trim() && (
+                      <span>{config.homeBadge1}</span>
+                    )}
+                    {config.homeBadge1.trim() && config.homeBadge2.trim() && (
+                      <span className="text-(--brand-text)/20">·</span>
+                    )}
+                    {config.homeBadge2.trim() && (
+                      <span>{config.homeBadge2}</span>
+                    )}
+                  </div>
+                )}
 
-              {/* PS display-xl: weight 300, tight tracking */}
-              <h1
-                className="font-light leading-[1.05] tracking-[-0.02em]"
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "clamp(3rem, 9vw, 6.5rem)",
-                  fontWeight: 700,
-                }}
-              >
-                {config.homeHeadlineTop}
-                {config.homeHeadlineBottom && (
-                  <>
-                    <br />
-                    <span style={{ color: "var(--brand-primary)" }}>
+                {/* PS display-xl: weight 300, tight tracking */}
+                <h1
+                  className="home-headline font-light leading-[1.05] tracking-[-0.02em]"
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "clamp(3rem, 9vw, 6.5rem)",
+                    fontWeight: 700,
+                  }}
+                >
+                  <span className="home-headline-line -ml-[15px] ">
+                    {config.homeHeadlineTop}
+                  </span>
+                  {config.homeHeadlineBottom && (
+                    <span
+                      className="home-headline-line -ml-[15px] "
+                      style={{ color: "var(--brand-primary)" }}
+                    >
                       {config.homeHeadlineBottom}
                     </span>
-                  </>
-                )}
-              </h1>
-
-              {(config.orgName.trim() || config.homeSubcopy.trim()) && (
-                <p className="max-w-xl text-lg leading-relaxed text-(--body-muted) sm:text-xl">
-                  {config.orgName.trim() && (
-                    <span className="font-medium text-(--brand-text)">
-                      {config.orgName}
-                    </span>
                   )}
-                  {config.homeSubcopy}
-                </p>
-              )}
+                </h1>
 
-              {/* 화면 어디든 탭하면 키오스크로 진입 — 별도 CTA 없음 */}
-              <div className="mt-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
-                <span
-                  className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
-                  style={{ backgroundColor: "var(--brand-primary)" }}
-                />
-                <span>화면을 터치하여 시작</span>
+                {(config.orgName.trim() || config.homeSubcopy.trim()) && (
+                  <p className="home-subcopy max-w-xl text-lg leading-relaxed text-(--body-muted) sm:text-xl">
+                    {config.orgName.trim() && (
+                      <span className="font-medium text-(--brand-text)">
+                        {config.orgName}
+                      </span>
+                    )}
+                    {config.homeSubcopy}
+                  </p>
+                )}
+
+                {/* 화면 어디든 탭하면 키오스크로 진입 — 별도 CTA 없음 */}
+                <div className="home-start-hint mt-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
+                  <span
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
+                    style={{ backgroundColor: "var(--brand-primary)" }}
+                  />
+                  <span>화면을 터치하여 시작</span>
+                </div>
               </div>
             </div>
 
             {/* Right slot: live clock + status (editorial moment) */}
-            <div className="flex flex-col items-start gap-6 lg:items-end animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-200">
+            <div className="home-clock-panel flex flex-col items-start gap-6 lg:items-end animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-200">
               <LiveClock />
               <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-(--body-muted)">
                 <span
@@ -379,7 +384,7 @@ function HomeContent() {
 
         {/* ── BRAND BAND footer (PS-style blue strip) ─ */}
         <footer
-          className="relative z-10 px-6 py-6 sm:px-12"
+          className="home-footer relative z-10 px-6 py-6 sm:px-12"
           style={{
             backgroundColor: "var(--brand-primary)",
             color: "var(--brand-on-primary)",
@@ -468,7 +473,7 @@ function LiveClock() {
   return (
     <div className="flex flex-col gap-1 lg:items-end" aria-hidden>
       <div
-        className="font-mono text-5xl font-light tabular-nums tracking-tight text-(--brand-text) sm:text-6xl"
+        className="home-clock-time font-mono text-5xl font-light tabular-nums tracking-tight text-(--brand-text) sm:text-6xl"
         style={{ fontVariationSettings: '"wght" 300' }}
       >
         {hh}
@@ -481,4 +486,3 @@ function LiveClock() {
     </div>
   );
 }
-

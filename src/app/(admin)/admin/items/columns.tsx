@@ -118,14 +118,15 @@ export const columns: ColumnDef<Item>[] = [
       return <Switch checked={isChecked} onCheckedChange={handleToggle} />;
     },
   },
-  {
-    accessorKey: "isAutomaticGenderCount",
-    header: "성별 자동 입력",
-    cell: ({ row }) => {
-      const isAutomaticGenderCount = row.original.isAutomaticGenderCount;
-      return <span>{isAutomaticGenderCount ? "예" : "아니오"}</span>;
-    },
-  },
+  // 숨김(D.Base 전용 배포) — smy 대여 흐름용 컬럼. 복원하려면 주석 해제.
+  // {
+  //   accessorKey: "isAutomaticGenderCount",
+  //   header: "성별 자동 입력",
+  //   cell: ({ row }) => {
+  //     const isAutomaticGenderCount = row.original.isAutomaticGenderCount;
+  //     return <span>{isAutomaticGenderCount ? "예" : "아니오"}</span>;
+  //   },
+  // },
   {
     accessorKey: "isTimeLimited",
     header: "대여 제한 여부",
@@ -134,14 +135,15 @@ export const columns: ColumnDef<Item>[] = [
       return <span>{isTimeLimited ? "예" : "아니오"}</span>;
     },
   },
-  {
-    accessorKey: "enableParticipantTracking",
-    header: "대여 인원 추적",
-    cell: ({ row }) => {
-      const enableParticipantTracking = row.original.enableParticipantTracking;
-      return <span>{enableParticipantTracking ? "예" : "아니오"}</span>;
-    },
-  },
+  // 숨김(D.Base 전용 배포) — smy 대여 흐름용 컬럼. 복원하려면 주석 해제.
+  // {
+  //   accessorKey: "enableParticipantTracking",
+  //   header: "대여 인원 추적",
+  //   cell: ({ row }) => {
+  //     const enableParticipantTracking = row.original.enableParticipantTracking;
+  //     return <span>{enableParticipantTracking ? "예" : "아니오"}</span>;
+  //   },
+  // },
   {
     id: "actions",
     cell: ({ row }) => {

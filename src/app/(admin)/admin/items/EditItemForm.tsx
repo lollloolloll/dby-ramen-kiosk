@@ -87,6 +87,10 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
   });
 
   const isTimeLimited = form.watch("isTimeLimited");
+  // D.Base 전용 배포 — smy 대여 흐름용 토글(성별 자동 입력, 참여자 이름 입력)은
+  // UI에서 숨긴다. 스키마/기본값은 유지하므로 제출은 그대로 동작. 시간제 대여는 노출.
+  // smy 대여 기능을 다시 쓰려면 이 값을 true 로. (관련: 아이템 테이블 컬럼도 동일 처리)
+  const SHOW_SMY_RENTAL_OPTIONS = false;
   const currentImageUrl = form.watch("imageUrl");
 
   const onSubmit = async (values: UpdateItemSchema) => {
@@ -256,6 +260,8 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                     </FormItem>
                   )}
                 />
+                {/* 숨김(D.Base 전용 배포) — smy 대여 흐름용. 복원: SHOW_SMY_RENTAL_OPTIONS=true */}
+                {SHOW_SMY_RENTAL_OPTIONS && (
                 <FormField
                   control={form.control}
                   name="isAutomaticGenderCount"
@@ -279,6 +285,7 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                     </FormItem>
                   )}
                 />
+                )}
 
                 <FormField
                   control={form.control}
@@ -336,6 +343,8 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                     />
                   </>
                 )}
+                {/* 숨김(D.Base 전용 배포) — smy 대여 흐름용. 복원: SHOW_SMY_RENTAL_OPTIONS=true */}
+                {SHOW_SMY_RENTAL_OPTIONS && (
                 <FormField
                   control={form.control}
                   name="enableParticipantTracking"
@@ -358,6 +367,7 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                     </FormItem>
                   )}
                 />
+                )}
               </div>
             </div>
 

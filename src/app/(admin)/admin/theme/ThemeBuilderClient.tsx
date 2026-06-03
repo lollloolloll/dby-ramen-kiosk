@@ -117,12 +117,12 @@ const COLOR_PRESETS: Array<{
   },
   {
     name: "모던 다크",
-    swatch: "#0F172A",
+    swatch: "#0A0A0A",
     values: {
-      colorPrimary: "#6EE7B7",
-      colorAccent: "#F0ABFC",
-      colorTextMain: "#E5E7EB",
-      colorBackground: "#0F172A",
+      colorPrimary: "#0A0A0A",
+      colorAccent: "#60A5FA",
+      colorTextMain: "#0A0A0A",
+      colorBackground: "#F8FAFC",
     },
   },
   {
@@ -397,7 +397,7 @@ export function ThemeBuilderClient({
             />
             <ColorField
               label="메인 톤 (어두운 색 권장)"
-              helper="이 색 하나가 본문 글자색 + 상단바·홈 hero의 배경을 함께 담당합니다."
+              helper="본문 글자색 + 상단바·홈 hero의 배경을 함께 담당합니다."
               value={form.watch("colorTextMain")}
               onChange={(value) =>
                 form.setValue("colorTextMain", value, { shouldDirty: true })
@@ -405,7 +405,7 @@ export function ThemeBuilderClient({
             />
             <ColorField
               label="배경 톤 (밝은 색 권장)"
-              helper="이 색 하나가 카탈로그 바탕 + 상단바·홈 hero 위 글자색을 함께 담당합니다."
+              helper="카탈로그 바탕 + 상단바·홈 hero 위 글자색을 함께 담당합니다."
               value={form.watch("colorBackground")}
               onChange={(value) =>
                 form.setValue("colorBackground", value, { shouldDirty: true })
@@ -485,6 +485,37 @@ export function ThemeBuilderClient({
                   },
                 })
               }
+            />
+
+            <Controller
+              control={form.control}
+              name="backgroundOverlayOpacity"
+              render={({ field }) => (
+                <div className="space-y-2 rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <Label>배경 어둡기</Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        배경 이미지 위 글자가 잘 보이도록 어둡게 덮습니다. 영상은
+                        원본 밝기를 유지합니다.
+                      </p>
+                    </div>
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      {field.value}%
+                    </span>
+                  </div>
+                  <Input
+                    type="range"
+                    min={0}
+                    max={80}
+                    step={1}
+                    value={field.value}
+                    onChange={(event) =>
+                      field.onChange(Number(event.target.value))
+                    }
+                  />
+                </div>
+              )}
             />
 
             <AssetUploader
@@ -636,37 +667,6 @@ export function ThemeBuilderClient({
               />
             </section>
 
-            <section className="space-y-4 border-t pt-6">
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                배경
-              </h3>
-              <Controller
-                control={form.control}
-                name="backgroundOverlayOpacity"
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>
-                        배경 어둡기 (이미지 배경에만 적용 · 영상은 원본 유지)
-                      </Label>
-                      <span className="text-sm text-muted-foreground">
-                        {field.value}%
-                      </span>
-                    </div>
-                    <Input
-                      type="range"
-                      min={0}
-                      max={80}
-                      step={1}
-                      value={field.value}
-                      onChange={(event) =>
-                        field.onChange(Number(event.target.value))
-                      }
-                    />
-                  </div>
-                )}
-              />
-            </section>
           </div>
         </details>
 

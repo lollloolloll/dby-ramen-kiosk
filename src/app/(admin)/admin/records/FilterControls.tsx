@@ -174,7 +174,6 @@ export function FilterControls({ items, sort, order }: FilterControlsProps) {
             <SelectContent>
               <SelectItem value="rentalDate">대여일시</SelectItem>
               <SelectItem value="username">사용자명</SelectItem>
-              <SelectItem value="peopleCount">대여인원</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" onClick={handleDirectionChange}>

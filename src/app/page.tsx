@@ -326,9 +326,9 @@ function HomeContent() {
               <h1
                 className="font-light leading-[1.05] tracking-[-0.02em]"
                 style={{
-                  fontFamily: "var(--font-display)",
+                  fontFamily: "var(--font-sans)",
                   fontSize: "clamp(3rem, 9vw, 6.5rem)",
-                  fontVariationSettings: '"wght" 300, "opsz" 96',
+                  fontWeight: 700,
                 }}
               >
                 {config.homeHeadlineTop}

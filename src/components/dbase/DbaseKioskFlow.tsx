@@ -69,10 +69,12 @@ type RegisterForm = {
 
 const FLOOR = process.env.NEXT_PUBLIC_FLOOR;
 
-// smy 디스플레이 헤드라인 레시피 (var(--font-display) + 가변 weight 300 + 타이트 트래킹)
+// 디스플레이 헤드라인 레시피 — Pretendard(본문과 동일) + 굵게(700).
+// 기존 var(--font-display)(Bricolage)는 라틴 전용이라 한글이 Pretendard로 폴백되며
+// wght 300으로 얇게 보이던 문제를 해결. inline fontWeight가 font-light 클래스를 덮어씀.
 const displayHeadingStyle: React.CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontVariationSettings: '"wght" 300, "opsz" 60',
+  fontFamily: "var(--font-sans)",
+  fontWeight: 700,
 };
 
 const emptyHeadcount: DbaseHeadcount = {
@@ -582,9 +584,12 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label={copy.fieldName}>
                       <Input
+                        type="text"
+                        inputMode="text"
                         value={registerForm.name}
                         autoComplete="off"
                         autoCorrect="off"
+                        autoCapitalize="none"
                         lang="ko"
                         onChange={(event) =>
                           setRegisterForm((current) => ({
@@ -956,14 +961,21 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={copy.fieldName}>
                     <Input
+                      type="text"
+                      inputMode="text"
                       value={identifyName}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      lang="ko"
                       onChange={(event) => setIdentifyName(event.target.value)}
                       className="h-14 text-lg"
                     />
                   </Field>
                   <Field label={copy.fieldPin}>
                     <Input
-                      inputMode="numeric"
+                      type="text"
+                      inputMode="text"
                       maxLength={4}
                       value={identifyPin}
                       onChange={(event) =>
@@ -1085,9 +1097,6 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
               <section className="pb-28">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards duration-500">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-(--body-muted)">
-                      {copy.contentsEyebrow}
-                    </p>
                     <h2
                       className="text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl"
                       style={displayHeadingStyle}
@@ -1215,9 +1224,6 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                   <Check className="h-10 w-10" strokeWidth={3} />
                 </span>
                 <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-(--body-muted)">
-                    {copy.doneEyebrow}
-                  </p>
                   <h2
                     className="text-5xl font-light leading-[1.05] tracking-[-0.02em] sm:text-6xl"
                     style={displayHeadingStyle}
@@ -1388,21 +1394,18 @@ function EntryButton({
 }
 
 function Panel({
-  eyebrow,
   title,
   children,
   footer,
 }: {
-  eyebrow: string;
+  // eyebrow는 더 이상 렌더하지 않음(스텝 라벨 제거). prop은 호환 위해 optional로 유지.
+  eyebrow?: string;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
   return (
     <section className="mx-auto w-full max-w-3xl rounded-3xl border border-(--hairline) bg-(--brand-bg)/70 p-6 shadow-xl backdrop-blur-2xl sm:p-10 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-500">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-(--body-muted)">
-        {eyebrow}
-      </p>
       <h2
         className="mb-8 text-4xl font-light leading-tight tracking-[-0.02em] sm:text-5xl"
         style={displayHeadingStyle}

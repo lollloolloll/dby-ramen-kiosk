@@ -1334,8 +1334,11 @@ export function RentalDialog({
                       <FormControl>
                         <Input
                           placeholder="홍길동"
+                          type="text"
+                          inputMode="text"
                           autoComplete="off"
                           autoCorrect="off"
+                          autoCapitalize="none"
                           lang="ko"
                           {...field}
                           onChange={(e) => {
@@ -1361,8 +1364,8 @@ export function RentalDialog({
                       <FormControl>
                         <Input
                           placeholder="1234"
-                          type="password"
-                          inputMode="numeric"
+                          type="text"
+                          inputMode="text"
                           autoComplete="off"
                           autoCorrect="off"
                           {...field}
@@ -1659,9 +1662,12 @@ export function RentalDialog({
                       <FormControl>
                         <Input
                           placeholder="홍길동"
+                          type="text"
+                          inputMode="text"
                           {...field}
                           autoComplete="off"
                           autoCorrect="off"
+                          autoCapitalize="none"
                           lang="ko"
                           disabled={registerMode === "edit"}
                           className={cn(

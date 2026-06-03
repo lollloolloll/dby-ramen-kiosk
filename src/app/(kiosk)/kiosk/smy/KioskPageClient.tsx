@@ -322,9 +322,9 @@ export function KioskPageClient({
               <h1
                 className="font-light leading-[1.05] tracking-[-0.02em] text-brand-text"
                 style={{
-                  fontFamily: "var(--font-display)",
+                  fontFamily: "var(--font-sans)",
                   fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
-                  fontVariationSettings: '"wght" 300, "opsz" 60',
+                  fontWeight: 700,
                 }}
               >
                 {config.kioskTitle}
@@ -399,9 +399,9 @@ export function KioskPageClient({
                     <p
                       className="mb-3 font-light leading-tight tracking-tight text-(--brand-text)"
                       style={{
-                        fontFamily: "var(--font-display)",
+                        fontFamily: "var(--font-sans)",
                         fontSize: "clamp(1.5rem, 4vw, 2.25rem)",
-                        fontVariationSettings: '"wght" 300',
+                        fontWeight: 600,
                       }}
                     >
                       {selectedCategory === "전체"

@@ -24,12 +24,12 @@ async function loadModule() {
 
 test("itemQuantity: 시간제 미설정이면 1, 설정값이 있으면 그 값", async () => {
   const { itemQuantity } = await loadModule();
-  assert.equal(itemQuantity({ isTimeLimited: true, maxRentalsPerUser: null }), 1);
+  assert.equal(itemQuantity({ isTimeLimited: true, quantity: null }), 1);
   assert.equal(
-    itemQuantity({ isTimeLimited: true, maxRentalsPerUser: undefined }),
+    itemQuantity({ isTimeLimited: true, quantity: undefined }),
     1
   );
-  assert.equal(itemQuantity({ isTimeLimited: true, maxRentalsPerUser: 3 }), 3);
+  assert.equal(itemQuantity({ isTimeLimited: true, quantity: 3 }), 3);
 });
 
 test("decideRentalAction: 비시간제는 항상 'log'", async () => {
@@ -40,7 +40,7 @@ test("decideRentalAction: 비시간제는 항상 'log'", async () => {
 
 test("decideRentalAction: 시간제는 잔여 있으면 'hold', 없으면 'queue'", async () => {
   const { decideRentalAction } = await loadModule();
-  const item = { isTimeLimited: true, maxRentalsPerUser: 2 };
+  const item = { isTimeLimited: true, quantity: 2 };
   assert.equal(decideRentalAction(item, 0), "hold");
   assert.equal(decideRentalAction(item, 1), "hold");
   assert.equal(decideRentalAction(item, 2), "queue");
@@ -49,7 +49,7 @@ test("decideRentalAction: 시간제는 잔여 있으면 'hold', 없으면 'queue
 
 test("decideRentalAction: 수량 미설정 시간제는 N=1로 동작", async () => {
   const { decideRentalAction } = await loadModule();
-  const item = { isTimeLimited: true, maxRentalsPerUser: null };
+  const item = { isTimeLimited: true, quantity: null };
   assert.equal(decideRentalAction(item, 0), "hold");
   assert.equal(decideRentalAction(item, 1), "queue");
 });

@@ -5,16 +5,16 @@ export type RentalDecision = "log" | "hold" | "queue";
 
 type RentalItem = {
   isTimeLimited: boolean | null;
-  maxRentalsPerUser?: number | null;
+  quantity?: number | null;
 };
 
 /**
  * 아이템의 보유 수량 N.
- * `max_rentals_per_user` 컬럼을 재사용한다(라벨: "보유 수량").
+ * items.quantity 컬럼(보유 수량) 값을 사용한다.
  * 시간제인데 미설정이면 1로 간주.
  */
 export function itemQuantity(item: RentalItem): number {
-  return item.maxRentalsPerUser ?? 1;
+  return item.quantity ?? 1;
 }
 
 /**

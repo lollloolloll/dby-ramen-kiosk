@@ -136,12 +136,12 @@ export const columns: ColumnDef<Item>[] = [
     },
   },
   {
-    accessorKey: "maxRentalsPerUser",
+    accessorKey: "quantity",
     header: "보유 수량",
     cell: ({ row }) => {
       // 시간제 대여 아이템의 동시 보유 수량(재고). 미설정 시 1.
       const quantity = row.original.isTimeLimited
-        ? row.original.maxRentalsPerUser ?? 1
+        ? row.original.quantity ?? 1
         : null;
       return <span>{quantity === null ? "-" : quantity}</span>;
     },

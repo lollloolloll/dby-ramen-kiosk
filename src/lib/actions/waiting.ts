@@ -189,9 +189,10 @@ export async function getWaitingQueueEntries(filters: {
         itemName: items.name,
         userName: generalUsers.name,
         rentalTimeMinutes: items.rentalTimeMinutes,
-        maxRentalsPerUser: items.maxRentalsPerUser,
+        quantity: items.quantity,
         maleCount: waitingQueue.maleCount,
         femaleCount: waitingQueue.femaleCount,
+        visitSessionId: waitingQueue.visitSessionId,
       })
       .from(waitingQueue)
       .leftJoin(items, eq(waitingQueue.itemId, items.id))
@@ -249,7 +250,7 @@ export async function grantWaitingEntry(entryId: number) {
     }
 
     // 3. [방어 로직] 보유 수량(N) 초과 여부 확인 (점유 단위 = 대여 1건 = 1)
-    const quantity = itemToRent.maxRentalsPerUser ?? 1;
+    const quantity = itemToRent.quantity ?? 1;
     const [activeRow] = await db
       .select({ value: count() })
       .from(rentalRecords)
@@ -266,7 +267,7 @@ export async function grantWaitingEntry(entryId: number) {
       );
     }
 
-    // 4. (제거됨) 과거 maxRentalsPerUser를 "하루 최대 횟수"로 해석하던 검증.
+    // 4. (제거됨) 과거 quantity를 "하루 최대 횟수"로 해석하던 검증.
     //    D.Base에선 이 컬럼을 "보유 수량(N)"으로 재사용하므로 daily-cap 검증은 삭제.
     //    수량 초과는 위 3번(점유수 >= N) 방어로 처리한다.
 

@@ -55,7 +55,7 @@ const updateItemClientSchema = z.object({
     .positive("대여 시간은 양의 정수여야 합니다.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  maxRentalsPerUser: z.coerce
+  quantity: z.coerce
     .number()
     .int()
     .positive("보유 수량은 1 이상의 정수여야 합니다.")
@@ -84,7 +84,7 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
       imageUrl: item.imageUrl || undefined,
       isTimeLimited: item.isTimeLimited || false,
       rentalTimeMinutes: item.rentalTimeMinutes ?? undefined,
-      maxRentalsPerUser: item.maxRentalsPerUser ?? undefined,
+      quantity: item.quantity ?? undefined,
       enableParticipantTracking: item.enableParticipantTracking || false,
       isAutomaticGenderCount: item.isAutomaticGenderCount ?? false,
     },
@@ -114,8 +114,8 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
     if (values.rentalTimeMinutes !== undefined) {
       formData.append("rentalTimeMinutes", String(values.rentalTimeMinutes));
     }
-    if (values.maxRentalsPerUser !== undefined) {
-      formData.append("maxRentalsPerUser", String(values.maxRentalsPerUser));
+    if (values.quantity !== undefined) {
+      formData.append("quantity", String(values.quantity));
     }
 
     if (isImageDeleted) {
@@ -329,7 +329,7 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                     />
                     <FormField
                       control={form.control}
-                      name="maxRentalsPerUser"
+                      name="quantity"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>보유 수량(재고)</FormLabel>

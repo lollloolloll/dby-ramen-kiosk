@@ -2,6 +2,7 @@ import { getWaitingQueueEntries } from "@/lib/actions/waiting";
 import {
   getActiveRentalsWithWaitCount,
   getItemOccupancyBoard,
+  processAndMutateExpiredRentals,
 } from "@/lib/actions/rental";
 import { WaitingPageClient } from "./WaitingPageClient";
 
@@ -22,6 +23,10 @@ export default async function WaitingPage({ searchParams }: WaitingPageProps) {
       ? params?.per_page[0]
       : params?.per_page || "10"
   );
+
+  // 관제탑 진입 시 만료 자동반납 + 대기자 승급 처리(렌더 중 안전한 비-revalidate 버전).
+  // 다른 admin 페이지와 동일 패턴 — 이게 없으면 만료된 대여가 보드에 stale로 남는다.
+  await processAndMutateExpiredRentals();
 
   const [waitingResult, activeRentalsResult, occupancyResult] =
     await Promise.all([

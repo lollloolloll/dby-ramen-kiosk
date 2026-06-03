@@ -134,8 +134,8 @@ export async function addItem(formData: FormData) {
     rentalTimeMinutes: formData.get("rentalTimeMinutes")
       ? parseInt(formData.get("rentalTimeMinutes") as string, 10)
       : undefined,
-    maxRentalsPerUser: formData.get("maxRentalsPerUser")
-      ? parseInt(formData.get("maxRentalsPerUser") as string, 10)
+    quantity: formData.get("quantity")
+      ? parseInt(formData.get("quantity") as string, 10)
       : undefined,
     imageUrl: undefined as string | undefined,
   };
@@ -196,8 +196,8 @@ export async function updateItem(formData: FormData) {
   const rentalTimeMinutes = formData.get("rentalTimeMinutes")
     ? parseInt(formData.get("rentalTimeMinutes") as string)
     : undefined;
-  const maxRentalsPerUser = formData.get("maxRentalsPerUser")
-    ? parseInt(formData.get("maxRentalsPerUser") as string)
+  const quantity = formData.get("quantity")
+    ? parseInt(formData.get("quantity") as string)
     : undefined;
 
   if (isNaN(id)) return { error: "유효하지 않은 ID입니다." };
@@ -247,7 +247,7 @@ export async function updateItem(formData: FormData) {
     enableParticipantTracking,
     isAutomaticGenderCount, // 추가
     rentalTimeMinutes,
-    maxRentalsPerUser,
+    quantity,
   };
 
   if (newImageUrl !== undefined) dataToUpdate.imageUrl = newImageUrl;

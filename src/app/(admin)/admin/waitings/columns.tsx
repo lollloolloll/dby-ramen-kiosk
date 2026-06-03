@@ -20,7 +20,7 @@ export type WaitingEntry = typeof waitingQueue.$inferSelect & {
   itemName?: string | null;
   userName?: string | null;
   rentalTimeMinutes?: number | null;
-  maxRentalsPerUser?: number | null;
+  quantity?: number | null;
 };
 
 export const columns: ColumnDef<WaitingEntry>[] = [
@@ -47,11 +47,11 @@ export const columns: ColumnDef<WaitingEntry>[] = [
     },
   },
   {
-    accessorKey: "maxRentalsPerUser",
-    header: "일일 대여 한도",
+    accessorKey: "quantity",
+    header: "보유 수량",
     cell: ({ row }) => {
-      const count = row.original.maxRentalsPerUser;
-      return <div>{count ? `하루 ${count}회` : "-"}</div>;
+      const qty = row.original.quantity;
+      return <div>{qty ? `${qty}개` : "-"}</div>;
     },
   },
   {

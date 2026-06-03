@@ -67,7 +67,7 @@ const formSchema = z.object({
     .positive("대여 시간은 양의 정수여야 합니다.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  maxRentalsPerUser: z.coerce
+  quantity: z.coerce
     .number()
     .int()
     .positive("보유 수량은 1 이상의 정수여야 합니다.")
@@ -87,7 +87,7 @@ export function AddItemForm() {
       imageUrl: undefined,
       isTimeLimited: false,
       rentalTimeMinutes: undefined,
-      maxRentalsPerUser: undefined,
+      quantity: undefined,
       enableParticipantTracking: false,
       isAutomaticGenderCount: false,
     },
@@ -112,8 +112,8 @@ export function AddItemForm() {
     if (values.rentalTimeMinutes !== undefined) {
       formData.append("rentalTimeMinutes", String(values.rentalTimeMinutes));
     }
-    if (values.maxRentalsPerUser !== undefined) {
-      formData.append("maxRentalsPerUser", String(values.maxRentalsPerUser));
+    if (values.quantity !== undefined) {
+      formData.append("quantity", String(values.quantity));
     }
     formData.append(
       "isAutomaticGenderCount",
@@ -291,7 +291,7 @@ export function AddItemForm() {
                 />
                 <FormField
                   control={form.control}
-                  name="maxRentalsPerUser"
+                  name="quantity"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>보유 수량(재고)</FormLabel>

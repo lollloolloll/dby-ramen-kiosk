@@ -119,7 +119,7 @@ export async function rentItem(
       }
 
       // 3-2. 사용자별 최대 대여 횟수 제한 확인 (하루 기준)
-      if (itemToRent.maxRentalsPerUser) {
+      if (itemToRent.quantity) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const startOfDay = Math.floor(today.getTime() / 1000);
@@ -139,7 +139,7 @@ export async function rentItem(
             )
           );
 
-        if ((userDailyRentals?.count || 0) >= itemToRent.maxRentalsPerUser) {
+        if ((userDailyRentals?.count || 0) >= itemToRent.quantity) {
           throw new Error("오늘 해당 아이템의 최대 대여 횟수를 초과했습니다.");
         }
       }
@@ -295,7 +295,7 @@ export async function rentMultipleItems(
           continue;
         }
 
-        if (itemToRent.maxRentalsPerUser) {
+        if (itemToRent.quantity) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const startOfDay = Math.floor(today.getTime() / 1000);
@@ -315,7 +315,7 @@ export async function rentMultipleItems(
               )
             );
 
-          if ((userDailyRentals?.count || 0) >= itemToRent.maxRentalsPerUser) {
+          if ((userDailyRentals?.count || 0) >= itemToRent.quantity) {
             results.push({
               itemId,
               itemName: itemToRent.name,
@@ -575,6 +575,8 @@ async function processNextInQueue(itemId: number) {
       isReturned: false,
       maleCount: nextUserEntry.maleCount,
       femaleCount: nextUserEntry.femaleCount,
+      // D.Base: 큐 등록 시 보존한 그룹 방문 세션 연결 → 청소년/성인 분할 유지(smy는 null)
+      visitSessionId: nextUserEntry.visitSessionId,
     });
 
     console.log(
@@ -1508,7 +1510,7 @@ export async function getItemOccupancyBoard(): Promise<{
         .select({ value: count() })
         .from(waitingQueue)
         .where(eq(waitingQueue.itemId, item.id));
-      const n = item.maxRentalsPerUser ?? 1;
+      const n = item.quantity ?? 1;
       const occupied = renters.length;
       const nextDue = renters
         .map((r) => r.returnDueDate)

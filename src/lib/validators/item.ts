@@ -14,7 +14,7 @@ export const itemSchema = z.object({
   imageUrl: z.string().optional(),
   isTimeLimited: z.boolean().default(false).optional(),
   rentalTimeMinutes: z.number().int().positive().optional(),
-  maxRentalsPerUser: z.number().int().positive().optional(),
+  quantity: z.number().int().positive().optional(),
   enableParticipantTracking: z.boolean().default(false).optional(),
   isAutomaticGenderCount: z.boolean().default(true).optional(),
 });
@@ -36,7 +36,7 @@ export const updateItemSchema = z.object({
   imageUrl: z.string().nullable().optional(),
   isTimeLimited: z.boolean().optional(),
   rentalTimeMinutes: z.number().int().positive().optional(),
-  maxRentalsPerUser: z.number().int().positive().optional(),
+  quantity: z.number().int().positive().optional(),
   enableParticipantTracking: z.boolean().default(false).optional(),
   isAutomaticGenderCount: z.boolean().optional(),
 });

@@ -248,6 +248,8 @@ export async function commitDbaseVisit(
           userId,
           maleCount,
           femaleCount,
+          // 승급 시 청소년/성인 분할을 보존하도록 그룹 방문 세션을 연결
+          visitSessionId: newSession.id,
         });
         const [posRow] = await db
           .select({ value: count() })
@@ -317,16 +319,19 @@ export async function getUserDbaseStatus(
   try {
     await triggerExpiredRentalsCheck();
 
+    // 시간제 아이템만 "이용 중"으로 노출 (비시간제는 즉시 로그라 점유 개념 없음).
     const active = await db
       .select({
         itemName: rentalRecords.itemName,
         returnDueDate: rentalRecords.returnDueDate,
       })
       .from(rentalRecords)
+      .innerJoin(items, eq(rentalRecords.itemsId, items.id))
       .where(
         and(
           eq(rentalRecords.userId, userId),
-          eq(rentalRecords.isReturned, false)
+          eq(rentalRecords.isReturned, false),
+          eq(items.isTimeLimited, true)
         )
       );
 

@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Clock,
   Minus,
   Plus,
   RotateCcw,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { findUsersByNameAndPin } from "@/lib/actions/generalUser";
+import { type OccupancyRow } from "@/lib/actions/rental";
 import {
   commitDbaseVisit,
   registerDbaseUser,
@@ -207,7 +209,13 @@ const buildSchoolValue = (level: string, name: string) => {
   return `${trimmedName}${suffix}`;
 };
 
-export function DbaseKioskFlow({ items }: { items: Item[] }) {
+export function DbaseKioskFlow({
+  items,
+  occupancy,
+}: {
+  items: Item[];
+  occupancy: OccupancyRow[];
+}) {
   const config = useTheme();
   const copy = mergeDbaseCopy(config.dbaseCopy);
   const isPreview = usePreviewMode();
@@ -262,6 +270,15 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
     ).getDate();
     return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   }, [birthYear, birthMonth]);
+
+  // 아이템별 잔여/대기 — 선택 카드 배지용 (getItemOccupancyBoard는 시간제만 반환)
+  const occupancyByItem = useMemo(() => {
+    const m = new Map<number, { remaining: number; waitCount: number }>();
+    for (const o of occupancy) {
+      m.set(o.itemId, { remaining: o.remaining, waitCount: o.waitCount });
+    }
+    return m;
+  }, [occupancy]);
 
   // 진입점·키오스크 전 스텝이 동일한 배경(셰이더)을 공유하도록, smy/홈과 같은
   // 우선순위로 visualMode를 결정한다. fallback도 홈·smy와 동일하게 "lava"로 맞춤.
@@ -582,9 +599,10 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                     enterFullscreen();
                     setStep("mystatus");
                   }}
-                  className="mx-auto mt-2 text-sm font-medium text-(--body-muted) underline underline-offset-4 transition-colors hover:text-(--brand-text)"
+                  className="group mx-auto flex w-full max-w-md items-center justify-center gap-3 rounded-3xl border border-(--hairline) bg-(--brand-bg)/50 px-8 py-5 text-xl font-semibold shadow-sm backdrop-blur-xl transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-(--hairline-strong) active:scale-[0.99]"
                 >
-                  내 차례 확인
+                  <Clock className="h-6 w-6 text-(--brand-primary)" />내 차례
+                  확인
                 </button>
               </section>
             )}
@@ -1147,6 +1165,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                       index={index}
                       selected={selectedItemIds.includes(item.id)}
                       fallbackImage={config.defaultItemImagePath}
+                      availability={occupancyByItem.get(item.id) ?? null}
                       onToggle={() => toggleContent(item)}
                     />
                   ))}
@@ -1254,7 +1273,9 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                       setError("");
                       const pin = identifyPin.replace(/[^\d]/g, "");
                       if (!identifyName.trim() || pin.length !== 4) {
-                        setError("이름과 전화번호 가운데 4자리를 입력해주세요.");
+                        setError(
+                          "이름과 전화번호 가운데 4자리를 입력해주세요."
+                        );
                         return;
                       }
                       setIsSubmitting(true);
@@ -1290,7 +1311,9 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                         autoComplete="off"
                         autoCorrect="off"
                         lang="ko"
-                        onChange={(event) => setIdentifyName(event.target.value)}
+                        onChange={(event) =>
+                          setIdentifyName(event.target.value)
+                        }
                         className="h-14 text-lg"
                       />
                     </Field>
@@ -1312,12 +1335,27 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
 
                   {statusData && (
                     <div className="grid gap-2 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-5">
-                      {statusData.active.map((a, i) => (
-                        <p key={`a-${i}`} className="text-lg">
-                          <span className="font-semibold">{a.itemName}</span>
-                          <span className="text-(--body-muted)"> · 이용 중</span>
-                        </p>
-                      ))}
+                      {statusData.active.map((a, i) => {
+                        const mins =
+                          a.returnDueDate != null
+                            ? Math.max(
+                                0,
+                                Math.ceil(
+                                  (a.returnDueDate - Date.now() / 1000) / 60
+                                )
+                              )
+                            : null;
+                        return (
+                          <p key={`a-${i}`} className="text-lg">
+                            <span className="font-semibold">{a.itemName}</span>
+                            <span className="text-(--body-muted)">
+                              {mins != null
+                                ? ` · 약 ${mins}분 남음`
+                                : " · 이용 중"}
+                            </span>
+                          </p>
+                        );
+                      })}
                       {statusData.waiting.map((w, i) => (
                         <p key={`w-${i}`} className="text-lg">
                           <span className="font-semibold">{w.itemName}</span>
@@ -1677,12 +1715,15 @@ function ContentCard({
   index,
   selected,
   fallbackImage,
+  availability,
   onToggle,
 }: {
   item: Item;
   index: number;
   selected: boolean;
   fallbackImage: string | null;
+  // 시간제 아이템만 값이 있음(잔여/대기). 비시간제는 null → 배지 없음.
+  availability: { remaining: number; waitCount: number } | null;
   onToggle: () => void;
 }) {
   const imageSrc = item.imageUrl ?? fallbackImage ?? youthFacilityImage;
@@ -1722,6 +1763,26 @@ function ContentCard({
         <span className="line-clamp-2 text-base font-semibold leading-tight sm:text-lg">
           {item.name}
         </span>
+        {availability && (
+          <span
+            className={cn(
+              "mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold",
+              availability.remaining > 0 ? "text-emerald-600" : "text-red-500"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-2 w-2 rounded-full",
+                availability.remaining > 0 ? "bg-emerald-500" : "bg-red-500"
+              )}
+            />
+            {availability.remaining > 0
+              ? `잔여 ${availability.remaining}`
+              : availability.waitCount > 0
+              ? `만석 · 대기 ${availability.waitCount}팀`
+              : "만석"}
+          </span>
+        )}
       </div>
     </button>
   );

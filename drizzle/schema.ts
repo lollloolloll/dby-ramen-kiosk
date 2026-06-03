@@ -24,7 +24,7 @@ export const items = sqliteTable("items", {
     .default(false)
     .notNull(),
   rentalTimeMinutes: integer("rental_time_minutes"), // 시간제 대여인 경우만 설정 (예: 30)
-  maxRentalsPerUser: integer("max_rentals_per_user"), // 시간제 대여인 경우만 설정 (예: 3, 하루 최대 횟수)
+  quantity: integer("quantity"), // 시간제 대여 동시 보유 수량(재고). 미설정 시 1로 간주
   enableParticipantTracking: integer("enable_participant_tracking", {
     //특정 아이템 인원 이름 입력
     mode: "boolean",
@@ -165,6 +165,12 @@ export const waitingQueue = sqliteTable("waiting_queue", {
     .notNull(),
   maleCount: integer("male_count").default(0).notNull(),
   femaleCount: integer("female_count").default(0).notNull(),
+  // D.Base: 그룹 방문 세션 연결 — 승급 시 청소년/성인 분할(visit_sessions)을 보존.
+  // smy 대기열 항목은 null.
+  visitSessionId: integer("visit_session_id").references(
+    () => visitSessions.id,
+    { onDelete: "set null" }
+  ),
 });
 
 export const rentalRecordPeople = sqliteTable("rental_record_people", {

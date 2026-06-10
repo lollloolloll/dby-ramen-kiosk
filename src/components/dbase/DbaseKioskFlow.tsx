@@ -1163,38 +1163,38 @@ export function DbaseKioskFlow({
 
             {step === "contents" && (
               <section className="pb-28">
-                <header className="border-b border-(--hairline) px-6 pt-16 pb-12 sm:px-12 sm:pt-20 sm:pb-14 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
+                <header className="border-b border-(--hairline) px-6 pt-16 pb-12 sm:px-12 sm:pt-20 sm:pb-14 md:px-16 lg:px-20 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
                   <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
                     <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
                       <span>Catalog</span>
-                      <span>
-                        {filteredItems.length}
-                        <span className="mx-1.5 text-(--brand-text)/20">
-                          /
+                      <div className="flex items-center gap-4">
+                        <span>
+                          {filteredItems.length}
+                          <span className="mx-1.5 text-(--brand-text)/20">
+                            /
+                          </span>
+                          {items.length} items
                         </span>
-                        {items.length} items
-                      </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 px-4 text-xs"
+                          onClick={() => setStep("headcount")}
+                        >
+                          {copy.buttonBack}
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="flex items-end justify-between gap-4">
-                      <h2
-                        className="font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text)"
-                        style={{
-                          ...displayHeadingStyle,
-                          fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
-                        }}
-                      >
-                        {copy.contentsTitle}
-                      </h2>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-12 shrink-0 px-6"
-                        onClick={() => setStep("headcount")}
-                      >
-                        {copy.buttonBack}
-                      </Button>
-                    </div>
+                    <h2
+                      className="max-w-4xl font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text)"
+                      style={{
+                        ...displayHeadingStyle,
+                        fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
+                      }}
+                    >
+                      {copy.contentsTitle}
+                    </h2>
 
                     {categories.length > 1 && (
                       <div className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
@@ -1229,7 +1229,7 @@ export function DbaseKioskFlow({
                   </div>
                 </header>
 
-                <div className="px-6 py-12 sm:px-12 sm:py-16 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
+                <div className="px-6 py-12 sm:px-12 sm:py-16 md:px-16 lg:px-20 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
                   <div className="mx-auto max-w-[1280px]">
                     {error && <ErrorText>{error}</ErrorText>}
 

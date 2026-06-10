@@ -306,7 +306,7 @@ function HomeContent() {
         </nav>
 
         {/* ── Hero band — PS display-xl weight 300 ──── */}
-        <section className="home-hero relative z-10 flex flex-1 flex-col justify-center px-6 py-24 sm:px-12 sm:py-32">
+        <section className="home-hero relative z-10 flex flex-1 flex-col justify-center px-6 py-24 sm:px-12 sm:py-32 md:px-20 xl:px-12">
           <div className="home-hero-grid mx-auto grid w-full max-w-[1280px] grid-cols-1 items-end gap-16 lg:grid-cols-[1.3fr_1fr] lg:gap-24">
             <div className="home-copy flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-700 delay-100">
               <div className="home-copy-content flex max-w-[760px] flex-col items-start gap-8">
@@ -333,12 +333,12 @@ function HomeContent() {
                     fontWeight: 700,
                   }}
                 >
-                  <span className="home-headline-line -ml-[15px] ">
+                  <span className="home-headline-line xl:-ml-[15px]">
                     {config.homeHeadlineTop}
                   </span>
                   {config.homeHeadlineBottom && (
                     <span
-                      className="home-headline-line -ml-[15px] "
+                      className="home-headline-line xl:-ml-[15px]"
                       style={{ color: "var(--brand-primary)" }}
                     >
                       {config.homeHeadlineBottom}

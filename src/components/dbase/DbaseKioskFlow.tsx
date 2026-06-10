@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { findUsersByNameAndPin } from "@/lib/actions/generalUser";
-import { type OccupancyRow } from "@/lib/actions/rental";
+import { returnItem, type OccupancyRow } from "@/lib/actions/rental";
 import {
   commitDbaseVisit,
   registerDbaseUser,
@@ -249,6 +249,7 @@ export function DbaseKioskFlow({
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
   const [outcomes, setOutcomes] = useState<DbaseItemOutcome[]>([]);
   const [statusData, setStatusData] = useState<UserDbaseStatus | null>(null);
+  const [statusUserId, setStatusUserId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -1289,6 +1290,7 @@ export function DbaseKioskFlow({
                           setStep("mismatch");
                           return;
                         }
+                        setStatusUserId(res.user.id);
                         const s = await getUserDbaseStatus(res.user.id);
                         if ("error" in s) {
                           setError(s.error);
@@ -1335,7 +1337,7 @@ export function DbaseKioskFlow({
 
                   {statusData && (
                     <div className="grid gap-2 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-5">
-                      {statusData.active.map((a, i) => {
+                      {statusData.active.map((a) => {
                         const mins =
                           a.returnDueDate != null
                             ? Math.max(
@@ -1346,14 +1348,41 @@ export function DbaseKioskFlow({
                               )
                             : null;
                         return (
-                          <p key={`a-${i}`} className="text-lg">
-                            <span className="font-semibold">{a.itemName}</span>
-                            <span className="text-(--body-muted)">
-                              {mins != null
-                                ? ` · 약 ${mins}분 남음`
-                                : " · 이용 중"}
-                            </span>
-                          </p>
+                          <div
+                            key={`a-${a.id}`}
+                            className="flex items-center justify-between gap-3"
+                          >
+                            <p className="text-lg">
+                              <span className="font-semibold">{a.itemName}</span>
+                              <span className="text-(--body-muted)">
+                                {mins != null
+                                  ? ` · 약 ${mins}분 남음`
+                                  : " · 이용 중"}
+                              </span>
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-11 shrink-0 px-5"
+                              disabled={isSubmitting}
+                              onClick={async () => {
+                                setIsSubmitting(true);
+                                try {
+                                  await returnItem(a.id);
+                                  if (statusUserId) {
+                                    const s = await getUserDbaseStatus(
+                                      statusUserId
+                                    );
+                                    if (!("error" in s)) setStatusData(s.data);
+                                  }
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
+                              }}
+                            >
+                              다 썼어요
+                            </Button>
+                          </div>
                         );
                       })}
                       {statusData.waiting.map((w, i) => (
@@ -1362,6 +1391,9 @@ export function DbaseKioskFlow({
                           <span className="text-(--body-muted)">
                             {" · 대기 "}
                             {w.position}번
+                            {w.maxWaitMinutes > 0
+                              ? ` · 최대 약 ${w.maxWaitMinutes}분`
+                              : ""}
                           </span>
                         </p>
                       ))}
@@ -1415,7 +1447,11 @@ export function DbaseKioskFlow({
                         {o.status === "started"
                           ? " · 이용 시작"
                           : o.status === "queued"
-                          ? ` · 대기 ${o.queuePosition ?? ""}번`
+                          ? ` · 대기 ${o.queuePosition ?? ""}번${
+                              o.maxWaitMinutes
+                                ? ` (최대 약 ${o.maxWaitMinutes}분)`
+                                : ""
+                            }`
                           : ""}
                       </span>
                     ))}

@@ -16,7 +16,10 @@ import {
   getActiveRentalCount,
   triggerExpiredRentalsCheck,
 } from "@/lib/actions/rental";
-import { decideRentalAction } from "@/lib/dbase/rental-decision";
+import {
+  decideRentalAction,
+  estimateMaxWaitMinutes,
+} from "@/lib/dbase/rental-decision";
 
 const dbaseUserSchema = z.object({
   name: z
@@ -61,6 +64,7 @@ export type DbaseItemOutcome = {
   itemName: string;
   status: "started" | "queued" | "logged";
   queuePosition?: number; // status === "queued" 일 때 대기 순번
+  maxWaitMinutes?: number; // status === "queued" 일 때 최대 예상 대기(분) 상한
 };
 
 export type DbaseVisitResult = {
@@ -69,8 +73,8 @@ export type DbaseVisitResult = {
 };
 
 export type UserDbaseStatus = {
-  active: { itemName: string; returnDueDate: number | null }[];
-  waiting: { itemName: string; position: number }[];
+  active: { id: number; itemName: string; returnDueDate: number | null }[];
+  waiting: { itemName: string; position: number; maxWaitMinutes: number }[];
 };
 
 export async function registerDbaseUser(
@@ -255,11 +259,17 @@ export async function commitDbaseVisit(
           .select({ value: count() })
           .from(waitingQueue)
           .where(eq(waitingQueue.itemId, item.id));
+        const position = posRow?.value ?? 1;
         outcomes.push({
           itemId: item.id,
           itemName: item.name,
           status: "queued",
-          queuePosition: posRow?.value,
+          queuePosition: position,
+          maxWaitMinutes: estimateMaxWaitMinutes(
+            position,
+            item.quantity ?? 1,
+            item.rentalTimeMinutes
+          ),
         });
       } else {
         // 비시간제: 즉시 반납 방문 로그 (현행 동작 유지)
@@ -322,6 +332,7 @@ export async function getUserDbaseStatus(
     // 시간제 아이템만 "이용 중"으로 노출 (비시간제는 즉시 로그라 점유 개념 없음).
     const active = await db
       .select({
+        id: rentalRecords.id,
         itemName: rentalRecords.itemName,
         returnDueDate: rentalRecords.returnDueDate,
       })
@@ -354,9 +365,18 @@ export async function getUserDbaseStatus(
           );
         const item = await db.query.items.findFirst({
           where: eq(items.id, w.itemId),
-          columns: { name: true },
+          columns: { name: true, quantity: true, rentalTimeMinutes: true },
         });
-        return { itemName: item?.name ?? "", position: ahead?.value ?? 1 };
+        const position = ahead?.value ?? 1;
+        return {
+          itemName: item?.name ?? "",
+          position,
+          maxWaitMinutes: estimateMaxWaitMinutes(
+            position,
+            item?.quantity ?? 1,
+            item?.rentalTimeMinutes ?? null
+          ),
+        };
       })
     );
 
@@ -364,6 +384,7 @@ export async function getUserDbaseStatus(
       success: true,
       data: {
         active: active.map((a) => ({
+          id: a.id,
           itemName: a.itemName ?? "",
           returnDueDate: a.returnDueDate,
         })),

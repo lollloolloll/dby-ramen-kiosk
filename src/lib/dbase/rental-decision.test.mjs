@@ -53,3 +53,13 @@ test("decideRentalAction: 수량 미설정 시간제는 N=1로 동작", async ()
   assert.equal(decideRentalAction(item, 0), "hold");
   assert.equal(decideRentalAction(item, 1), "queue");
 });
+
+test("estimateMaxWaitMinutes: ceil(position/N) * T 상한", async () => {
+  const { estimateMaxWaitMinutes } = await loadModule();
+  assert.equal(estimateMaxWaitMinutes(1, 2, 30), 30); // 1번 대기, 2대 → 1라운드
+  assert.equal(estimateMaxWaitMinutes(2, 2, 30), 30); // 2번도 1라운드
+  assert.equal(estimateMaxWaitMinutes(3, 2, 30), 60); // 3번 → 2라운드
+  assert.equal(estimateMaxWaitMinutes(1, 1, 10), 10);
+  assert.equal(estimateMaxWaitMinutes(2, 0, 30), 60); // N 미설정→1
+  assert.equal(estimateMaxWaitMinutes(1, 2, null), 0); // 시간 없으면 0
+});

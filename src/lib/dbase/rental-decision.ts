@@ -31,3 +31,19 @@ export function decideRentalAction(
   if (!item.isTimeLimited) return "log";
   return activeCount < itemQuantity(item) ? "hold" : "queue";
 }
+
+/**
+ * 대기 "최대" 예상 시간(분) 상한.
+ * 반납 신호가 없어 정확 예측은 불가하므로 상한선만 제공한다.
+ * position(1-based 대기 순번) 기준: 앞 사람들이 모두 풀타임 사용하는 최악의 경우
+ * = ceil(position / N) 라운드 × rentalTimeMinutes. 실제로는 보통 더 빠르다.
+ */
+export function estimateMaxWaitMinutes(
+  position: number,
+  quantity: number,
+  rentalTimeMinutes: number | null
+): number {
+  if (!rentalTimeMinutes || position <= 0) return 0;
+  const n = quantity > 0 ? quantity : 1;
+  return Math.ceil(position / n) * rentalTimeMinutes;
+}

@@ -53,12 +53,12 @@ import { broadcastSiteConfigChanged } from "@/lib/theme/broadcast";
 
 // 미리보기 탭. /kiosk 는 /kiosk/dby 로 redirect 되며 ?preview=1 이 유실되므로
 // 각 경로를 직접 가리킨다. (key는 탭 식별자)
-//  - entry: D.Base 방문 등록 플로우(DbaseKioskFlow)
-//  - kiosk: 아이템 카드 카탈로그(smy 인스턴스)
+//  - entry: D.Base 방문 등록 플로우의 첫 화면
+//  - kiosk: 같은 D.Base 플로우의 컨텐츠 선택 화면
 const PREVIEW_TABS = {
   home: "/?preview=1",
   entry: "/kiosk/dby?preview=1",
-  kiosk: "/kiosk/smy?preview=1",
+  kiosk: "/kiosk/dby?preview=1&step=contents",
 } as const;
 
 const PREVIEW_TAB_LABELS: Record<keyof typeof PREVIEW_TABS, string> = {

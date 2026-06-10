@@ -49,6 +49,8 @@ import {
   type DbaseHeadcount,
 } from "@/lib/dbase/headcount";
 import { mergeDbaseCopy } from "@/lib/dbase/copy";
+import { getDbaseInitialStep } from "@/components/dbase/preview-step";
+import { getGridColsClass } from "@/lib/theme/theme-utils";
 import { resolveVisualMode, resolveWaveMode } from "@/lib/theme/visual-mode";
 import { cn } from "@/lib/utils";
 
@@ -224,7 +226,9 @@ export function DbaseKioskFlow({
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { footerRef, cartBarBottomStyle } =
     useFooterAvoidanceOffset<HTMLElement>();
-  const [step, setStep] = useState<Step>("entry");
+  const [step, setStep] = useState<Step>(() =>
+    getDbaseInitialStep(searchParams)
+  );
   const [visitor, setVisitor] = useState<Visitor | null>(null);
   const [identifyName, setIdentifyName] = useState("");
   const [identifyPin, setIdentifyPin] = useState("");
@@ -247,6 +251,7 @@ export function DbaseKioskFlow({
   const [registerAttempted, setRegisterAttempted] = useState(false);
   const [headcount, setHeadcount] = useState<DbaseHeadcount>(emptyHeadcount);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("전체");
   const [outcomes, setOutcomes] = useState<DbaseItemOutcome[]>([]);
   const [statusData, setStatusData] = useState<UserDbaseStatus | null>(null);
   const [statusUserId, setStatusUserId] = useState<number | null>(null);
@@ -281,6 +286,20 @@ export function DbaseKioskFlow({
     return m;
   }, [occupancy]);
 
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(items.map((item) => item.category))
+    );
+    return ["전체", ...uniqueCategories.sort()];
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    if (selectedCategory === "전체") {
+      return items;
+    }
+    return items.filter((item) => item.category === selectedCategory);
+  }, [items, selectedCategory]);
+
   // 진입점·키오스크 전 스텝이 동일한 배경(셰이더)을 공유하도록, smy/홈과 같은
   // 우선순위로 visualMode를 결정한다. fallback도 홈·smy와 동일하게 "lava"로 맞춤.
   const visualMode = resolveVisualMode(config, searchParams, "lava");
@@ -309,6 +328,7 @@ export function DbaseKioskFlow({
     setRegisterAttempted(false);
     setHeadcount(emptyHeadcount);
     setSelectedItemIds([]);
+    setSelectedCategory("전체");
     setOutcomes([]);
     setStatusData(null);
     setError("");
@@ -547,12 +567,18 @@ export function DbaseKioskFlow({
           </span>
         </nav>
 
-        {/* ── 스텝 컨텐츠 — 투명 캔버스 위. 배경 셰이더가 전 스텝에서 동일하게 보임 ── */}
-        <main className="relative z-10 flex flex-1 items-center px-5 py-10 sm:px-12 sm:py-14">
+        <main
+          className={cn(
+            "relative z-10 flex flex-1",
+            step === "contents"
+              ? "bg-(--brand-bg)"
+              : "items-center px-5 py-10 sm:px-12 sm:py-14"
+          )}
+        >
           <div
             className={cn(
               "mx-auto w-full",
-              step === "contents" ? "max-w-[1280px]" : "max-w-5xl"
+              step === "contents" ? "" : "max-w-5xl"
             )}
           >
             {step === "entry" && (
@@ -1137,42 +1163,123 @@ export function DbaseKioskFlow({
 
             {step === "contents" && (
               <section className="pb-28">
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards duration-500">
-                    <h2
-                      className="text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl"
-                      style={displayHeadingStyle}
-                    >
-                      {copy.contentsTitle}
-                    </h2>
+                <header className="border-b border-(--hairline) px-6 pt-16 pb-12 sm:px-12 sm:pt-20 sm:pb-14 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
+                  <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
+                      <span>Catalog</span>
+                      <span>
+                        {filteredItems.length}
+                        <span className="mx-1.5 text-(--brand-text)/20">
+                          /
+                        </span>
+                        {items.length} items
+                      </span>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-4">
+                      <h2
+                        className="font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text)"
+                        style={{
+                          ...displayHeadingStyle,
+                          fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
+                        }}
+                      >
+                        {copy.contentsTitle}
+                      </h2>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-12 shrink-0 px-6"
+                        onClick={() => setStep("headcount")}
+                      >
+                        {copy.buttonBack}
+                      </Button>
+                    </div>
+
+                    {categories.length > 1 && (
+                      <div className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
+                        {categories.map((category) => {
+                          const active = selectedCategory === category;
+                          return (
+                            <button
+                              key={category}
+                              type="button"
+                              onClick={() => setSelectedCategory(category)}
+                              className={cn(
+                                "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase transition-colors",
+                                !active &&
+                                  "border border-(--hairline-strong) bg-transparent text-(--brand-text)/70 hover:border-(--brand-text)/40 hover:text-(--brand-text)"
+                              )}
+                              style={
+                                active
+                                  ? {
+                                      backgroundColor: "var(--brand-primary)",
+                                      color: "var(--brand-on-primary)",
+                                      letterSpacing: "0.045em",
+                                    }
+                                  : { letterSpacing: "0.045em" }
+                              }
+                            >
+                              {category}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-12 px-6"
-                    onClick={() => setStep("headcount")}
-                  >
-                    {copy.buttonBack}
-                  </Button>
+                </header>
+
+                <div className="px-6 py-12 sm:px-12 sm:py-16 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
+                  <div className="mx-auto max-w-[1280px]">
+                    {error && <ErrorText>{error}</ErrorText>}
+
+                    {filteredItems.length > 0 ? (
+                      <div
+                        className={cn(
+                          "grid gap-4 auto-rows-fr sm:gap-6",
+                          getGridColsClass(config.kioskGridCols)
+                        )}
+                      >
+                        {filteredItems.map((item, index) => (
+                          <ContentCard
+                            key={item.id}
+                            item={item}
+                            index={index}
+                            selected={selectedItemIds.includes(item.id)}
+                            fallbackImage={config.defaultItemImagePath}
+                            availability={occupancyByItem.get(item.id) ?? null}
+                            onToggle={() => toggleContent(item)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[50vh] items-center justify-center">
+                        <div className="max-w-lg text-center">
+                          <div className="mb-6 inline-block text-[10px] font-medium uppercase tracking-[0.3em] text-(--body-muted)">
+                            Empty
+                          </div>
+                          <p
+                            className="mb-3 font-light leading-tight tracking-tight text-(--brand-text)"
+                            style={{
+                              ...displayHeadingStyle,
+                              fontSize: "clamp(1.5rem, 4vw, 2.25rem)",
+                            }}
+                          >
+                            {selectedCategory === "전체"
+                              ? "현재 이용 가능한 컨텐츠가 없습니다."
+                              : `${selectedCategory} 카테고리에 이용 가능한 컨텐츠가 없습니다.`}
+                          </p>
+                          <p className="text-base text-(--body-muted) sm:text-lg">
+                            {selectedCategory === "전체"
+                              ? "관리자에게 문의해주세요."
+                              : "다른 카테고리를 선택해주세요."}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {error && <ErrorText>{error}</ErrorText>}
-
-                <div className="grid grid-cols-2 gap-4 auto-rows-fr sm:gap-5 lg:grid-cols-4">
-                  {items.map((item, index) => (
-                    <ContentCard
-                      key={item.id}
-                      item={item}
-                      index={index}
-                      selected={selectedItemIds.includes(item.id)}
-                      fallbackImage={config.defaultItemImagePath}
-                      availability={occupancyByItem.get(item.id) ?? null}
-                      onToggle={() => toggleContent(item)}
-                    />
-                  ))}
-                </div>
-
-                {/* 하단 플로팅 확정 바 (smy 카트바 이식) — 1개 이상 선택 시 등장 */}
                 {selectedItems.length > 0 && (
                   <div
                     className="fixed inset-x-0 z-30 flex justify-center px-4 pb-5 transition-[bottom] duration-200 ease-out animate-in slide-in-from-bottom-4 fade-in"
@@ -1773,14 +1880,43 @@ function ContentCard({
         animationDuration: "500ms",
       }}
       className={cn(
-        "group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-(--surface-card) text-left transition-[border-color,transform] duration-300 active:scale-[0.99] animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards",
+        "group relative flex h-full w-full flex-col overflow-hidden rounded-lg border bg-(--surface-card) text-left transition-[border-color,transform,box-shadow] duration-300 active:scale-[0.99] animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards",
         selected
           ? "border-(--brand-primary) ring-2 ring-(--brand-primary)"
           : "border-(--hairline) hover:border-(--hairline-strong)"
       )}
     >
       <div className="relative aspect-square overflow-hidden">
-        <Image src={imageSrc} alt={item.name} fill className="object-cover" />
+        <Image
+          src={imageSrc}
+          alt={item.name}
+          fill
+          className="object-cover transition-opacity duration-500"
+        />
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
+            style={{
+              backgroundColor:
+                availability && availability.remaining === 0
+                  ? "var(--brand-accent)"
+                  : "var(--brand-primary)",
+              color: "var(--brand-on-primary)",
+              letterSpacing: "0.045em",
+            }}
+          >
+            {availability
+              ? availability.remaining > 0
+                ? `잔여 ${availability.remaining}`
+                : "만석"
+              : "가능"}
+          </span>
+          {availability && availability.waitCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
+              +{availability.waitCount}
+            </span>
+          )}
+        </div>
         {selected && (
           <div className="absolute inset-0 flex items-center justify-center bg-(--brand-primary)/15">
             <span
@@ -1792,33 +1928,18 @@ function ContentCard({
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-1 px-4 py-3">
-        <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-(--body-muted)">
-          {item.category}
-        </span>
-        <span className="line-clamp-2 text-base font-semibold leading-tight sm:text-lg">
+      <div className="flex flex-1 flex-col justify-between gap-2 px-5 py-4">
+        <span className="line-clamp-2 text-base font-semibold leading-tight text-(--brand-text) sm:text-lg">
           {item.name}
         </span>
-        {availability && (
-          <span
-            className={cn(
-              "mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold",
-              availability.remaining > 0 ? "text-emerald-600" : "text-red-500"
-            )}
-          >
-            <span
-              className={cn(
-                "inline-block h-2 w-2 rounded-full",
-                availability.remaining > 0 ? "bg-emerald-500" : "bg-red-500"
-              )}
-            />
-            {availability.remaining > 0
-              ? `잔여 ${availability.remaining}`
-              : availability.waitCount > 0
-              ? `만석 · 대기 ${availability.waitCount}팀`
-              : "만석"}
-          </span>
-        )}
+        <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.18em] text-(--body-muted)">
+          <span>{item.category}</span>
+          {item.isTimeLimited && item.rentalTimeMinutes ? (
+            <span className="font-mono normal-case tracking-normal">
+              {item.rentalTimeMinutes}m
+            </span>
+          ) : null}
+        </div>
       </div>
     </button>
   );

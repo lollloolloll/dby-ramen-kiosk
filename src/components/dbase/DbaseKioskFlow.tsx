@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Clock,
   Minus,
   Plus,
   RotateCcw,
@@ -36,13 +35,10 @@ import {
 } from "@/components/ui/select";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
 import { findUsersByNameAndPin } from "@/lib/actions/generalUser";
-import { returnItem, type OccupancyRow } from "@/lib/actions/rental";
 import {
   commitDbaseVisit,
   registerDbaseUser,
-  getUserDbaseStatus,
   type DbaseItemOutcome,
-  type UserDbaseStatus,
 } from "@/lib/actions/dbase";
 import {
   assertValidHeadcount,
@@ -62,8 +58,7 @@ type Step =
   | "headcount"
   | "contents"
   | "confirm"
-  | "done"
-  | "mystatus";
+  | "done";
 
 type Visitor = {
   id: number;
@@ -213,10 +208,8 @@ const buildSchoolValue = (level: string, name: string) => {
 
 export function DbaseKioskFlow({
   items,
-  occupancy,
 }: {
   items: Item[];
-  occupancy: OccupancyRow[];
 }) {
   const config = useTheme();
   const copy = mergeDbaseCopy(config.dbaseCopy);
@@ -253,8 +246,6 @@ export function DbaseKioskFlow({
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [outcomes, setOutcomes] = useState<DbaseItemOutcome[]>([]);
-  const [statusData, setStatusData] = useState<UserDbaseStatus | null>(null);
-  const [statusUserId, setStatusUserId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -276,15 +267,6 @@ export function DbaseKioskFlow({
     ).getDate();
     return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   }, [birthYear, birthMonth]);
-
-  // 아이템별 잔여/대기 — 선택 카드 배지용 (getItemOccupancyBoard는 시간제만 반환)
-  const occupancyByItem = useMemo(() => {
-    const m = new Map<number, { remaining: number; waitCount: number }>();
-    for (const o of occupancy) {
-      m.set(o.itemId, { remaining: o.remaining, waitCount: o.waitCount });
-    }
-    return m;
-  }, [occupancy]);
 
   const categories = useMemo(() => {
     const uniqueCategories = Array.from(
@@ -330,7 +312,6 @@ export function DbaseKioskFlow({
     setSelectedItemIds([]);
     setSelectedCategory("전체");
     setOutcomes([]);
-    setStatusData(null);
     setError("");
     setIsSubmitting(false);
   };
@@ -619,18 +600,6 @@ export function DbaseKioskFlow({
                     }}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetFlow();
-                    enterFullscreen();
-                    setStep("mystatus");
-                  }}
-                  className="group mx-auto flex w-full max-w-md items-center justify-center gap-3 rounded-3xl border border-(--hairline) bg-(--brand-bg)/50 px-8 py-5 text-xl font-semibold shadow-sm backdrop-blur-xl transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-(--hairline-strong) active:scale-[0.99]"
-                >
-                  <Clock className="h-6 w-6 text-(--brand-primary)" />내 차례
-                  확인
-                </button>
               </section>
             )}
 
@@ -905,7 +874,7 @@ export function DbaseKioskFlow({
                                 ✕
                               </Button>
                             </div>
-                            <div className="flex-1 overflow-y-auto pr-1 scrollbar-hidden">
+                            <div className="school-panel-scroll flex-1 overflow-y-auto pr-3">
                               <div className="grid grid-cols-2 gap-2">
                                 {(SCHOOL_DATA[schoolLevel] ?? []).map(
                                   (school) => {
@@ -1247,7 +1216,6 @@ export function DbaseKioskFlow({
                             index={index}
                             selected={selectedItemIds.includes(item.id)}
                             fallbackImage={config.defaultItemImagePath}
-                            availability={occupancyByItem.get(item.id) ?? null}
                             onToggle={() => toggleContent(item)}
                           />
                         ))}
@@ -1368,154 +1336,6 @@ export function DbaseKioskFlow({
               </Panel>
             )}
 
-            {step === "mystatus" && (
-              <Panel
-                eyebrow=""
-                title="내 차례 확인"
-                footer={
-                  <FlowFooter
-                    backLabel={copy.buttonRestart}
-                    nextLabel={copy.buttonOk}
-                    onBack={() => setStep("entry")}
-                    onNext={async () => {
-                      setError("");
-                      const pin = identifyPin.replace(/[^\d]/g, "");
-                      if (!identifyName.trim() || pin.length !== 4) {
-                        setError(
-                          "이름과 전화번호 가운데 4자리를 입력해주세요."
-                        );
-                        return;
-                      }
-                      setIsSubmitting(true);
-                      try {
-                        const res = await findUsersByNameAndPin(
-                          identifyName,
-                          pin
-                        );
-                        if (res.status !== "single_match") {
-                          setStatusData(null);
-                          setStep("mismatch");
-                          return;
-                        }
-                        setStatusUserId(res.user.id);
-                        const s = await getUserDbaseStatus(res.user.id);
-                        if ("error" in s) {
-                          setError(s.error);
-                          return;
-                        }
-                        setStatusData(s.data);
-                      } finally {
-                        setIsSubmitting(false);
-                      }
-                    }}
-                    disabled={isSubmitting}
-                  />
-                }
-              >
-                <div className="grid gap-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label={copy.fieldName}>
-                      <Input
-                        value={identifyName}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        lang="ko"
-                        onChange={(event) =>
-                          setIdentifyName(event.target.value)
-                        }
-                        className="h-14 text-lg"
-                      />
-                    </Field>
-                    <Field label={copy.fieldPin}>
-                      <Input
-                        type="tel"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={identifyPin}
-                        onChange={(event) =>
-                          setIdentifyPin(
-                            event.target.value.replace(/[^\d]/g, "")
-                          )
-                        }
-                        className="h-14 text-lg tracking-[0.5em]"
-                      />
-                    </Field>
-                  </div>
-
-                  {statusData && (
-                    <div className="grid gap-2 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-5">
-                      {statusData.active.map((a) => {
-                        const mins =
-                          a.returnDueDate != null
-                            ? Math.max(
-                                0,
-                                Math.ceil(
-                                  (a.returnDueDate - Date.now() / 1000) / 60
-                                )
-                              )
-                            : null;
-                        return (
-                          <div
-                            key={`a-${a.id}`}
-                            className="flex items-center justify-between gap-3"
-                          >
-                            <p className="text-lg">
-                              <span className="font-semibold">{a.itemName}</span>
-                              <span className="text-(--body-muted)">
-                                {mins != null
-                                  ? ` · 약 ${mins}분 남음`
-                                  : " · 이용 중"}
-                              </span>
-                            </p>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-11 shrink-0 px-5"
-                              disabled={isSubmitting}
-                              onClick={async () => {
-                                setIsSubmitting(true);
-                                try {
-                                  await returnItem(a.id);
-                                  if (statusUserId) {
-                                    const s = await getUserDbaseStatus(
-                                      statusUserId
-                                    );
-                                    if (!("error" in s)) setStatusData(s.data);
-                                  }
-                                } finally {
-                                  setIsSubmitting(false);
-                                }
-                              }}
-                            >
-                              다 썼어요
-                            </Button>
-                          </div>
-                        );
-                      })}
-                      {statusData.waiting.map((w, i) => (
-                        <p key={`w-${i}`} className="text-lg">
-                          <span className="font-semibold">{w.itemName}</span>
-                          <span className="text-(--body-muted)">
-                            {" · 대기 "}
-                            {w.position}번
-                            {w.maxWaitMinutes > 0
-                              ? ` · 최대 약 ${w.maxWaitMinutes}분`
-                              : ""}
-                          </span>
-                        </p>
-                      ))}
-                      {statusData.active.length === 0 &&
-                        statusData.waiting.length === 0 && (
-                          <p className="text-(--body-muted)">
-                            현재 이용·대기 중인 항목이 없습니다.
-                          </p>
-                        )}
-                    </div>
-                  )}
-                  {error && <ErrorText>{error}</ErrorText>}
-                </div>
-              </Panel>
-            )}
 
             {step === "done" && (
               <section className="grid min-h-[60vh] content-center justify-items-center gap-8 text-center animate-in fade-in zoom-in-95 fill-mode-backwards duration-500">
@@ -1858,15 +1678,12 @@ function ContentCard({
   index,
   selected,
   fallbackImage,
-  availability,
   onToggle,
 }: {
   item: Item;
   index: number;
   selected: boolean;
   fallbackImage: string | null;
-  // 시간제 아이템만 값이 있음(잔여/대기). 비시간제는 null → 배지 없음.
-  availability: { remaining: number; waitCount: number } | null;
   onToggle: () => void;
 }) {
   const imageSrc = item.imageUrl ?? fallbackImage ?? youthFacilityImage;
@@ -1897,25 +1714,13 @@ function ContentCard({
           <span
             className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
             style={{
-              backgroundColor:
-                availability && availability.remaining === 0
-                  ? "var(--brand-accent)"
-                  : "var(--brand-primary)",
+              backgroundColor: "var(--brand-primary)",
               color: "var(--brand-on-primary)",
               letterSpacing: "0.045em",
             }}
           >
-            {availability
-              ? availability.remaining > 0
-                ? `잔여 ${availability.remaining}`
-                : "만석"
-              : "가능"}
+            가능
           </span>
-          {availability && availability.waitCount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
-              +{availability.waitCount}
-            </span>
-          )}
         </div>
         {selected && (
           <div className="absolute inset-0 flex items-center justify-center bg-(--brand-primary)/15">
@@ -1934,11 +1739,6 @@ function ContentCard({
         </span>
         <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.18em] text-(--body-muted)">
           <span>{item.category}</span>
-          {item.isTimeLimited && item.rentalTimeMinutes ? (
-            <span className="font-mono normal-case tracking-normal">
-              {item.rentalTimeMinutes}m
-            </span>
-          ) : null}
         </div>
       </div>
     </button>

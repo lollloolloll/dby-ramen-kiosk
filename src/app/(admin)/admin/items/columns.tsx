@@ -127,25 +127,6 @@ export const columns: ColumnDef<Item>[] = [
   //     return <span>{isAutomaticGenderCount ? "예" : "아니오"}</span>;
   //   },
   // },
-  {
-    accessorKey: "isTimeLimited",
-    header: "대여 제한 여부",
-    cell: ({ row }) => {
-      const isTimeLimited = row.original.isTimeLimited;
-      return <span>{isTimeLimited ? "예" : "아니오"}</span>;
-    },
-  },
-  {
-    accessorKey: "quantity",
-    header: "보유 수량",
-    cell: ({ row }) => {
-      // 시간제 대여 아이템의 동시 보유 수량(재고). 미설정 시 1.
-      const quantity = row.original.isTimeLimited
-        ? row.original.quantity ?? 1
-        : null;
-      return <span>{quantity === null ? "-" : quantity}</span>;
-    },
-  },
   // 숨김(D.Base 전용 배포) — smy 대여 흐름용 컬럼. 복원하려면 주석 해제.
   // {
   //   accessorKey: "enableParticipantTracking",

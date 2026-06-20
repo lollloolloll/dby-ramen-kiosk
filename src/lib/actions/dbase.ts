@@ -7,19 +7,10 @@ import {
   items,
   rentalRecords,
   visitSessions,
-  waitingQueue,
 } from "@drizzle/schema";
-import { and, count, eq, inArray, lte } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import {
-  getActiveRentalCount,
-  triggerExpiredRentalsCheck,
-} from "@/lib/actions/rental";
-import {
-  decideRentalAction,
-  estimateMaxWaitMinutes,
-} from "@/lib/dbase/rental-decision";
 
 const dbaseUserSchema = z.object({
   name: z
@@ -70,11 +61,6 @@ export type DbaseItemOutcome = {
 export type DbaseVisitResult = {
   sessionId: number;
   outcomes: DbaseItemOutcome[];
-};
-
-export type UserDbaseStatus = {
-  active: { id: number; itemName: string; returnDueDate: number | null }[];
-  waiting: { itemName: string; position: number; maxWaitMinutes: number }[];
 };
 
 export async function registerDbaseUser(
@@ -166,9 +152,6 @@ export async function commitDbaseVisit(
       return { error: "선택한 컨텐츠 중 사용할 수 없는 항목이 있습니다." };
     }
 
-    // 만료 먼저 정리(잔여 최신화) — smy 패턴. 트랜잭션·락 미사용(저부하 전제, 순차).
-    await triggerExpiredRentalsCheck();
-
     const rentalDate = Math.floor(Date.now() / 1000);
     const maleCount = headcount.youthMale + headcount.adultMale;
     const femaleCount = headcount.youthFemale + headcount.adultFemale;
@@ -189,119 +172,33 @@ export async function commitDbaseVisit(
     const outcomes: DbaseItemOutcome[] = [];
 
     for (const item of selectedItems) {
-      // 중복 점유/대기 방지 (시간제만)
-      if (item.isTimeLimited) {
-        const dup = await db.query.rentalRecords.findFirst({
-          where: and(
-            eq(rentalRecords.userId, userId),
-            eq(rentalRecords.itemsId, item.id),
-            eq(rentalRecords.isReturned, false)
-          ),
-        });
-        const dupWait = await db.query.waitingQueue.findFirst({
-          where: and(
-            eq(waitingQueue.userId, userId),
-            eq(waitingQueue.itemId, item.id)
-          ),
-        });
-        if (dup || dupWait) {
-          outcomes.push({
-            itemId: item.id,
-            itemName: item.name,
-            status: dup ? "started" : "queued",
-          });
-          continue;
-        }
-      }
-
-      const activeCount = item.isTimeLimited
-        ? await getActiveRentalCount(item.id)
-        : 0;
-      const decision = decideRentalAction(item, activeCount);
-
-      if (decision === "hold") {
-        const returnDueDate = item.rentalTimeMinutes
-          ? rentalDate + item.rentalTimeMinutes * 60
-          : null;
-        await db.insert(rentalRecords).values({
-          userId,
-          visitSessionId: newSession.id,
-          itemsId: item.id,
-          maleCount,
-          femaleCount,
-          userName: user.name,
-          userPhone: user.phoneNumber,
-          userSchool: user.school,
-          userGender: user.gender,
-          userBirthDate: user.birthDate,
-          itemName: item.name,
-          itemCategory: item.category,
-          rentalDate,
-          returnDueDate,
-          isReturned: false,
-          isManualReturn: false,
-        });
-        outcomes.push({
-          itemId: item.id,
-          itemName: item.name,
-          status: "started",
-        });
-      } else if (decision === "queue") {
-        await db.insert(waitingQueue).values({
-          itemId: item.id,
-          userId,
-          maleCount,
-          femaleCount,
-          // 승급 시 청소년/성인 분할을 보존하도록 그룹 방문 세션을 연결
-          visitSessionId: newSession.id,
-        });
-        const [posRow] = await db
-          .select({ value: count() })
-          .from(waitingQueue)
-          .where(eq(waitingQueue.itemId, item.id));
-        const position = posRow?.value ?? 1;
-        outcomes.push({
-          itemId: item.id,
-          itemName: item.name,
-          status: "queued",
-          queuePosition: position,
-          maxWaitMinutes: estimateMaxWaitMinutes(
-            position,
-            item.quantity ?? 1,
-            item.rentalTimeMinutes
-          ),
-        });
-      } else {
-        // 비시간제: 즉시 반납 방문 로그 (현행 동작 유지)
-        await db.insert(rentalRecords).values({
-          userId,
-          visitSessionId: newSession.id,
-          itemsId: item.id,
-          maleCount,
-          femaleCount,
-          userName: user.name,
-          userPhone: user.phoneNumber,
-          userSchool: user.school,
-          userGender: user.gender,
-          userBirthDate: user.birthDate,
-          itemName: item.name,
-          itemCategory: item.category,
-          rentalDate,
-          isReturned: true,
-          returnDate: rentalDate,
-          isManualReturn: false,
-        });
-        outcomes.push({
-          itemId: item.id,
-          itemName: item.name,
-          status: "logged",
-        });
-      }
+      await db.insert(rentalRecords).values({
+        userId,
+        visitSessionId: newSession.id,
+        itemsId: item.id,
+        maleCount,
+        femaleCount,
+        userName: user.name,
+        userPhone: user.phoneNumber,
+        userSchool: user.school,
+        userGender: user.gender,
+        userBirthDate: user.birthDate,
+        itemName: item.name,
+        itemCategory: item.category,
+        rentalDate,
+        isReturned: true,
+        returnDate: rentalDate,
+        isManualReturn: false,
+      });
+      outcomes.push({
+        itemId: item.id,
+        itemName: item.name,
+        status: "logged",
+      });
     }
 
     revalidatePath("/", "layout");
     revalidatePath("/kiosk/dby");
-    revalidatePath("/admin/waitings");
     revalidatePath("/admin/records");
 
     return {
@@ -316,83 +213,5 @@ export async function commitDbaseVisit(
           ? error.message
           : "방문 등록 중 오류가 발생했습니다.",
     };
-  }
-}
-
-/**
- * "내 차례 확인" — 사용자의 현재 점유(이용 중) 및 대기 현황 조회.
- * 조회 시 만료 자동처리(잔여 최신화)를 먼저 수행한다.
- */
-export async function getUserDbaseStatus(
-  userId: number
-): Promise<{ success: true; data: UserDbaseStatus } | { error: string }> {
-  try {
-    await triggerExpiredRentalsCheck();
-
-    // 시간제 아이템만 "이용 중"으로 노출 (비시간제는 즉시 로그라 점유 개념 없음).
-    const active = await db
-      .select({
-        id: rentalRecords.id,
-        itemName: rentalRecords.itemName,
-        returnDueDate: rentalRecords.returnDueDate,
-      })
-      .from(rentalRecords)
-      .innerJoin(items, eq(rentalRecords.itemsId, items.id))
-      .where(
-        and(
-          eq(rentalRecords.userId, userId),
-          eq(rentalRecords.isReturned, false),
-          eq(items.isTimeLimited, true)
-        )
-      );
-
-    const myWaits = await db
-      .select()
-      .from(waitingQueue)
-      .where(eq(waitingQueue.userId, userId));
-
-    const waiting = await Promise.all(
-      myWaits.map(async (w) => {
-        // 대기 순번 = 같은 아이템에서 나보다 먼저(또는 같이) 들어온 건수
-        const [ahead] = await db
-          .select({ value: count() })
-          .from(waitingQueue)
-          .where(
-            and(
-              eq(waitingQueue.itemId, w.itemId),
-              lte(waitingQueue.requestDate, w.requestDate)
-            )
-          );
-        const item = await db.query.items.findFirst({
-          where: eq(items.id, w.itemId),
-          columns: { name: true, quantity: true, rentalTimeMinutes: true },
-        });
-        const position = ahead?.value ?? 1;
-        return {
-          itemName: item?.name ?? "",
-          position,
-          maxWaitMinutes: estimateMaxWaitMinutes(
-            position,
-            item?.quantity ?? 1,
-            item?.rentalTimeMinutes ?? null
-          ),
-        };
-      })
-    );
-
-    return {
-      success: true,
-      data: {
-        active: active.map((a) => ({
-          id: a.id,
-          itemName: a.itemName ?? "",
-          returnDueDate: a.returnDueDate,
-        })),
-        waiting,
-      },
-    };
-  } catch (error) {
-    console.error("getUserDbaseStatus failed:", error);
-    return { error: "내 이용 현황을 불러오지 못했습니다." };
   }
 }

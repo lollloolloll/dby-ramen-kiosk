@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -12,7 +12,6 @@ const links = [
   { href: "/admin/users", label: "사용자 관리" },
   { href: "/admin/items", label: "물품 관리" },
   { href: "/admin/records", label: "대여 기록 관리" },
-  { href: "/admin/waitings", label: "대기열 관리", forceRefresh: true },
 ];
 
 const operationLinks = [
@@ -27,19 +26,12 @@ const operationLinks = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [showOperationLinks, setShowOperationLinks] = useState(false);
 
   // Operation 하위 경로에 있는지 확인
   const isOperationActive = operationLinks.some(
     (link) => pathname === link.href
   );
-
-  const handleLinkClick = (e: React.MouseEvent, forceRefresh?: boolean) => {
-    if (forceRefresh) {
-      router.refresh();
-    }
-  };
 
   return (
     <div className="flex flex-col space-y-1">
@@ -52,7 +44,6 @@ export function Sidebar() {
           <Link
             prefetch={false}
             href={link.href}
-            onClick={(e) => handleLinkClick(e, link.forceRefresh)}
           >
             {link.label}
           </Link>

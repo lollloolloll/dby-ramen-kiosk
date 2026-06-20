@@ -60,19 +60,6 @@ const formSchema = z.object({
       }
       return typeof val === "string" ? val.replace(/\s/g, "") : val;
     }),
-  isTimeLimited: z.boolean().default(false).optional(),
-  rentalTimeMinutes: z.coerce
-    .number()
-    .int()
-    .positive("대여 시간은 양의 정수여야 합니다.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  quantity: z.coerce
-    .number()
-    .int()
-    .positive("보유 수량은 1 이상의 정수여야 합니다.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
   enableParticipantTracking: z.boolean().default(false),
   isAutomaticGenderCount: z.boolean().default(true),
 });
@@ -85,17 +72,13 @@ export function AddItemForm() {
       name: "",
       category: "",
       imageUrl: undefined,
-      isTimeLimited: false,
-      rentalTimeMinutes: undefined,
-      quantity: undefined,
       enableParticipantTracking: false,
       isAutomaticGenderCount: false,
     },
   });
 
-  const isTimeLimited = form.watch("isTimeLimited");
   // D.Base 전용 배포 — smy 대여 흐름용 토글(성별 자동 입력, 참여자 이름 입력)은
-  // UI에서 숨긴다. 스키마/기본값은 유지하므로 제출은 그대로 동작. 시간제 대여는 노출.
+  // UI에서 숨긴다. 스키마/기본값은 유지하므로 제출은 그대로 동작.
   // smy 대여 기능을 다시 쓰려면 이 값을 true 로. (관련: 아이템 테이블 컬럼도 동일 처리)
   const SHOW_SMY_RENTAL_OPTIONS = false;
 
@@ -103,18 +86,11 @@ export function AddItemForm() {
     const formData = new FormData();
     formData.append("name", values.name);
     formData.append("category", values.category);
-    formData.append("isTimeLimited", String(values.isTimeLimited));
     formData.append(
       "enableParticipantTracking",
       String(values.enableParticipantTracking)
     );
 
-    if (values.rentalTimeMinutes !== undefined) {
-      formData.append("rentalTimeMinutes", String(values.rentalTimeMinutes));
-    }
-    if (values.quantity !== undefined) {
-      formData.append("quantity", String(values.quantity));
-    }
     formData.append(
       "isAutomaticGenderCount",
       String(values.isAutomaticGenderCount)
@@ -253,62 +229,6 @@ export function AddItemForm() {
               )}
             />
             )}
-            <FormField
-              control={form.control}
-              name="isTimeLimited"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">시간제 대여</FormLabel>
-                    <FormDescription>
-                      시간제 대여 아이템으로 설정합니다
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {isTimeLimited && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="rentalTimeMinutes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>대여 시간 (분)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="ex) 30" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="quantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>보유 수량(재고)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="ex) 2 (동시에 빌려줄 수 있는 개수)"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
-
             {/* 숨김(D.Base 전용 배포) — smy 대여 흐름용. 복원: SHOW_SMY_RENTAL_OPTIONS=true */}
             {SHOW_SMY_RENTAL_OPTIONS && (
             <FormField

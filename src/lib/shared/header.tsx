@@ -70,13 +70,13 @@ export function Header({ onMenuClick, onSidebarToggle }: HeaderProps) {
         className="text-lg font-semibold cursor-pointer underline hidden sm:inline-flex" // 모바일 공간 부족시 텍스트 숨김 처리 옵션
         asChild
       >
-        <a
-          href="https://www.notion.so/636f6feb4d06408ebcaa40c037fabc53?pvs=25#2baea606c4d5809e8b2dfaa31ba8893c"
+        {/* <a
+          href="https://www.notion.so/37bea606c4d58099a0dec33df70bbd5d?source=copy_link"
           target="_blank"
           rel="noopener noreferrer"
         >
           관리자메뉴얼
-        </a>
+        </a> */}
       </Button>
       <div className="flex items-center gap-4 ml-auto">
         <Button variant="ghost" size="sm" asChild>

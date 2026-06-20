@@ -48,19 +48,6 @@ const updateItemClientSchema = z.object({
       },
       { message: `이미지 크기는 ${ITEM_IMAGE_MAX_MB}MB 이하여야 합니다.` }
     ),
-  isTimeLimited: z.boolean().optional(),
-  rentalTimeMinutes: z.coerce
-    .number()
-    .int()
-    .positive("대여 시간은 양의 정수여야 합니다.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  quantity: z.coerce
-    .number()
-    .int()
-    .positive("보유 수량은 1 이상의 정수여야 합니다.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
   enableParticipantTracking: z.boolean().default(false).optional(),
   isAutomaticGenderCount: z.boolean().default(true),
 });
@@ -82,17 +69,13 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
       name: item.name,
       category: item.category,
       imageUrl: item.imageUrl || undefined,
-      isTimeLimited: item.isTimeLimited || false,
-      rentalTimeMinutes: item.rentalTimeMinutes ?? undefined,
-      quantity: item.quantity ?? undefined,
       enableParticipantTracking: item.enableParticipantTracking || false,
       isAutomaticGenderCount: item.isAutomaticGenderCount ?? false,
     },
   });
 
-  const isTimeLimited = form.watch("isTimeLimited");
   // D.Base 전용 배포 — smy 대여 흐름용 토글(성별 자동 입력, 참여자 이름 입력)은
-  // UI에서 숨긴다. 스키마/기본값은 유지하므로 제출은 그대로 동작. 시간제 대여는 노출.
+  // UI에서 숨긴다. 스키마/기본값은 유지하므로 제출은 그대로 동작.
   // smy 대여 기능을 다시 쓰려면 이 값을 true 로. (관련: 아이템 테이블 컬럼도 동일 처리)
   const SHOW_SMY_RENTAL_OPTIONS = false;
   const currentImageUrl = form.watch("imageUrl");
@@ -106,17 +89,10 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
       "isAutomaticGenderCount",
       String(values.isAutomaticGenderCount)
     );
-    formData.append("isTimeLimited", String(values.isTimeLimited));
     formData.append(
       "enableParticipantTracking",
       String(values.enableParticipantTracking ?? false)
     );
-    if (values.rentalTimeMinutes !== undefined) {
-      formData.append("rentalTimeMinutes", String(values.rentalTimeMinutes));
-    }
-    if (values.quantity !== undefined) {
-      formData.append("quantity", String(values.quantity));
-    }
 
     if (isImageDeleted) {
       formData.append("deleteImage", "true");
@@ -290,62 +266,6 @@ export function EditItemForm({ item, children }: EditItemFormProps) {
                 />
                 )}
 
-                <FormField
-                  control={form.control}
-                  name="isTimeLimited"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">시간제 대여</FormLabel>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {isTimeLimited && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="rentalTimeMinutes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>대여 시간 (분)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="ex) 30"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="quantity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>보유 수량(재고)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="ex) 2"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
                 {/* 숨김(D.Base 전용 배포) — smy 대여 흐름용. 복원: SHOW_SMY_RENTAL_OPTIONS=true */}
                 {SHOW_SMY_RENTAL_OPTIONS && (
                 <FormField

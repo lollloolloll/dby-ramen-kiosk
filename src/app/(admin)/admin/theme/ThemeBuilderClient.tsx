@@ -321,18 +321,6 @@ export function ThemeBuilderClient({
                 {...form.register("homeHeadlineBottom")}
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextField
-                label="홈 참여 버튼 글자"
-                helper="예: 시작하기"
-                {...form.register("homeCtaLabel")}
-              />
-              <TextField
-                label="키오스크 페이지 제목"
-                helper="대여 목록 화면 상단에 표시됩니다"
-                {...form.register("kioskTitle")}
-              />
-            </div>
           </CardContent>
         </Card>
 

@@ -24,6 +24,12 @@ import {
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useFooterAvoidanceOffset } from "@/lib/hooks/useFooterAvoidanceOffset";
 import {
@@ -105,7 +111,8 @@ const SCHOOL_LEVELS = [
   "중학교",
   "고등학교",
   "대학교",
-  "해당없음",
+  "아동",
+  "성인",
 ] as const;
 
 const SCHOOL_DATA: Record<string, string[]> = {
@@ -199,7 +206,7 @@ const getSchoolSuffix = (level: string) => {
 
 const buildSchoolValue = (level: string, name: string) => {
   const trimmedName = name.trim().replace(/\s/g, "");
-  if (level === "해당없음") return "해당없음";
+  if (!(level in SCHOOL_DATA)) return level;
   if (!trimmedName) return "";
   const suffix = getSchoolSuffix(level);
   if (suffix && trimmedName.endsWith(suffix)) return trimmedName;
@@ -797,7 +804,7 @@ export function DbaseKioskFlow({
                   <FieldGroup label="학교">
                     <div
                       className={cn(
-                        "grid grid-cols-3 gap-2 rounded-2xl sm:grid-cols-5",
+                        "grid grid-cols-3 gap-2 rounded-2xl sm:grid-cols-6",
                         registerAttempted &&
                           registerFieldErrors.school &&
                           "p-1 ring-2 ring-red-500/40"
@@ -815,11 +822,11 @@ export function DbaseKioskFlow({
                             setSchoolLevel(level);
                             setIsDirectInput(false);
                             setSchoolName("");
-                            if (level === "해당없음") {
+                            if (!(level in SCHOOL_DATA)) {
                               setShowSchoolPanel(false);
                               setRegisterForm((c) => ({
                                 ...c,
-                                school: "해당없음",
+                                school: level,
                               }));
                             } else {
                               setRegisterForm((c) => ({ ...c, school: "" }));
@@ -836,132 +843,117 @@ export function DbaseKioskFlow({
                       <button
                         type="button"
                         onClick={() => {
-                          if (schoolLevel && schoolLevel !== "해당없음")
+                          if (schoolLevel && schoolLevel in SCHOOL_DATA)
                             setShowSchoolPanel(true);
                         }}
                         className="mt-1 inline-flex w-fit items-center gap-2 rounded-full bg-(--brand-primary) px-4 py-1.5 text-sm font-semibold text-(--brand-on-primary)"
                       >
                         {registerForm.school}
-                        {schoolLevel && schoolLevel !== "해당없음" && (
+                        {schoolLevel && schoolLevel in SCHOOL_DATA && (
                           <span className="text-xs opacity-70">· 변경</span>
                         )}
                       </button>
                     )}
 
-                    {/* 학교 선택 드로어(옆 모달) — 교급 선택 시 열림. 이 영역만 스크롤 */}
-                    {showSchoolPanel &&
-                      schoolLevel &&
-                      schoolLevel !== "해당없음" && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-40 bg-black/40 animate-in fade-in duration-200"
-                            onClick={() => setShowSchoolPanel(false)}
-                          />
-                          <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-(--brand-bg) p-6 text-(--brand-text) shadow-2xl animate-in slide-in-from-right duration-300">
-                            <div className="mb-4 flex items-center justify-between">
-                              <h3
-                                className="text-2xl font-light"
-                                style={displayHeadingStyle}
-                              >
-                                {schoolLevel}
-                              </h3>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowSchoolPanel(false)}
-                              >
-                                ✕
-                              </Button>
-                            </div>
-                            <div className="school-panel-scroll flex-1 overflow-y-auto pr-3">
-                              <div className="grid grid-cols-2 gap-2">
-                                {(SCHOOL_DATA[schoolLevel] ?? []).map(
-                                  (school) => {
-                                    const selected =
-                                      !isDirectInput && schoolName === school;
-                                    return (
-                                      <Button
-                                        key={school}
-                                        type="button"
-                                        variant={
-                                          selected ? "default" : "outline"
-                                        }
-                                        className="h-14"
-                                        onClick={() => {
-                                          setIsDirectInput(false);
-                                          setSchoolName(school);
-                                          setRegisterForm((c) => ({
-                                            ...c,
-                                            school: buildSchoolValue(
-                                              schoolLevel,
-                                              school
-                                            ),
-                                          }));
-                                          setShowSchoolPanel(false);
-                                        }}
-                                      >
-                                        {school}
-                                      </Button>
-                                    );
-                                  }
-                                )}
+                    {/* 학교 선택 모달 — 교급 선택 시 화면 중앙에 팝업. 이 영역만 스크롤 */}
+                    <Dialog
+                      open={
+                        showSchoolPanel &&
+                        !!schoolLevel &&
+                        schoolLevel in SCHOOL_DATA
+                      }
+                      onOpenChange={(open) => setShowSchoolPanel(open)}
+                    >
+                      <DialogContent
+                        onOpenAutoFocus={(event) => event.preventDefault()}
+                        className="flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-3xl border-0 bg-(--brand-bg) p-6 text-(--brand-text) sm:p-8"
+                      >
+                        <DialogHeader className="mb-4 flex-row items-center justify-between space-y-0">
+                          <DialogTitle
+                            className="text-2xl font-light"
+                            style={displayHeadingStyle}
+                          >
+                            {schoolLevel}
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="school-panel-scroll min-h-0 flex-1 overflow-y-auto pr-3">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {(SCHOOL_DATA[schoolLevel] ?? []).map((school) => {
+                              const selected =
+                                !isDirectInput && schoolName === school;
+                              return (
                                 <Button
+                                  key={school}
                                   type="button"
-                                  variant={
-                                    isDirectInput ? "default" : "outline"
-                                  }
-                                  className="h-14 border-dashed"
+                                  variant={selected ? "default" : "outline"}
+                                  className="h-14"
                                   onClick={() => {
-                                    setIsDirectInput(true);
-                                    setSchoolName("");
-                                    setRegisterForm((c) => ({
-                                      ...c,
-                                      school: "",
-                                    }));
-                                  }}
-                                >
-                                  ✎ 직접 입력
-                                </Button>
-                              </div>
-                            </div>
-                            {isDirectInput && (
-                              <div className="mt-4 flex gap-2 border-t border-(--hairline) pt-4">
-                                <Input
-                                  autoComplete="off"
-                                  autoCorrect="off"
-                                  lang="ko"
-                                  placeholder="학교 이름 (예: 선덕)"
-                                  value={schoolName}
-                                  onChange={(event) => {
-                                    const val = event.target.value.replace(
-                                      /\s/g,
-                                      ""
-                                    );
-                                    setSchoolName(val);
+                                    setIsDirectInput(false);
+                                    setSchoolName(school);
                                     setRegisterForm((c) => ({
                                       ...c,
                                       school: buildSchoolValue(
                                         schoolLevel,
-                                        val
+                                        school
                                       ),
                                     }));
-                                  }}
-                                  className="h-12 flex-1 text-base"
-                                />
-                                <Button
-                                  type="button"
-                                  onClick={() => {
-                                    if (schoolName) setShowSchoolPanel(false);
+                                    setShowSchoolPanel(false);
                                   }}
                                 >
-                                  완료
+                                  {school}
                                 </Button>
-                              </div>
-                            )}
+                              );
+                            })}
+                            <Button
+                              type="button"
+                              variant={isDirectInput ? "default" : "outline"}
+                              className="h-14 border-dashed"
+                              onClick={() => {
+                                setIsDirectInput(true);
+                                setSchoolName("");
+                                setRegisterForm((c) => ({
+                                  ...c,
+                                  school: "",
+                                }));
+                              }}
+                            >
+                              ✎ 직접 입력
+                            </Button>
                           </div>
-                        </>
-                      )}
+                        </div>
+                        {isDirectInput && (
+                          <div className="mt-4 flex gap-2 border-t border-(--hairline) pt-4">
+                            <Input
+                              autoComplete="off"
+                              autoCorrect="off"
+                              lang="ko"
+                              placeholder="학교 이름 (예: 선덕)"
+                              value={schoolName}
+                              onChange={(event) => {
+                                const val = event.target.value.replace(
+                                  /\s/g,
+                                  ""
+                                );
+                                setSchoolName(val);
+                                setRegisterForm((c) => ({
+                                  ...c,
+                                  school: buildSchoolValue(schoolLevel, val),
+                                }));
+                              }}
+                              className="h-12 flex-1 text-base"
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                if (schoolName) setShowSchoolPanel(false);
+                              }}
+                            >
+                              완료
+                            </Button>
+                          </div>
+                        )}
+                      </DialogContent>
+                    </Dialog>
                   </FieldGroup>
 
                   <label className="flex items-center gap-3 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 px-4 py-4 text-base">
@@ -995,30 +987,42 @@ export function DbaseKioskFlow({
                   />
                 }
               >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={copy.fieldName}>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Field
+                    label={copy.fieldName}
+                    labelClassName="text-base font-bold text-(--brand-text)"
+                  >
                     <Input
                       type="text"
                       inputMode="text"
+                      placeholder="홍길동"
                       value={identifyName}
                       autoComplete="off"
                       autoCorrect="off"
                       autoCapitalize="none"
                       lang="ko"
                       onChange={(event) => setIdentifyName(event.target.value)}
-                      className="h-14 text-lg"
+                      className="h-16 text-2xl font-semibold focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
                     />
                   </Field>
-                  <Field label={copy.fieldPin}>
+                  <Field
+                    label={highlightSubstring(
+                      copy.fieldPin,
+                      "가운데",
+                      "text-(--brand-primary)"
+                    )}
+                    labelClassName="text-base font-bold text-(--brand-text)"
+                  >
                     <Input
                       type="text"
-                      inputMode="text"
+                      inputMode="numeric"
                       maxLength={4}
+                      placeholder="1234"
                       value={identifyPin}
                       onChange={(event) =>
                         setIdentifyPin(event.target.value.replace(/[^\d]/g, ""))
                       }
-                      className="h-14 text-lg tracking-[0.5em]"
+                      className="h-16 text-center text-3xl font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
                     />
                   </Field>
                 </div>
@@ -1553,16 +1557,40 @@ function Panel({
   );
 }
 
+// 라벨 문자열 중 특정 부분만 강조 표시. target이 없으면 원문 그대로 반환.
+function highlightSubstring(
+  text: string,
+  target: string,
+  className: string
+): React.ReactNode {
+  const index = text.indexOf(target);
+  if (index === -1) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <span className={className}>{target}</span>
+      {text.slice(index + target.length)}
+    </>
+  );
+}
+
 function Field({
   label,
+  labelClassName,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
+  labelClassName?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="grid gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-(--body-muted)">
+      <span
+        className={
+          labelClassName ??
+          "text-xs font-semibold uppercase tracking-[0.14em] text-(--body-muted)"
+        }
+      >
         {label}
       </span>
       {children}

@@ -136,11 +136,13 @@ const getSchoolSuffix = (level: string) => {
   }
 };
 
+const NON_STUDENT_LEVELS = ["해당없음", "아동", "성인"];
+
 const buildSchoolValue = (level: string, name: string) => {
   const trimmedName = name.trim().replace(/\s/g, "");
 
-  if (level === "해당없음") {
-    return "해당없음";
+  if (NON_STUDENT_LEVELS.includes(level)) {
+    return level;
   }
 
   if (!trimmedName) {
@@ -418,8 +420,8 @@ export function RentalDialog({
   // 대신 Select의 onValueChange에서 직접 처리합니다.
 
   useEffect(() => {
-    if (schoolLevel === "해당없음") {
-      registerForm.setValue("school", "해당없음");
+    if (NON_STUDENT_LEVELS.includes(schoolLevel)) {
+      registerForm.setValue("school", schoolLevel);
       return;
     }
     if (!schoolName) {
@@ -472,8 +474,8 @@ export function RentalDialog({
     setBirthMonth(birthDateParts[1]);
     setBirthDay(birthDateParts[2]);
 
-    if (user.school === "해당없음") {
-      setSchoolLevel("해당없음");
+    if (user.school && NON_STUDENT_LEVELS.includes(user.school)) {
+      setSchoolLevel(user.school);
       setSchoolName("");
       setIsDirectInput(false);
       setShowSchoolPanel(false);
@@ -1015,7 +1017,7 @@ export function RentalDialog({
 
   // ... (renderSchoolPanel, renderStep 등 나머지 렌더링 로직은 그대로 사용하되, birthDate Select 부분만 수정) ...
   const renderSchoolPanel = () => {
-    if (!schoolLevel || schoolLevel === "해당없음") return null;
+    if (!schoolLevel || NON_STUDENT_LEVELS.includes(schoolLevel)) return null;
 
     return (
       <div className="flex flex-col h-full border-l pl-6 ml-2 animate-in fade-in slide-in-from-left-4 duration-500">
@@ -1169,7 +1171,11 @@ export function RentalDialog({
 
                 <div className="rounded-xl border border-[color:var(--brand-primary-20)] bg-[color:var(--brand-primary-06)] px-4 py-3 text-sm leading-relaxed text-slate-700">
                   <p className="font-semibold text-[color:var(--brand-primary)]">
-                    PIN 4자리는 내 전화번호 가운데 4자리예요.
+                    PIN 4자리는 내 전화번호{" "}
+                    <span className="underline decoration-2 underline-offset-2 font-black">
+                      가운데
+                    </span>{" "}
+                    4자리예요.
                   </p>
                   <p>예: 010-1234-5678 이면 PIN은 1234</p>
                 </div>
@@ -1330,7 +1336,7 @@ export function RentalDialog({
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>이름</FormLabel>
+                      <FormLabel className="text-base font-bold">이름</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="홍길동"
@@ -1348,7 +1354,7 @@ export function RentalDialog({
                             );
                             field.onChange(value);
                           }}
-                          className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!"
+                          className="h-14 text-2xl font-semibold focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1360,17 +1366,19 @@ export function RentalDialog({
                   name="pin"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>PIN 4자리</FormLabel>
+                      <FormLabel className="text-base font-bold">
+                        PIN 4자리
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="1234"
                           type="text"
-                          inputMode="text"
+                          inputMode="numeric"
                           autoComplete="off"
                           autoCorrect="off"
                           {...field}
                           maxLength={4}
-                          className="focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!"
+                          className="h-14 text-center text-3xl font-bold tracking-[0.3em] focus-visible:outline-none! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:border-2! focus-visible:border-[color:var(--brand-primary)]!"
                           onChange={(e) => {
                             field.onChange(
                               e.target.value.replace(/[^\d]/g, "").slice(0, 4)
@@ -1934,7 +1942,8 @@ export function RentalDialog({
                             "중학교",
                             "고등학교",
                             "대학교",
-                            "해당없음",
+                            "아동",
+                            "성인",
                           ].map((level) => (
                             <Button
                               key={level}
@@ -1943,9 +1952,9 @@ export function RentalDialog({
                               onClick={() => {
                                 setSchoolLevel(level);
 
-                                if (level === "해당없음") {
+                                if (NON_STUDENT_LEVELS.includes(level)) {
                                   setShowSchoolPanel(false);
-                                  registerForm.setValue("school", "해당없음");
+                                  registerForm.setValue("school", level);
                                   setSchoolName("");
                                   setIsDirectInput(false);
                                 } else {
@@ -1976,7 +1985,7 @@ export function RentalDialog({
                         </div>
 
                         {/* 선택된 학교 표시 (패널이 열려있을 때 폼 안에서도 확인 가능하게) */}
-                        {field.value && field.value !== "해당없음" && (
+                        {field.value && !NON_STUDENT_LEVELS.includes(field.value) && (
                           <div className="p-3 bg-[color:var(--brand-primary-10)] rounded-md border border-[color:var(--brand-primary-20)] text-[color:var(--brand-primary)] font-bold text-center mx-auto w-fit">
                             {field.value}
                           </div>
@@ -2066,7 +2075,8 @@ export function RentalDialog({
             "중학교",
             "고등학교",
             "대학교",
-            "해당없음",
+            "아동",
+            "성인",
           ];
           const watchedReconfirmSchool = registerForm.getValues("school");
           return (
@@ -2129,9 +2139,9 @@ export function RentalDialog({
                           onClick={() => {
                             setSchoolLevel(level);
 
-                            if (level === "해당없음") {
+                            if (NON_STUDENT_LEVELS.includes(level)) {
                               setShowSchoolPanel(false);
-                              registerForm.setValue("school", "해당없음");
+                              registerForm.setValue("school", level);
                               setSchoolName("");
                               setIsDirectInput(false);
                             } else {
@@ -2161,7 +2171,7 @@ export function RentalDialog({
                   </div>
 
                   {watchedReconfirmSchool &&
-                    watchedReconfirmSchool !== "해당없음" && (
+                    !NON_STUDENT_LEVELS.includes(watchedReconfirmSchool) && (
                       <div className="p-3 bg-[color:var(--brand-primary-10)] rounded-md border border-[color:var(--brand-primary-20)] text-[color:var(--brand-primary)] font-bold text-center mx-auto w-fit">
                         {watchedReconfirmSchool}
                       </div>

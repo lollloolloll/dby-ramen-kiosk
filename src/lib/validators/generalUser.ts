@@ -24,7 +24,7 @@ export const generalUserSchema = z.object({
     .string()
     .trim()
     .refine((val) => val.length > 0, {
-      message: "학교를 선택하고 이름을 클릭하거나 '해당없음'을 선택해주세요.",
+      message: "학교 정보를 선택해주세요.",
     })
     .transform((val) => val.replace(/\s/g, "")),
   personalInfoConsent: z.boolean().optional(),

@@ -31,7 +31,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useFooterAvoidanceOffset } from "@/lib/hooks/useFooterAvoidanceOffset";
 import {
   Select,
   SelectContent,
@@ -224,8 +223,6 @@ export function DbaseKioskFlow({
   const router = useRouter();
   const searchParams = useSearchParams();
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const { footerRef, cartBarBottomStyle } =
-    useFooterAvoidanceOffset<HTMLElement>();
   const [step, setStep] = useState<Step>(() =>
     getDbaseInitialStep(searchParams)
   );
@@ -1254,8 +1251,9 @@ export function DbaseKioskFlow({
 
                 {selectedItems.length > 0 && (
                   <div
-                    className="fixed inset-x-0 z-30 flex justify-center px-4 pb-5 transition-[bottom] duration-200 ease-out animate-in slide-in-from-bottom-4 fade-in"
-                    style={cartBarBottomStyle}
+                    // 패드를 키오스크 프레임에 끼우면 화면 하단이 베젤에 가려
+                    // 눌리지 않는다. 그래서 하단 고정이 아니라 화면 수직 중앙에 띄운다.
+                    className="fixed inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center px-4 animate-in fade-in zoom-in-95 duration-200"
                   >
                     <button
                       type="button"
@@ -1402,7 +1400,6 @@ export function DbaseKioskFlow({
 
         {/* ── 공통 브랜드 푸터 밴드 (smy 이식) ── */}
         <footer
-          ref={footerRef}
           className="relative z-10 px-6 py-5 sm:px-12"
           style={{
             backgroundColor: "var(--brand-primary)",
@@ -1518,7 +1515,7 @@ function EntryButton({
       style={{ animationDelay: `${delayMs}ms`, animationDuration: "600ms" }}
       className="group flex min-h-44 items-center justify-between gap-4 rounded-3xl border border-(--hairline) bg-(--brand-bg)/70 px-8 py-7 text-left shadow-lg backdrop-blur-xl transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-(--hairline-strong) hover:shadow-xl active:scale-[0.99] animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards"
     >
-      <span className="text-3xl font-semibold sm:text-4xl">{label}</span>
+      <span className="text-4xl font-semibold sm:text-5xl">{label}</span>
       <span
         className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
         style={{

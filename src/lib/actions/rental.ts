@@ -1279,7 +1279,12 @@ export async function exportRentalRecordsToExcel(
     // 헤더 설정
     worksheet.columns = [
       { header: "ID", key: "id", width: 10 },
-      { header: "대여 날짜", key: "rentalDate", width: 25 },
+      {
+        header: "대여 날짜",
+        key: "rentalDate",
+        width: 20,
+        style: { numFmt: "yyyy-mm-dd hh:mm" },
+      },
       { header: "사용자 이름", key: "userName", width: 15 },
       { header: "나이(만)", key: "age", width: 10 },
       { header: "연령대", key: "ageGroup", width: 10 },
@@ -1317,9 +1322,16 @@ export async function exportRentalRecordsToExcel(
       const age = calculateAge(record.userBirthDate, rentalDateObj);
       const ageGroup = getAgeGroup(age);
 
+      // 엑셀에서 날짜로 정렬/피벗하려면 문자열이 아니라 Date를 넣어야 한다.
+      // 단 ExcelJS는 Date의 UTC 벽시계를 기록하므로, KST 오프셋을 더해
+      // 셀에 한국 시각이 그대로 찍히도록 맞춰준다. (나이 계산에는 쓰지 말 것)
+      const rentalDateForExcel = new Date(
+        rentalDateObj.getTime() + 9 * 60 * 60 * 1000
+      );
+
       worksheet.addRow({
         id: record.id,
-        rentalDate: rentalDateObj.toLocaleString("ko-KR"),
+        rentalDate: rentalDateForExcel,
         userName: record.userName,
         age: age !== null ? age : "-", // 나이 데이터 매핑
         ageGroup: ageGroup, // 나이대 데이터 매핑

@@ -38,6 +38,7 @@ import {
   type UserPinLookupResult,
 } from "@/lib/actions/generalUser";
 import {
+  checkDbaseIdentity,
   commitDbaseVisit,
   registerDbaseUser,
   type DbaseItemOutcome,
@@ -128,7 +129,6 @@ export function DbaseKioskFlow({
     getDbaseInitialStep(searchParams)
   );
   const [visitor, setVisitor] = useState<Visitor | null>(null);
-  const [identifyName, setIdentifyName] = useState("");
   const [identifyPin, setIdentifyPin] = useState("");
   const [pinMatches, setPinMatches] = useState<
     Extract<UserPinLookupResult, { status: "multiple_matches" }>["users"] | null
@@ -137,6 +137,12 @@ export function DbaseKioskFlow({
   const [pendingMatch, setPendingMatch] = useState<DbaseRegisteredUser | null>(
     null
   );
+  // register 스텝 내부 단계: 이름+전화번호만 먼저 확인 → 안 겹치면 나머지 입력
+  const [registerPhase, setRegisterPhase] = useState<"identity" | "details">(
+    "identity"
+  );
+  // "OO님 맞아?"에서 "아니, 다른 사람이야"를 고른 경우 — 최종 제출 시 강제로 새 레코드 생성
+  const [forceNewOnSubmit, setForceNewOnSubmit] = useState(false);
   const [registerForm, setRegisterForm] = useState<RegisterForm>({
     name: "",
     phoneNumber: "",
@@ -198,10 +204,11 @@ export function DbaseKioskFlow({
   const resetFlow = () => {
     setStep("entry");
     setVisitor(null);
-    setIdentifyName("");
     setIdentifyPin("");
     setPinMatches(null);
     setPendingMatch(null);
+    setRegisterPhase("identity");
+    setForceNewOnSubmit(false);
     setRegisterForm({
       name: "",
       phoneNumber: "",
@@ -305,27 +312,6 @@ export function DbaseKioskFlow({
       return;
     }
 
-    // 2단계: 이미 동일 PIN에 여러 명이 걸려 이름 입력을 받은 상태 — 이름으로 좁힌다.
-    if (pinMatches) {
-      const normalizedName = identifyName.trim().replace(/\s/g, "");
-      if (!normalizedName) {
-        setError("이름을 입력해주세요.");
-        return;
-      }
-      const narrowed = pinMatches.filter(
-        (user) => user.name === normalizedName
-      );
-      if (narrowed.length !== 1) {
-        setPinMatches(null);
-        setStep("mismatch");
-        return;
-      }
-      setVisitor({ id: narrowed[0].id, name: narrowed[0].name });
-      setPinMatches(null);
-      setStep("headcount");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const result = await findUsersByPin(pin);
@@ -352,17 +338,54 @@ export function DbaseKioskFlow({
   };
 
   // 필드별 검증 — 등록 제출 시 빨간 ring으로 어디가 비었는지 명확히 표시 (아이 사용)
-  const registerFieldErrors = {
+  const registerIdentityErrors = {
     name: registerForm.name.trim().length === 0,
     phoneNumber: !/^010-\d{4}-\d{4}$/.test(registerForm.phoneNumber),
+  };
+  const registerDetailErrors = {
     gender: registerForm.gender === "",
     birthDate: !/^\d{4}-\d{1,2}-\d{1,2}$/.test(registerForm.birthDate),
     school: registerForm.school.trim().length === 0,
   };
+  const registerFieldErrors = {
+    ...registerIdentityErrors,
+    ...registerDetailErrors,
+  };
+
+  // 1단계: 이름+전화번호만 먼저 확인 — 겹치는 회원이 있으면 나머지 입력 없이
+  // 바로 "OO님 맞아?"로, 없으면 나머지 항목 입력 단계로 넘어간다.
+  const handleIdentityCheck = async () => {
+    setError("");
+    if (Object.values(registerIdentityErrors).some(Boolean)) {
+      setRegisterAttempted(true);
+      setError("이름과 전화번호를 확인해주세요.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await checkDbaseIdentity({
+        name: registerForm.name,
+        phoneNumber: registerForm.phoneNumber,
+      });
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      if (result.exists) {
+        setPendingMatch(result.user);
+        setStep("identityConfirm");
+        return;
+      }
+      setRegisterAttempted(false);
+      setRegisterPhase("details");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleRegister = async (forceNewRecord = false) => {
     setError("");
-    if (!forceNewRecord && Object.values(registerFieldErrors).some(Boolean)) {
+    if (Object.values(registerFieldErrors).some(Boolean)) {
       setRegisterAttempted(true);
       setError("표시된 항목을 확인해주세요.");
       return;
@@ -385,6 +408,7 @@ export function DbaseKioskFlow({
       setVisitor(result.user);
       setPendingMatch(null);
       setRegisterAttempted(false);
+      setForceNewOnSubmit(false);
       setStep("headcount");
     } finally {
       setIsSubmitting(false);
@@ -446,16 +470,22 @@ export function DbaseKioskFlow({
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-(--brand-bg)">
-      <DbaseBackground
-        backgroundPath={config.backgroundPath}
-        backgroundType={config.backgroundType}
-        visualMode={visualMode}
-        waveMode={waveMode}
-        paused={isPreview}
-        colorCore={config.colorPrimary}
-        colorFringe={config.colorAccent}
-      />
+    // 배경(블러 원 등)을 감싸는 overflow-hidden을 최상위(스크롤 콘텐츠까지 포함)에
+    // 두면 position:sticky의 "가장 가까운 스크롤 조상"이 이 div가 되어버려
+    // sticky가 먹지 않는다. 그래서 overflow-hidden은 뷰포트 고정 배경 레이어에만
+    // 걸고, 콘텐츠 쪽에는 걸지 않는다.
+    <div className="relative min-h-screen bg-(--brand-bg)">
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <DbaseBackground
+          backgroundPath={config.backgroundPath}
+          backgroundType={config.backgroundType}
+          visualMode={visualMode}
+          waveMode={waveMode}
+          paused={isPreview}
+          colorCore={config.colorPrimary}
+          colorFringe={config.colorAccent}
+        />
+      </div>
 
       <div
         className="relative z-10 flex min-h-screen flex-col text-(--brand-text)"
@@ -549,69 +579,92 @@ export function DbaseKioskFlow({
                 eyebrow={copy.registerEyebrow}
                 title={copy.registerTitle}
                 footer={
-                  <FlowFooter
-                    backLabel={copy.buttonRestart}
-                    nextLabel={copy.buttonOk}
-                    onBack={() => setStep("entry")}
-                    onNext={() => handleRegister()}
-                    disabled={isSubmitting}
-                  />
+                  registerPhase === "identity" ? (
+                    <FlowFooter
+                      backLabel={copy.buttonRestart}
+                      nextLabel={copy.buttonOk}
+                      onBack={() => setStep("entry")}
+                      onNext={handleIdentityCheck}
+                      disabled={isSubmitting}
+                    />
+                  ) : (
+                    <FlowFooter
+                      backLabel={copy.buttonBack}
+                      nextLabel={copy.buttonOk}
+                      onBack={() => {
+                        setError("");
+                        setRegisterPhase("identity");
+                      }}
+                      onNext={() => handleRegister(forceNewOnSubmit)}
+                      disabled={isSubmitting}
+                    />
+                  )
                 }
               >
-                <div className="grid gap-5">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label={copy.fieldName}>
-                      <Input
-                        type="text"
-                        inputMode="text"
-                        value={registerForm.name}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="none"
-                        lang="ko"
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            name: event.target.value.replace(
-                              /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]/g,
-                              ""
-                            ),
-                          }))
-                        }
-                        className={cn(
-                          "h-14 text-lg",
-                          registerAttempted &&
-                            registerFieldErrors.name &&
-                            "border-red-500 ring-2 ring-red-500/40"
-                        )}
-                      />
-                    </Field>
-                    <Field label={copy.fieldPhone}>
-                      <Input
-                        type="text"
-                        inputMode="text"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        maxLength={13}
-                        value={registerForm.phoneNumber}
-                        onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            phoneNumber: formatPhoneNumber(event.target.value),
-                          }))
-                        }
-                        placeholder="010-0000-0000"
-                        className={cn(
-                          "h-14 text-lg",
-                          registerAttempted &&
-                            registerFieldErrors.phoneNumber &&
-                            "border-red-500 ring-2 ring-red-500/40"
-                        )}
-                      />
-                    </Field>
+                {registerPhase === "identity" ? (
+                  <div className="grid gap-5">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label={copy.fieldName}>
+                        <Input
+                          type="text"
+                          inputMode="text"
+                          value={registerForm.name}
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="none"
+                          lang="ko"
+                          autoFocus
+                          onChange={(event) =>
+                            setRegisterForm((current) => ({
+                              ...current,
+                              name: event.target.value.replace(
+                                /[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]/g,
+                                ""
+                              ),
+                            }))
+                          }
+                          className={cn(
+                            "h-14 text-lg",
+                            registerAttempted &&
+                              registerFieldErrors.name &&
+                              "border-red-500 ring-2 ring-red-500/40"
+                          )}
+                        />
+                      </Field>
+                      <Field label={copy.fieldPhone}>
+                        <Input
+                          type="text"
+                          inputMode="text"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          maxLength={13}
+                          value={registerForm.phoneNumber}
+                          onChange={(event) =>
+                            setRegisterForm((current) => ({
+                              ...current,
+                              phoneNumber: formatPhoneNumber(
+                                event.target.value
+                              ),
+                            }))
+                          }
+                          placeholder="010-0000-0000"
+                          className={cn(
+                            "h-14 text-lg",
+                            registerAttempted &&
+                              registerFieldErrors.phoneNumber &&
+                              "border-red-500 ring-2 ring-red-500/40"
+                          )}
+                        />
+                      </Field>
+                    </div>
+                    {error && <ErrorText>{error}</ErrorText>}
                   </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
+                ) : (
+                  <div className="grid gap-5">
+                    <p className="text-sm text-(--body-muted)">
+                      {registerForm.name} · {registerForm.phoneNumber}
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
                     <FieldGroup label={copy.fieldGender}>
                       <div
                         className={cn(
@@ -781,6 +834,7 @@ export function DbaseKioskFlow({
                   </label>
                   {error && <ErrorText>{error}</ErrorText>}
                 </div>
+                )}
               </Panel>
             )}
 
@@ -795,7 +849,12 @@ export function DbaseKioskFlow({
                     variant="outline"
                     className="h-14 text-lg"
                     disabled={isSubmitting}
-                    onClick={() => handleRegister(true)}
+                    onClick={() => {
+                      setPendingMatch(null);
+                      setForceNewOnSubmit(true);
+                      setRegisterPhase("details");
+                      setStep("register");
+                    }}
                   >
                     아니, 다른 사람이야
                   </Button>
@@ -822,64 +881,78 @@ export function DbaseKioskFlow({
                 eyebrow={copy.identifyEyebrow}
                 title={copy.identifyTitle}
                 footer={
-                  <FlowFooter
-                    backLabel={copy.buttonRestart}
-                    nextLabel={copy.buttonOk}
-                    onBack={() => setStep("entry")}
-                    onNext={handleIdentify}
-                    disabled={isSubmitting}
-                  />
+                  pinMatches ? (
+                    <div className="mt-8 flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-12 px-6"
+                        onClick={() => {
+                          setPinMatches(null);
+                          setIdentifyPin("");
+                          setError("");
+                        }}
+                      >
+                        다시 입력
+                      </Button>
+                    </div>
+                  ) : (
+                    <FlowFooter
+                      backLabel={copy.buttonRestart}
+                      nextLabel={copy.buttonOk}
+                      onBack={() => setStep("entry")}
+                      onNext={handleIdentify}
+                      disabled={isSubmitting}
+                    />
+                  )
                 }
               >
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <Field
-                    label={highlightSubstring(
-                      copy.fieldPin,
-                      "가운데",
-                      "text-(--brand-primary)"
-                    )}
-                    labelClassName="text-base font-bold text-(--brand-text)"
-                  >
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      placeholder="1234"
-                      value={identifyPin}
-                      onChange={(event) => {
-                        setPinMatches(null);
-                        setIdentifyPin(event.target.value.replace(/[^\d]/g, ""));
-                      }}
-                      className="h-16 text-center text-3xl font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
-                    />
-                  </Field>
-                  {pinMatches && (
+                {!pinMatches ? (
+                  <div className="mx-auto grid w-full max-w-[280px] gap-5">
                     <Field
-                      label={copy.fieldName}
+                      label={highlightSubstring(
+                        copy.fieldPin,
+                        "가운데",
+                        "text-(--brand-primary)"
+                      )}
                       labelClassName="text-base font-bold text-(--brand-text)"
                     >
                       <Input
                         type="text"
-                        inputMode="text"
-                        placeholder="홍길동"
-                        value={identifyName}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="none"
-                        lang="ko"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="1234"
+                        value={identifyPin}
                         autoFocus
                         onChange={(event) =>
-                          setIdentifyName(event.target.value)
+                          setIdentifyPin(event.target.value.replace(/[^\d]/g, ""))
                         }
-                        className="h-16 text-2xl font-semibold focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
+                        className="h-16 text-center text-3xl font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
                       />
                     </Field>
-                  )}
-                </div>
-                {pinMatches && (
-                  <p className="mt-3 text-sm text-(--body-muted)">
-                    같은 번호를 쓰는 회원이 여러 명이에요. 이름을 입력해줘.
-                  </p>
+                  </div>
+                ) : (
+                  <div className="mx-auto grid w-full max-w-sm gap-3">
+                    <p className="mb-1 text-center text-sm text-(--body-muted)">
+                      같은 번호를 쓰는 회원이 여러 명이에요. 본인을 골라줘.
+                    </p>
+                    {pinMatches.map((user) => (
+                      <Button
+                        key={user.id}
+                        type="button"
+                        variant="outline"
+                        className="h-14 justify-center text-lg font-semibold"
+                        onClick={() => {
+                          setVisitor({ id: user.id, name: user.name });
+                          setPinMatches(null);
+                          setIdentifyPin("");
+                          setStep("headcount");
+                        }}
+                      >
+                        {user.name}
+                      </Button>
+                    ))}
+                  </div>
                 )}
                 {error && <ErrorText>{error}</ErrorText>}
               </Panel>
@@ -896,7 +969,6 @@ export function DbaseKioskFlow({
                     variant="outline"
                     className="h-14 text-lg"
                     onClick={() => {
-                      setIdentifyName("");
                       setIdentifyPin("");
                       setPinMatches(null);
                       setStep("identify");
@@ -907,7 +979,11 @@ export function DbaseKioskFlow({
                   <Button
                     type="button"
                     className="h-14 text-lg"
-                    onClick={() => setStep("register")}
+                    onClick={() => {
+                      setRegisterPhase("identity");
+                      setForceNewOnSubmit(false);
+                      setStep("register");
+                    }}
                   >
                     {copy.mismatchRegister}
                   </Button>
@@ -995,9 +1071,11 @@ export function DbaseKioskFlow({
             )}
 
             {step === "contents" && (
-              <section className="pb-28">
-                <header className="border-b border-(--hairline) px-6 pt-16 pb-12 sm:px-12 sm:pt-20 sm:pb-14 md:px-16 lg:px-20 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
-                  <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+              // 태블릿(1280x800 가로) 기준 — 스크롤 없이 8개 아이템(4x2)이
+              // 한 화면에 다 들어오도록 헤더/그리드/카드 여백을 압축했다.
+              <section className="relative pb-1">
+                <header className="relative border-b border-(--hairline) px-6 pt-2 pb-1.5 sm:px-10 md:px-12 lg:px-16 animate-in fade-in slide-in-from-top-2 fill-mode-backwards duration-700">
+                  <div className="mx-auto flex max-w-[1280px] flex-col gap-1">
                     <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.22em] text-(--body-muted)">
                       <span>Catalog</span>
                       <div className="flex items-center gap-4">
@@ -1011,7 +1089,7 @@ export function DbaseKioskFlow({
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-10 px-4 text-xs"
+                          className="h-8 px-3 text-[11px]"
                           onClick={() => setStep("headcount")}
                         >
                           {copy.buttonBack}
@@ -1019,18 +1097,12 @@ export function DbaseKioskFlow({
                       </div>
                     </div>
 
-                    <h2
-                      className="max-w-4xl font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text)"
-                      style={{
-                        ...displayHeadingStyle,
-                        fontSize: "clamp(2.25rem, 6vw, 3.75rem)",
-                      }}
-                    >
+                    <h2 className="text-2xl font-light leading-[1.05] tracking-[-0.02em] text-(--brand-text) sm:text-3xl">
                       {copy.contentsTitle}
                     </h2>
 
                     {categories.length > 1 && (
-                      <div className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
+                      <div className="mt-0.5 flex items-center gap-2 overflow-x-auto scrollbar-hidden">
                         {categories.map((category) => {
                           const active = selectedCategory === category;
                           return (
@@ -1039,7 +1111,7 @@ export function DbaseKioskFlow({
                               type="button"
                               onClick={() => setSelectedCategory(category)}
                               className={cn(
-                                "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase transition-colors",
+                                "shrink-0 rounded-full px-3 py-0.5 text-[11px] font-bold uppercase transition-colors",
                                 !active &&
                                   "border border-(--hairline-strong) bg-transparent text-(--brand-text)/70 hover:border-(--brand-text)/40 hover:text-(--brand-text)"
                               )}
@@ -1059,17 +1131,59 @@ export function DbaseKioskFlow({
                         })}
                       </div>
                     )}
+
+                    {selectedItems.length > 0 && (
+                      // 카테고리 칩 줄 위치에 맞춰 배치하되, 높이는 0으로 둬서
+                      // 그리드가 밀려 내려가지 않게 한다. 안쪽 박스만 sticky라
+                      // 실제로 스크롤이 생기는 예외 상황에서도 화면에 남는다.
+                      <div className="relative h-0 overflow-visible">
+                        <div className="sticky top-2 z-20 flex -translate-y-full justify-end">
+                          <div className="flex w-full max-w-md flex-col items-end gap-2 animate-in fade-in zoom-in-95 duration-200">
+                            <button
+                              type="button"
+                              onClick={handleCommit}
+                              disabled={isSubmitting}
+                              className="flex w-full items-center justify-between gap-3 rounded-full px-5 py-3 shadow-lg transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                              style={{
+                                backgroundColor: "var(--brand-primary)",
+                                color: "var(--brand-on-primary)",
+                              }}
+                            >
+                              <span className="flex items-center gap-2.5 overflow-hidden">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-black">
+                                  {selectedItems.length}
+                                </span>
+                                <span className="truncate text-sm font-medium opacity-90">
+                                  {selectedItems
+                                    .map((item) => item.name)
+                                    .join(", ")}
+                                </span>
+                              </span>
+                              <span className="flex shrink-0 items-center gap-1.5 text-base font-bold tracking-tight">
+                                {isSubmitting ? "등록 중..." : copy.buttonOk}
+                                <ArrowRight className="h-4 w-4" />
+                              </span>
+                            </button>
+                            {error && (
+                              <div className="w-full">
+                                <ErrorText>{error}</ErrorText>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </header>
 
-                <div className="px-6 py-12 sm:px-12 sm:py-16 md:px-16 lg:px-20 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
+                <div className="px-6 pb-0.5 pt-2 sm:px-10 md:px-12 lg:px-16 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
                   <div className="mx-auto max-w-[1280px]">
                     {error && <ErrorText>{error}</ErrorText>}
 
                     {filteredItems.length > 0 ? (
                       <div
                         className={cn(
-                          "grid gap-4 auto-rows-fr sm:gap-6",
+                          "grid gap-2 auto-rows-fr",
                           getGridColsClass(config.kioskGridCols)
                         )}
                       >
@@ -1112,42 +1226,6 @@ export function DbaseKioskFlow({
                   </div>
                 </div>
 
-                {selectedItems.length > 0 && (
-                  <div
-                    // 패드를 키오스크 프레임에 끼우면 화면 하단이 베젤에 가려
-                    // 눌리지 않는다. 그래서 하단 고정이 아니라 화면 수직 중앙에 띄운다.
-                    className="fixed inset-x-0 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-2 px-4 animate-in fade-in zoom-in-95 duration-200"
-                  >
-                    {error && (
-                      <div className="w-full max-w-[1280px]">
-                        <ErrorText>{error}</ErrorText>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleCommit}
-                      disabled={isSubmitting}
-                      className="flex w-full max-w-[1280px] items-center justify-between gap-4 rounded-2xl px-6 py-4 shadow-2xl transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
-                      style={{
-                        backgroundColor: "var(--brand-primary)",
-                        color: "var(--brand-on-primary)",
-                      }}
-                    >
-                      <span className="flex items-center gap-3 overflow-hidden">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-base font-black">
-                          {selectedItems.length}
-                        </span>
-                        <span className="truncate text-sm font-medium opacity-90">
-                          {selectedItems.map((item) => item.name).join(", ")}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5 text-lg font-bold tracking-tight">
-                        {isSubmitting ? "등록 중..." : copy.buttonOk}
-                        <ArrowRight className="h-5 w-5" />
-                      </span>
-                    </button>
-                  </div>
-                )}
               </section>
             )}
 
@@ -1214,7 +1292,7 @@ export function DbaseKioskFlow({
 
         {/* ── 공통 브랜드 푸터 밴드 (smy 이식) ── */}
         <footer
-          className="relative z-10 px-6 py-5 sm:px-12"
+          className="relative z-10 px-6 py-3 sm:px-12"
           style={{
             backgroundColor: "var(--brand-primary)",
             color: "var(--brand-on-primary)",
@@ -1542,14 +1620,14 @@ function ContentCard({
           : "border-(--hairline) hover:border-(--hairline-strong)"
       )}
     >
-      <div className="relative aspect-square overflow-hidden">
+      <div className="relative aspect-[4/3] overflow-hidden">
         <Image
           src={imageSrc}
           alt={item.name}
           fill
           className="object-cover transition-opacity duration-500"
         />
-        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+        <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5">
           <span
             className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
             style={{
@@ -1564,19 +1642,19 @@ function ContentCard({
         {selected && (
           <div className="absolute inset-0 flex items-center justify-center bg-(--brand-primary)/15">
             <span
-              className="flex h-12 w-12 items-center justify-center rounded-full text-(--brand-on-primary) shadow-lg"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-(--brand-on-primary) shadow-lg"
               style={{ backgroundColor: "var(--brand-primary)" }}
             >
-              <Check className="h-7 w-7" strokeWidth={3} />
+              <Check className="h-6 w-6" strokeWidth={3} />
             </span>
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col justify-between gap-2 px-5 py-4">
-        <span className="line-clamp-2 text-base font-semibold leading-tight text-(--brand-text) sm:text-lg">
+      <div className="flex flex-1 flex-col justify-between gap-0.5 px-4 py-2">
+        <span className="truncate text-sm font-semibold leading-tight text-(--brand-text) sm:text-base">
           {item.name}
         </span>
-        <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.18em] text-(--body-muted)">
+        <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.18em] text-(--body-muted)">
           <span>{item.category}</span>
         </div>
       </div>

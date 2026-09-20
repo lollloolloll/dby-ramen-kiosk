@@ -72,6 +72,58 @@ export type DbaseRegisterResult =
   | { needsConfirmation: true; existingUser: DbaseRegisteredUser }
   | { error: string };
 
+const dbaseIdentitySchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "이름을 입력해주세요.")
+    .transform((value) => value.replace(/\s/g, "")),
+  phoneNumber: z
+    .string()
+    .min(1, "휴대폰 번호를 입력해주세요.")
+    .regex(/^010-\d{4}-\d{4}$/, "휴대폰 번호를 올바르게 입력해주세요."),
+});
+
+export type DbaseIdentityCheckResult =
+  | { exists: true; user: DbaseRegisteredUser }
+  | { exists: false }
+  | { error: string };
+
+// 이름+전화번호만으로 기존 회원 여부를 먼저 확인 — 등록 폼 전체를 채우기 전에
+// "이미 등록되어 있는데 처음 왔어요를 눌렀다"는 번거로움을 줄이기 위함.
+export async function checkDbaseIdentity(
+  input: unknown
+): Promise<DbaseIdentityCheckResult> {
+  const parsed = dbaseIdentitySchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.flatten().fieldErrors.name?.[0] ||
+        parsed.error.flatten().fieldErrors.phoneNumber?.[0] ||
+        "유효하지 않은 정보입니다.",
+    };
+  }
+
+  const { name, phoneNumber } = parsed.data;
+
+  try {
+    const existingUser = await db.query.generalUsers.findFirst({
+      where: and(
+        eq(generalUsers.name, name),
+        eq(generalUsers.phoneNumber, phoneNumber)
+      ),
+    });
+
+    if (existingUser) {
+      return { exists: true, user: { id: existingUser.id, name: existingUser.name } };
+    }
+    return { exists: false };
+  } catch (error) {
+    console.error("D.BASE identity check failed:", error);
+    return { error: "확인 중 오류가 발생했습니다." };
+  }
+}
+
 export async function registerDbaseUser(
   input: unknown
 ): Promise<DbaseRegisterResult> {

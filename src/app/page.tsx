@@ -126,12 +126,19 @@ function HomeContent() {
   const resetInactivityTimer = useCallback(() => {
     if (isPreview) return;
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-    if (!showPromotion) {
+    // 홍보물이 없으면 슬라이더가 렌더되지 않아 showPromotion을 끌 수단이 없다.
+    // 켜지 않는 것이 유일하게 안전한 동작.
+    if (!showPromotion && promotionItems.length > 0) {
       inactivityTimerRef.current = setTimeout(() => {
         setShowPromotion(true);
       }, config.inactivityTimeoutMs);
     }
-  }, [config.inactivityTimeoutMs, isPreview, showPromotion]);
+  }, [
+    config.inactivityTimeoutMs,
+    isPreview,
+    showPromotion,
+    promotionItems.length,
+  ]);
 
   useEffect(() => {
     if (isPreview) return;
@@ -150,7 +157,10 @@ function HomeContent() {
     events.forEach((event) => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
-    if (!sessionStorage.getItem("showPromotionOnHome")) {
+    if (
+      !sessionStorage.getItem("showPromotionOnHome") &&
+      promotionItems.length > 0
+    ) {
       inactivityTimerRef.current = setTimeout(() => {
         setShowPromotion(true);
       }, config.inactivityTimeoutMs);
@@ -184,10 +194,20 @@ function HomeContent() {
     showPromotion,
   ]);
 
+  // 안전장치: showPromotion이 켜졌는데 홍보물이 없으면 슬라이더가 렌더되지 않고,
+  // 그 경우 onClose를 호출할 주체가 없어 플래그가 영구히 true로 잠긴다.
+  // (잠기면 handleStart가 계속 early-return 되어 /kiosk 진입이 막힘)
+  useEffect(() => {
+    if (showPromotion && promotionItems.length === 0) {
+      setShowPromotion(false);
+    }
+  }, [showPromotion, promotionItems.length]);
+
   const handleClosePromotion = () => {
     setShowPromotion(false);
     if (isPreview) return;
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    if (promotionItems.length === 0) return;
     inactivityTimerRef.current = setTimeout(() => {
       setShowPromotion(true);
     }, config.inactivityTimeoutMs);
@@ -200,7 +220,8 @@ function HomeContent() {
 
   const handleStart = () => {
     if (isPreview) return;
-    if (showPromotion) return;
+    // 실제로 슬라이더가 렌더된 경우에만 클릭을 무시한다.
+    if (showPromotion && promotionItems.length > 0) return;
     router.refresh();
     router.push("/kiosk");
   };

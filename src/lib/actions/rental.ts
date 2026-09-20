@@ -1291,7 +1291,6 @@ export async function exportRentalRecordsToExcel(
         width: 10,
         style: { numFmt: "hh:mm" },
       },
-      { header: "월", key: "rentalMonth", width: 10 },
       { header: "사용자 이름", key: "userName", width: 15 },
       { header: "나이(만)", key: "age", width: 10 },
       { header: "연령대", key: "ageGroup", width: 10 },
@@ -1340,9 +1339,6 @@ export async function exportRentalRecordsToExcel(
         id: record.id,
         rentalDateOnly: rentalDateForExcel,
         rentalTimeOnly: rentalDateForExcel,
-        rentalMonth: `${rentalDateForExcel.getUTCFullYear()}-${String(
-          rentalDateForExcel.getUTCMonth() + 1
-        ).padStart(2, "0")}`,
         userName: record.userName,
         age: age !== null ? age : "-", // 나이 데이터 매핑
         ageGroup: ageGroup, // 나이대 데이터 매핑

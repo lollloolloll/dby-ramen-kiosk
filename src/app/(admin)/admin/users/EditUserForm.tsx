@@ -65,6 +65,7 @@ const formatPhoneNumber = (value: string) => {
 const getSchoolLevelValue = (school: string | null) => {
   if (!school) return "";
   if (school === "성인" || school === "해당없음") return "성인";
+  if (school === "아동") return "아동";
   switch (school.slice(-1)) {
     case "초":
       return "초등학교";
@@ -346,6 +347,7 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
                         </FormControl>
                         <SelectContent>
                           {[
+                            "아동",
                             "초등학교",
                             "중학교",
                             "고등학교",

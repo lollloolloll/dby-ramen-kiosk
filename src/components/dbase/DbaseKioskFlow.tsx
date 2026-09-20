@@ -41,8 +41,8 @@ import {
   checkDbaseIdentity,
   commitDbaseVisit,
   registerDbaseUser,
+  type DbaseIdentityMatch,
   type DbaseItemOutcome,
-  type DbaseRegisteredUser,
 } from "@/lib/actions/dbase";
 import {
   assertValidHeadcount,
@@ -103,6 +103,11 @@ const formatPhoneNumber = (value: string) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 };
 
+// "OO님 맞아?" 확인 화면에서 이름 뒤 2글자를 가려서 보여준다 (예: 홍길동 → 홍OO).
+// "님"을 붙이면 받침 유무와 상관없이 자연스러워서 이름 끝 글자를 신경 안 써도 된다.
+const maskName = (name: string) =>
+  name.length > 2 ? `${name.slice(0, -2)}OO` : "OO";
+
 // 교급 선택 — 학교명은 등록하지 않고 교급만 저장한다.
 // value는 기존 데이터(school 필드)와의 호환을 위해 school.ts의 getSchoolLevel이
 // 인식하는 값을 그대로 사용한다.
@@ -133,10 +138,11 @@ export function DbaseKioskFlow({
   const [pinMatches, setPinMatches] = useState<
     Extract<UserPinLookupResult, { status: "multiple_matches" }>["users"] | null
   >(null);
-  // 등록 시 이름+전화번호가 겹치는 기존 회원 — "OO님 맞아?" 확인 대기 중
-  const [pendingMatch, setPendingMatch] = useState<DbaseRegisteredUser | null>(
-    null
-  );
+  // 등록 시 이름+전화번호가 겹치는 기존 회원 — "OO님 맞아?" 확인 대기 중.
+  // 생년월일만 다른 동명이인+동일 전화번호가 여러 명일 수 있어 배열로 둔다.
+  const [pendingMatches, setPendingMatches] = useState<
+    DbaseIdentityMatch[] | null
+  >(null);
   // register 스텝 내부 단계: 이름+전화번호만 먼저 확인 → 안 겹치면 나머지 입력
   const [registerPhase, setRegisterPhase] = useState<"identity" | "details">(
     "identity"
@@ -206,7 +212,7 @@ export function DbaseKioskFlow({
     setVisitor(null);
     setIdentifyPin("");
     setPinMatches(null);
-    setPendingMatch(null);
+    setPendingMatches(null);
     setRegisterPhase("identity");
     setForceNewOnSubmit(false);
     setRegisterForm({
@@ -371,8 +377,13 @@ export function DbaseKioskFlow({
         setError(result.error);
         return;
       }
+      if ("multiple" in result) {
+        setPendingMatches(result.users);
+        setStep("identityConfirm");
+        return;
+      }
       if (result.exists) {
-        setPendingMatch(result.user);
+        setPendingMatches([{ ...result.user, birthDate: null }]);
         setStep("identityConfirm");
         return;
       }
@@ -401,12 +412,12 @@ export function DbaseKioskFlow({
         return;
       }
       if ("needsConfirmation" in result) {
-        setPendingMatch(result.existingUser);
+        setPendingMatches([{ ...result.existingUser, birthDate: null }]);
         setStep("identityConfirm");
         return;
       }
       setVisitor(result.user);
-      setPendingMatch(null);
+      setPendingMatches(null);
       setRegisterAttempted(false);
       setForceNewOnSubmit(false);
       setStep("headcount");
@@ -838,40 +849,91 @@ export function DbaseKioskFlow({
               </Panel>
             )}
 
-            {step === "identityConfirm" && pendingMatch && (
-              <Panel eyebrow="확인 필요" title={`${pendingMatch.name}님 맞아?`}>
-                <p className="text-xl text-(--body-muted)">
-                  같은 이름과 전화번호로 등록된 회원이 있어요.
-                </p>
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-14 text-lg"
-                    disabled={isSubmitting}
-                    onClick={() => {
-                      setPendingMatch(null);
-                      setForceNewOnSubmit(true);
-                      setRegisterPhase("details");
-                      setStep("register");
-                    }}
-                  >
-                    아니, 다른 사람이야
-                  </Button>
-                  <Button
-                    type="button"
-                    className="h-14 text-lg"
-                    disabled={isSubmitting}
-                    onClick={() => {
-                      setVisitor(pendingMatch);
-                      setPendingMatch(null);
-                      setRegisterAttempted(false);
-                      setStep("headcount");
-                    }}
-                  >
-                    응, 나 맞아
-                  </Button>
-                </div>
+            {step === "identityConfirm" && pendingMatches && (
+              <Panel
+                eyebrow="확인 필요"
+                title={`${maskName(pendingMatches[0].name)}님 맞아?`}
+              >
+                {pendingMatches.length === 1 ? (
+                  <>
+                    <p className="text-xl text-(--body-muted)">
+                      같은 이름과 전화번호로 등록된 회원이 있어.
+                    </p>
+                    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setPendingMatches(null);
+                          setForceNewOnSubmit(true);
+                          setRegisterPhase("details");
+                          setStep("register");
+                        }}
+                      >
+                        아니, 다른 사람이야
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setVisitor(pendingMatches[0]);
+                          setPendingMatches(null);
+                          setRegisterAttempted(false);
+                          setStep("headcount");
+                        }}
+                      >
+                        응, 나 맞아
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 이름+전화번호까지 같은데 생년월일이 다른 회원이 여러
+                        명 — 이미 이름+전화번호를 정확히 입력한 상태라
+                        생년월일을 보여줘도 낯선 사람에게 정보가 새는 게
+                        아니다(본인만 알 수 있는 조합을 이미 입력했으므로). */}
+                    <p className="text-xl text-(--body-muted)">
+                      같은 이름과 전화번호를 쓰는 회원이 여러 명이에요.
+                      생년월일로 골라줘.
+                    </p>
+                    <div className="mt-8 grid gap-3">
+                      {pendingMatches.map((match) => (
+                        <Button
+                          key={match.id}
+                          type="button"
+                          variant="outline"
+                          className="h-14 text-lg"
+                          disabled={isSubmitting}
+                          onClick={() => {
+                            setVisitor(match);
+                            setPendingMatches(null);
+                            setRegisterAttempted(false);
+                            setStep("headcount");
+                          }}
+                        >
+                          {match.birthDate || "생년월일 미상"}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setPendingMatches(null);
+                          setForceNewOnSubmit(true);
+                          setRegisterPhase("details");
+                          setStep("register");
+                        }}
+                      >
+                        아니, 다른 사람이야
+                      </Button>
+                    </div>
+                  </>
+                )}
                 {error && <ErrorText>{error}</ErrorText>}
               </Panel>
             )}

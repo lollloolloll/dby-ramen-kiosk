@@ -28,6 +28,7 @@ import {
 } from "@/lib/actions/generalUser";
 import type { UserPinLookupResult } from "@/lib/actions/generalUser";
 import { confirmUserSchool, updateUserSchool } from "@/lib/actions/settings";
+import { getSchoolLevel } from "@/lib/shared/school";
 import { toast } from "sonner";
 import { useForm, useFieldArray, Resolver, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -137,6 +138,17 @@ const getSchoolSuffix = (level: string) => {
 };
 
 const NON_STUDENT_LEVELS = ["해당없음", "아동", "성인"];
+
+// 새학기 교급 재확인 전용 — 학교명 없이 교급만 고르게 한다.
+// "아동"은 smy 신규 등록에 이미 있는 선택지라 여기서도 빠지면 안 됨.
+const RECONFIRM_GRADE_LEVELS = [
+  { label: "아동", value: "아동" },
+  { label: "초", value: "초등학교" },
+  { label: "중", value: "중학교" },
+  { label: "고", value: "고등학교" },
+  { label: "대(후기 청소년)", value: "대학교" },
+  { label: "성인", value: "성인" },
+] as const;
 
 const buildSchoolValue = (level: string, name: string) => {
   const trimmedName = name.trim().replace(/\s/g, "");
@@ -708,12 +720,12 @@ export function RentalDialog({
   const handleSchoolReconfirmSave = async () => {
     if (!pendingRental) return;
     if (!schoolLevel) {
-      toast.error("학교 종류를 선택해주세요.");
+      toast.error("교급을 선택해주세요.");
       return;
     }
     const finalSchool = (registerForm.getValues("school") || "").trim();
     if (!finalSchool) {
-      toast.error("학교를 선택하거나 입력해주세요.");
+      toast.error("교급을 선택해주세요.");
       return;
     }
 
@@ -2066,36 +2078,26 @@ export function RentalDialog({
           );
         case "schoolReconfirm": {
           if (!pendingRental) return null;
-          const currentDisplay =
-            pendingRental.currentSchool && pendingRental.currentSchool.trim()
-              ? pendingRental.currentSchool
-              : "(등록된 학교 없음)";
-          const levels = [
-            "초등학교",
-            "중학교",
-            "고등학교",
-            "대학교",
-            "아동",
-            "성인",
-          ];
+          const currentLevelDisplay =
+            getSchoolLevel(pendingRental.currentSchool) || "(등록된 교급 없음)";
           const watchedReconfirmSchool = registerForm.getValues("school");
           return (
             <div className="space-y-4" key="schoolReconfirm">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black text-[color:var(--brand-primary)]">
-                  학교 정보 확인
+                  교급 확인
                 </DialogTitle>
                 <DialogDescription>
-                  새 학기를 맞아 학교 정보가 정확한지 확인해주세요.
+                  새 학기를 맞아 교급이 정확한지 확인해주세요.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="p-4 rounded-md border border-[color:var(--brand-primary-30)] bg-[color:var(--brand-primary-05)]">
                 <p className="text-xs text-muted-foreground mb-1">
-                  현재 등록된 학교
+                  현재 등록된 교급
                 </p>
                 <p className="text-xl font-bold text-foreground">
-                  {currentDisplay}
+                  {currentLevelDisplay}
                 </p>
               </div>
 
@@ -2123,59 +2125,35 @@ export function RentalDialog({
                     disabled={isSubmitting}
                     className="h-12 text-base font-bold"
                   >
-                    학교가 바뀌었어요
+                    교급이 바뀌었어요
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm font-semibold mb-2">학교 종류</p>
+                    <p className="text-sm font-semibold mb-2">교급</p>
                     <div className="grid grid-cols-3 gap-2">
-                      {levels.map((level) => (
+                      {RECONFIRM_GRADE_LEVELS.map((grade) => (
                         <Button
-                          key={level}
+                          key={grade.value}
                           type="button"
                           variant="outline"
                           onClick={() => {
-                            setSchoolLevel(level);
-
-                            if (NON_STUDENT_LEVELS.includes(level)) {
-                              setShowSchoolPanel(false);
-                              registerForm.setValue("school", level);
-                              setSchoolName("");
-                              setIsDirectInput(false);
-                            } else {
-                              setShowSchoolPanel(true);
-                              if (
-                                !watchedReconfirmSchool?.endsWith(
-                                  level.substring(0, 1)
-                                )
-                              ) {
-                                setSchoolName("");
-                                registerForm.setValue("school", "");
-                              }
-                              setIsDirectInput(false);
-                            }
+                            setSchoolLevel(grade.value);
+                            registerForm.setValue("school", grade.value);
                           }}
                           className={cn(
                             "h-12 text-base font-medium transition-all",
-                            schoolLevel === level
+                            schoolLevel === grade.value
                               ? "bg-[color:var(--brand-primary)] text-white hover:bg-[color:var(--brand-primary)] border-transparent"
                               : "hover:bg-[color:var(--brand-primary-10)] text-slate-600"
                           )}
                         >
-                          {level}
+                          {grade.label}
                         </Button>
                       ))}
                     </div>
                   </div>
-
-                  {watchedReconfirmSchool &&
-                    !NON_STUDENT_LEVELS.includes(watchedReconfirmSchool) && (
-                      <div className="p-3 bg-[color:var(--brand-primary-10)] rounded-md border border-[color:var(--brand-primary-20)] text-[color:var(--brand-primary)] font-bold text-center mx-auto w-fit">
-                        {watchedReconfirmSchool}
-                      </div>
-                    )}
 
                   <DialogFooter className="gap-2 sm:justify-between pt-2">
                     <Button
@@ -2192,7 +2170,7 @@ export function RentalDialog({
                     <Button
                       type="button"
                       onClick={handleSchoolReconfirmSave}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !watchedReconfirmSchool}
                       className="bg-[color:var(--brand-primary)] hover:bg-[color:var(--brand-primary)]"
                     >
                       {isSubmitting ? "저장 중..." : "저장하고 대여하기"}

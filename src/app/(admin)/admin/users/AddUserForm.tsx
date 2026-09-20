@@ -289,7 +289,7 @@ export function AddUserForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {["초등학교", "중학교", "고등학교", "대학교", "성인"].map(
+                  {["아동", "초등학교", "중학교", "고등학교", "대학교", "성인"].map(
                     (level) => (
                       <SelectItem key={level} value={level}>
                         {level}

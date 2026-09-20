@@ -84,8 +84,17 @@ const dbaseIdentitySchema = z.object({
     .regex(/^010-\d{4}-\d{4}$/, "휴대폰 번호를 올바르게 입력해주세요."),
 });
 
+export type DbaseIdentityMatch = {
+  id: number;
+  name: string;
+  birthDate: string | null;
+};
+
 export type DbaseIdentityCheckResult =
   | { exists: true; user: DbaseRegisteredUser }
+  // 이름+전화번호가 같아도 생년월일이 다른 회원이 여러 명 있을 수 있다
+  // (name+phone+birthDate 조합만 유니크). 그럴 땐 생년월일로 골라야 한다.
+  | { multiple: true; users: DbaseIdentityMatch[] }
   | { exists: false }
   | { error: string };
 
@@ -107,17 +116,31 @@ export async function checkDbaseIdentity(
   const { name, phoneNumber } = parsed.data;
 
   try {
-    const existingUser = await db.query.generalUsers.findFirst({
-      where: and(
-        eq(generalUsers.name, name),
-        eq(generalUsers.phoneNumber, phoneNumber)
-      ),
-    });
+    const matches = await db
+      .select()
+      .from(generalUsers)
+      .where(
+        and(
+          eq(generalUsers.name, name),
+          eq(generalUsers.phoneNumber, phoneNumber)
+        )
+      );
 
-    if (existingUser) {
-      return { exists: true, user: { id: existingUser.id, name: existingUser.name } };
+    if (matches.length === 0) return { exists: false };
+    if (matches.length === 1) {
+      return {
+        exists: true,
+        user: { id: matches[0].id, name: matches[0].name },
+      };
     }
-    return { exists: false };
+    return {
+      multiple: true,
+      users: matches.map((m) => ({
+        id: m.id,
+        name: m.name,
+        birthDate: m.birthDate,
+      })),
+    };
   } catch (error) {
     console.error("D.BASE identity check failed:", error);
     return { error: "확인 중 오류가 발생했습니다." };

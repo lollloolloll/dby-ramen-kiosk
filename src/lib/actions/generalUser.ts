@@ -419,7 +419,6 @@ export async function exportGeneralUsersToExcel() {
       { header: "성별", key: "gender", width: 10 },
       { header: "생년월일", key: "birthDate", width: 15 },
       { header: "교급", key: "schoolLevel", width: 12 },
-      { header: "학교", key: "school", width: 20 },
       { header: "개인정보동의", key: "personalInfoConsent", width: 15 },
     ];
 
@@ -460,7 +459,6 @@ export async function exportGeneralUsersToExcel() {
         gender: user.gender,
         birthDate: user.birthDate,
         schoolLevel: getSchoolLevel(user.school), // 교급
-        school: user.school,
         personalInfoConsent: user.personalInfoConsent ? "Y" : "N",
       });
     });

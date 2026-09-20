@@ -54,10 +54,6 @@ export function AddUserForm() {
   const [birthMonth, setBirthMonth] = useState<string>();
   const [birthDay, setBirthDay] = useState<string>();
 
-  // 학교 정보 상태
-  const [schoolLevel, setSchoolLevel] = useState("");
-  const [schoolName, setSchoolName] = useState("");
-
   // 년도 Select가 열렸을 때 2010년으로 스크롤
   const [yearSelectOpen, setYearSelectOpen] = useState(false);
 
@@ -81,35 +77,6 @@ export function AddUserForm() {
       form.setValue("birthDate", "");
     }
   }, [birthYear, birthMonth, birthDay, form.setValue]);
-
-  // 학교 useEffect
-  useEffect(() => {
-    if (schoolLevel === "해당없음") {
-      form.setValue("school", "해당없음");
-    } else if (schoolLevel && schoolName) {
-      let suffix = "";
-      switch (schoolLevel) {
-        case "초등학교":
-          suffix = "초";
-          break;
-        case "중학교":
-          suffix = "중";
-          break;
-        case "고등학교":
-          suffix = "고";
-          break;
-        case "대학교":
-          suffix = "대";
-          break;
-        default:
-          suffix = "";
-      }
-      const cleanedSchoolName = schoolName.trim().replace(/\s+/g, "");
-      form.setValue("school", `${cleanedSchoolName}${suffix}`);
-    } else {
-      form.setValue("school", "");
-    }
-  }, [schoolLevel, schoolName, form.setValue]);
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -149,8 +116,6 @@ export function AddUserForm() {
         setBirthYear(undefined);
         setBirthMonth(undefined);
         setBirthDay(undefined);
-        setSchoolLevel("");
-        setSchoolName("");
         setYearSelectOpen(false);
       }
     } catch (error) {
@@ -312,44 +277,27 @@ export function AddUserForm() {
         <FormField
           control={form.control}
           name="school"
-          render={() => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>
-                학교<span className="text-red-500">*</span>
+                교급<span className="text-red-500">*</span>
               </FormLabel>
-              <div className="flex items-center gap-2 whitespace-nowrap ">
-                {/* 학교 분류 선택 Select Box */}
-                <Select onValueChange={setSchoolLevel} value={schoolLevel}>
-                  <SelectTrigger className="w-[120px]">
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
                     <SelectValue placeholder="선택" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "초등학교",
-                      "중학교",
-                      "고등학교",
-                      "대학교",
-                      "해당없음",
-                    ].map((level) => (
+                </FormControl>
+                <SelectContent>
+                  {["초등학교", "중학교", "고등학교", "대학교", "성인"].map(
+                    (level) => (
                       <SelectItem key={level} value={level}>
                         {level}
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* 학교 이름 입력 Input */}
-                <FormControl>
-                  <Input
-                    placeholder="학교 이름 (예: 선덕, 자운)"
-                    value={schoolName}
-                    onChange={(e) =>
-                      setSchoolName(e.target.value.replace(/\s/g, ""))
-                    }
-                    disabled={!schoolLevel || schoolLevel === "해당없음"}
-                  />
-                </FormControl>
-              </div>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

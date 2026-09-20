@@ -495,42 +495,6 @@ export function RentalAnalyticsClient({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>학교별 대여 순위</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-[300px]" />
-            ) : (
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">순위</TableHead>
-                    <TableHead className="w-auto">학교명</TableHead>
-                    <TableHead className="w-24">대여수</TableHead>
-                    <TableHead className="w-24">이용자</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {analyticsData.schoolRankings?.map((row, idx) => (
-                    <TableRow key={row.school}>
-                      <TableCell className="w-16">{idx + 1}</TableCell>
-                      <TableCell className="w-auto truncate">
-                        {row.school}
-                      </TableCell>
-                      <TableCell className="w-24">{row.totalRentals}</TableCell>
-                      <TableCell className="w-24">{row.uniqueUsers}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {loading ? (
           <Skeleton className="h-[300px] lg:col-span-2" />
         ) : (

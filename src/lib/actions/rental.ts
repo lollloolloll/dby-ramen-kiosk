@@ -927,12 +927,10 @@ export async function getRentalAnalytics(filters: {
         // 현재 사용자 정보
         currentBirthDate: generalUsers.birthDate,
         currentGender: generalUsers.gender,
-        currentSchool: generalUsers.school,
 
         // 스냅샷 정보 (삭제/변경 대비)
         snapBirthDate: rentalRecords.userBirthDate,
         snapGender: rentalRecords.userGender,
-        snapSchool: rentalRecords.userSchool,
 
         // 아이템 정보
         itemName: items.name,
@@ -954,16 +952,12 @@ export async function getRentalAnalytics(filters: {
 
     // 데이터 정제 및 우선순위 적용
     const records = recordsRaw.map((r) => {
-      // 1. 학교: 기록된 스냅샷이 있으면 우선 사용 (과거 이력 보존), 없으면 현재 정보
-      const finalSchool = r.snapSchool ?? r.currentSchool ?? "기타";
-
-      // 2. 생년월일/성별: 현재 정보 우선(수정 반영), 없으면(삭제됨) 스냅샷 사용
+      // 생년월일/성별: 현재 정보 우선(수정 반영), 없으면(삭제됨) 스냅샷 사용
       const finalBirthDate = r.currentBirthDate ?? r.snapBirthDate;
       const finalGender = r.currentGender ?? r.snapGender; // 현재 사용 안 하지만 로직상 확보
 
       return {
         ...r,
-        school: finalSchool,
         birthDate: finalBirthDate,
         // (필요 시 gender: finalGender 추가 가능)
       };
@@ -1116,36 +1110,6 @@ export async function getRentalAnalytics(filters: {
       { name: "여성", value: genderCounts.female },
     ].filter((g) => g.value > 0);
 
-    // 학교 랭킹
-    const schoolCounts: {
-      [school: string]: {
-        school: string;
-        totalRentals: number;
-        users: Set<number>;
-      };
-    } = {};
-
-    filteredRecords.forEach((r) => {
-      if (r.school) {
-        if (!schoolCounts[r.school]) {
-          schoolCounts[r.school] = {
-            school: r.school,
-            totalRentals: 0,
-            users: new Set(),
-          };
-        }
-        schoolCounts[r.school].totalRentals += 1;
-        if (r.userId) schoolCounts[r.school].users.add(r.userId);
-      }
-    });
-    const schoolRankings = Object.values(schoolCounts)
-      .map((item) => ({
-        school: item.school,
-        totalRentals: item.totalRentals,
-        uniqueUsers: item.users.size,
-      }))
-      .sort((a, b) => b.totalRentals - a.totalRentals);
-
     // 인원수별 통계
     const peopleItemStats: {
       [key: number]: {
@@ -1227,7 +1191,6 @@ export async function getRentalAnalytics(filters: {
       dayOfWeekStats,
       hourStats,
       genderStats,
-      schoolRankings,
       peopleCountItemStats,
     };
   } catch (error) {
@@ -1250,7 +1213,6 @@ export async function getRentalAnalytics(filters: {
       dayOfWeekStats: [],
       hourStats: [],
       genderStats: [],
-      schoolRankings: [],
       peopleCountItemStats: [],
     };
   }
@@ -1295,7 +1257,6 @@ export async function exportRentalRecordsToExcel(
       { header: "나이(만)", key: "age", width: 10 },
       { header: "연령대", key: "ageGroup", width: 10 },
       { header: "교급", key: "schoolLevel", width: 12 },
-      { header: "학교", key: "userSchool", width: 15 },
       { header: "아이템 이름", key: "itemName", width: 20 },
       { header: "아이템 카테고리", key: "itemCategory", width: 15 },
       { header: "남자 인원", key: "maleCount", width: 10 },
@@ -1343,7 +1304,6 @@ export async function exportRentalRecordsToExcel(
         age: age !== null ? age : "-", // 나이 데이터 매핑
         ageGroup: ageGroup, // 나이대 데이터 매핑
         schoolLevel: getSchoolLevel(record.userSchool), // 교급 (대여 시점 학교 스냅샷 기준)
-        userSchool: record.userSchool,
         itemName: record.itemName,
         itemCategory: record.itemCategory,
         maleCount: record.maleCount,

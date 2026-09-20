@@ -16,6 +16,7 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import { EditUserForm } from "./EditUserForm";
 import { DeleteUserDialog } from "./DeleteUserDialog";
+import { getSchoolLevel } from "@/lib/shared/school";
 
 type GeneralUser = typeof generalUsers.$inferSelect;
 type AdminUser = typeof users.$inferSelect;
@@ -61,7 +62,8 @@ export const generalUserColumns: ColumnDef<GeneralUser>[] = [
   },
   {
     accessorKey: "school",
-    header: "학교",
+    header: "교급",
+    cell: ({ row }) => getSchoolLevel(row.getValue("school")),
   },
   {
     accessorKey: "personalInfoConsent",

@@ -60,23 +60,22 @@ const formatPhoneNumber = (value: string) => {
   )}-${phoneNumber.slice(7, 11)}`;
 };
 
-const getSchoolParts = (school: string | null) => {
-  if (!school || school === "해당없음") {
-    return { level: "해당없음", name: "" };
-  }
-  const lastChar = school.slice(-1);
-  const name = school.slice(0, -1);
-  switch (lastChar) {
+// 기존에 학교명으로 저장된 값(예: "선덕초")도 교급으로 변환해 보여준다.
+// 다음 저장부터는 교급 값으로 덮어써진다.
+const getSchoolLevelValue = (school: string | null) => {
+  if (!school) return "";
+  if (school === "성인" || school === "해당없음") return "성인";
+  switch (school.slice(-1)) {
     case "초":
-      return { level: "초등학교", name };
+      return "초등학교";
     case "중":
-      return { level: "중학교", name };
+      return "중학교";
     case "고":
-      return { level: "고등학교", name };
+      return "고등학교";
     case "대":
-      return { level: "대학교", name };
+      return "대학교";
     default:
-      return { level: "", name: school };
+      return "";
   }
 };
 
@@ -86,7 +85,6 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const initialBirthDate = user.birthDate ? user.birthDate.split("-") : [];
-  const initialSchool = getSchoolParts(user.school);
 
   const [birthYear, setBirthYear] = useState<string | undefined>(
     initialBirthDate[0]
@@ -98,9 +96,6 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
     initialBirthDate[2]
   );
 
-  const [schoolLevel, setSchoolLevel] = useState(initialSchool.level);
-  const [schoolName, setSchoolName] = useState(initialSchool.name);
-
   const form = useForm<GeneralUserFormValues>({
     resolver: zodResolver(generalUserSchema),
     defaultValues: {
@@ -108,7 +103,7 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
       phoneNumber: user.phoneNumber || "",
       gender: user.gender || "",
       birthDate: user.birthDate || "",
-      school: user.school || "",
+      school: getSchoolLevelValue(user.school),
       personalInfoConsent: user.personalInfoConsent ?? false,
     },
   });
@@ -116,22 +111,19 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
   useEffect(() => {
     if (open) {
       const birthDateParts = user.birthDate ? user.birthDate.split("-") : [];
-      const schoolParts = getSchoolParts(user.school);
 
       form.reset({
         name: user.name || "",
         phoneNumber: user.phoneNumber || "",
         gender: user.gender || "",
         birthDate: user.birthDate || "",
-        school: user.school || "",
+        school: getSchoolLevelValue(user.school),
         personalInfoConsent: user.personalInfoConsent ?? false,
       });
 
       setBirthYear(birthDateParts[0]);
       setBirthMonth(birthDateParts[1]);
       setBirthDay(birthDateParts[2]);
-      setSchoolLevel(schoolParts.level);
-      setSchoolName(schoolParts.name);
     }
   }, [open, user, form]);
 
@@ -142,34 +134,6 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
       form.setValue("birthDate", "");
     }
   }, [birthYear, birthMonth, birthDay, form]);
-
-  useEffect(() => {
-    if (schoolLevel === "해당없음") {
-      form.setValue("school", "해당없음");
-      setSchoolName("");
-    } else if (schoolLevel && schoolName) {
-      let suffix = "";
-      switch (schoolLevel) {
-        case "초등학교":
-          suffix = "초";
-          break;
-        case "중학교":
-          suffix = "중";
-          break;
-        case "고등학교":
-          suffix = "고";
-          break;
-        case "대학교":
-          suffix = "대";
-          break;
-        default:
-          suffix = "";
-      }
-      form.setValue("school", `${schoolName}${suffix}`);
-    } else {
-      form.setValue("school", "");
-    }
-  }, [schoolLevel, schoolName, form]);
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -369,44 +333,31 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
                 <FormField
                   control={form.control}
                   name="school"
-                  render={() => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        학교<span className="text-red-500">*</span>
+                        교급<span className="text-red-500">*</span>
                       </FormLabel>
-                      <div className="flex items-center gap-2 whitespace-nowrap ">
-                        <Select
-                          onValueChange={setSchoolLevel}
-                          value={schoolLevel}
-                        >
-                          <SelectTrigger className="w-[120px]">
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
                             <SelectValue placeholder="선택" />
                           </SelectTrigger>
-                          <SelectContent>
-                            {[
-                              "초등학교",
-                              "중학교",
-                              "고등학교",
-                              "대학교",
-                              "해당없음",
-                            ].map((level) => (
-                              <SelectItem key={level} value={level}>
-                                {level}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormControl>
-                          <Input
-                            placeholder="학교 이름 (예: 선덕, 자운)"
-                            value={schoolName}
-                            onChange={(e) => setSchoolName(e.target.value)}
-                            disabled={
-                              !schoolLevel || schoolLevel === "해당없음"
-                            }
-                          />
                         </FormControl>
-                      </div>
+                        <SelectContent>
+                          {[
+                            "초등학교",
+                            "중학교",
+                            "고등학교",
+                            "대학교",
+                            "성인",
+                          ].map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {level}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

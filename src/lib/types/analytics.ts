@@ -60,11 +60,6 @@ export interface AnalyticsData {
   dayOfWeekStats: { name: string; count: number }[];
   hourStats: { name: string; count: number }[];
   genderStats: { name: string; value: number }[];
-  schoolRankings?: {
-    school: string;
-    totalRentals: number;
-    uniqueUsers: number;
-  }[];
   peopleCountItemStats?: {
     peopleCount: number;
     items: {

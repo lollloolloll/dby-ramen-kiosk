@@ -103,11 +103,6 @@ const formatPhoneNumber = (value: string) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 };
 
-// "OO님 맞아?" 확인 화면에서 이름 뒤 2글자를 가려서 보여준다 (예: 홍길동 → 홍OO).
-// "님"을 붙이면 받침 유무와 상관없이 자연스러워서 이름 끝 글자를 신경 안 써도 된다.
-const maskName = (name: string) =>
-  name.length > 2 ? `${name.slice(0, -2)}OO` : "OO";
-
 // 교급 선택 — 학교명은 등록하지 않고 교급만 저장한다.
 // value는 기존 데이터(school 필드)와의 호환을 위해 school.ts의 getSchoolLevel이
 // 인식하는 값을 그대로 사용한다.
@@ -852,7 +847,7 @@ export function DbaseKioskFlow({
             {step === "identityConfirm" && pendingMatches && (
               <Panel
                 eyebrow="확인 필요"
-                title={`${maskName(pendingMatches[0].name)}님 맞아?`}
+                title={`${pendingMatches[0].name} 맞아?`}
               >
                 {pendingMatches.length === 1 ? (
                   <>
@@ -942,35 +937,54 @@ export function DbaseKioskFlow({
               <Panel
                 eyebrow={copy.identifyEyebrow}
                 title={copy.identifyTitle}
+                // 박스 폭 = 안쪽 콘텐츠(max-w-xs=320px) + 좌우 패딩(sm:p-10=40px*2)
+                // 를 정확히 맞춰서 좌우 여백이 대칭이 되도록 한다.
+                maxWidthClassName="max-w-[25rem]"
                 footer={
-                  pinMatches ? (
-                    <div className="mt-8 flex justify-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-12 px-6"
-                        onClick={() => {
-                          setPinMatches(null);
-                          setIdentifyPin("");
-                          setError("");
-                        }}
-                      >
-                        다시 입력
-                      </Button>
-                    </div>
-                  ) : (
-                    <FlowFooter
-                      backLabel={copy.buttonRestart}
-                      nextLabel={copy.buttonOk}
-                      onBack={() => setStep("entry")}
-                      onNext={handleIdentify}
-                      disabled={isSubmitting}
-                    />
-                  )
+                  <div className="max-w-xs">
+                    {pinMatches ? (
+                      <div className="mt-8 grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-12 px-2 text-sm"
+                          onClick={() => {
+                            setPinMatches(null);
+                            setIdentifyPin("");
+                            setError("");
+                          }}
+                        >
+                          다시 입력
+                        </Button>
+                        <Button
+                          type="button"
+                          className="h-12 px-2 text-sm"
+                          onClick={() => {
+                            setPinMatches(null);
+                            setIdentifyPin("");
+                            setError("");
+                            setRegisterPhase("identity");
+                            setForceNewOnSubmit(false);
+                            setStep("register");
+                          }}
+                        >
+                          회원 등록
+                        </Button>
+                      </div>
+                    ) : (
+                      <FlowFooter
+                        backLabel={copy.buttonRestart}
+                        nextLabel={copy.buttonOk}
+                        onBack={() => setStep("entry")}
+                        onNext={handleIdentify}
+                        disabled={isSubmitting}
+                      />
+                    )}
+                  </div>
                 }
               >
                 {!pinMatches ? (
-                  <div className="mx-auto grid w-full max-w-[280px] gap-5">
+                  <div className="grid w-full max-w-xs gap-5">
                     <Field
                       label={highlightSubstring(
                         copy.fieldPin,
@@ -982,6 +996,8 @@ export function DbaseKioskFlow({
                       <Input
                         type="text"
                         inputMode="numeric"
+                        pattern="[0-9]*"
+                        lang="ko"
                         maxLength={4}
                         placeholder="1234"
                         value={identifyPin}
@@ -994,8 +1010,8 @@ export function DbaseKioskFlow({
                     </Field>
                   </div>
                 ) : (
-                  <div className="mx-auto grid w-full max-w-sm gap-3">
-                    <p className="mb-1 text-center text-sm text-(--body-muted)">
+                  <div className="grid w-full max-w-xs gap-3">
+                    <p className="mb-1 text-sm text-(--body-muted)">
                       같은 번호를 쓰는 회원이 여러 명이에요. 본인을 골라줘.
                     </p>
                     {pinMatches.map((user) => (
@@ -1492,15 +1508,23 @@ function Panel({
   title,
   children,
   footer,
+  maxWidthClassName = "max-w-3xl",
 }: {
   // eyebrow는 더 이상 렌더하지 않음(스텝 라벨 제거). prop은 호환 위해 optional로 유지.
   eyebrow?: string;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  // 컨텐츠가 좁은 스텝(예: PIN 입력)에서 박스 자체도 같이 좁히기 위한 오버라이드.
+  maxWidthClassName?: string;
 }) {
   return (
-    <section className="mx-auto w-full max-w-3xl rounded-3xl border border-(--hairline) bg-(--brand-bg)/70 p-6 shadow-xl backdrop-blur-2xl sm:p-10 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-500">
+    <section
+      className={cn(
+        "mx-auto w-full rounded-3xl border border-(--hairline) bg-(--brand-bg)/70 p-6 shadow-xl backdrop-blur-2xl sm:p-10 animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards duration-500",
+        maxWidthClassName
+      )}
+    >
       <h2
         className="mb-8 text-4xl font-light leading-tight tracking-[-0.02em] sm:text-5xl"
         style={displayHeadingStyle}

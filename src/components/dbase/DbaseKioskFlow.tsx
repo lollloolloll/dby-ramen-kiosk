@@ -1131,50 +1131,55 @@ export function DbaseKioskFlow({
                         })}
                       </div>
                     )}
-
-                    {selectedItems.length > 0 && (
-                      // 카테고리 칩 줄 위치에 맞춰 배치하되, 높이는 0으로 둬서
-                      // 그리드가 밀려 내려가지 않게 한다. 안쪽 박스만 sticky라
-                      // 실제로 스크롤이 생기는 예외 상황에서도 화면에 남는다.
-                      <div className="relative h-0 overflow-visible">
-                        <div className="sticky top-2 z-20 flex -translate-y-full justify-end">
-                          <div className="flex w-full max-w-md flex-col items-end gap-2 animate-in fade-in zoom-in-95 duration-200">
-                            <button
-                              type="button"
-                              onClick={handleCommit}
-                              disabled={isSubmitting}
-                              className="flex w-full items-center justify-between gap-3 rounded-full px-5 py-3 shadow-lg transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
-                              style={{
-                                backgroundColor: "var(--brand-primary)",
-                                color: "var(--brand-on-primary)",
-                              }}
-                            >
-                              <span className="flex items-center gap-2.5 overflow-hidden">
-                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-black">
-                                  {selectedItems.length}
-                                </span>
-                                <span className="truncate text-sm font-medium opacity-90">
-                                  {selectedItems
-                                    .map((item) => item.name)
-                                    .join(", ")}
-                                </span>
-                              </span>
-                              <span className="flex shrink-0 items-center gap-1.5 text-base font-bold tracking-tight">
-                                {isSubmitting ? "등록 중..." : copy.buttonOk}
-                                <ArrowRight className="h-4 w-4" />
-                              </span>
-                            </button>
-                            {error && (
-                              <div className="w-full">
-                                <ErrorText>{error}</ErrorText>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </header>
+
+                {selectedItems.length > 0 && (
+                  // section 전체 높이를 덮는 오버레이 안에서 sticky를 써야
+                  // 실제로 스크롤될 때도 붙어있을 수 있다 (sticky는 자신을
+                  // 담은 박스 높이를 벗어나 붙어있을 수 없어서, 높이 0인
+                  // 박스 안에 넣으면 화면에 보이자마자 그냥 스크롤되어
+                  // 사라져버린다 — 실측으로 확인함).
+                  // pt-[55px]는 헤더 안에서 카테고리 칩 줄 아래쪽과 버튼의
+                  // 아래쪽이 맞도록 맞춘 값. top-6은 대략 카테고리 줄이
+                  // 화면 상단에 걸릴 때쯤 sticky가 붙기 시작하도록 맞춤.
+                  <div className="pointer-events-none absolute inset-0 z-20">
+                    <div className="sticky top-6 mx-auto flex max-w-[1280px] justify-end px-6 pt-[55px] sm:px-10 md:px-12 lg:px-16">
+                      <div className="pointer-events-auto flex w-full max-w-md flex-col items-end gap-2 animate-in fade-in zoom-in-95 duration-200">
+                        <button
+                          type="button"
+                          onClick={handleCommit}
+                          disabled={isSubmitting}
+                          className="flex w-full items-center justify-between gap-3 rounded-full px-5 py-3 shadow-lg transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                          style={{
+                            backgroundColor: "var(--brand-primary)",
+                            color: "var(--brand-on-primary)",
+                          }}
+                        >
+                          <span className="flex items-center gap-2.5 overflow-hidden">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-black">
+                              {selectedItems.length}
+                            </span>
+                            <span className="truncate text-sm font-medium opacity-90">
+                              {selectedItems
+                                .map((item) => item.name)
+                                .join(", ")}
+                            </span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1.5 text-base font-bold tracking-tight">
+                            {isSubmitting ? "등록 중..." : copy.buttonOk}
+                            <ArrowRight className="h-4 w-4" />
+                          </span>
+                        </button>
+                        {error && (
+                          <div className="w-full">
+                            <ErrorText>{error}</ErrorText>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="px-6 pb-0.5 pt-2 sm:px-10 md:px-12 lg:px-16 animate-in fade-in fill-mode-backwards duration-1000 delay-100">
                   <div className="mx-auto max-w-[1280px]">

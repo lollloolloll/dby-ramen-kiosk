@@ -77,6 +77,34 @@ export async function findUserByNameAndPhone(
   return { status: "not_found" };
 }
 
+// 이름 없이 전화번호 가운데 4자리만으로 조회 — 겹치는 회원이 있을 때만
+// 호출 측에서 이름을 추가로 물어 좁히는 용도.
+export async function findUsersByPin(
+  pin: string
+): Promise<UserPinLookupResult> {
+  const normalizedPin = pin.replace(/[^\d]/g, "");
+
+  if (normalizedPin.length !== 4) {
+    return { status: "not_found" };
+  }
+
+  const allUsers = await db.select().from(generalUsers);
+
+  const pinMatchedUsers = allUsers.filter(
+    (user) => getMiddleFourDigits(user.phoneNumber) === normalizedPin
+  );
+
+  if (pinMatchedUsers.length === 0) {
+    return { status: "not_found" };
+  }
+
+  if (pinMatchedUsers.length === 1) {
+    return { status: "single_match", user: pinMatchedUsers[0] };
+  }
+
+  return { status: "multiple_matches", users: pinMatchedUsers };
+}
+
 export async function findUsersByNameAndPin(
   name: string,
   pin: string

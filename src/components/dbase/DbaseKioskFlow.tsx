@@ -24,12 +24,6 @@ import {
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -39,11 +33,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePreviewMode } from "@/lib/hooks/usePreviewMode";
-import { findUsersByNameAndPin } from "@/lib/actions/generalUser";
+import {
+  findUsersByPin,
+  type UserPinLookupResult,
+} from "@/lib/actions/generalUser";
 import {
   commitDbaseVisit,
   registerDbaseUser,
   type DbaseItemOutcome,
+  type DbaseRegisteredUser,
 } from "@/lib/actions/dbase";
 import {
   assertValidHeadcount,
@@ -58,11 +56,11 @@ import { cn } from "@/lib/utils";
 type Step =
   | "entry"
   | "register"
+  | "identityConfirm"
   | "identify"
   | "mismatch"
   | "headcount"
   | "contents"
-  | "confirm"
   | "done";
 
 type Visitor = {
@@ -104,113 +102,16 @@ const formatPhoneNumber = (value: string) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 };
 
-// 학교 선택 — smy RentalDialog 모달과 동일한 데이터/규칙 (도봉구 인근 학교)
-const SCHOOL_LEVELS = [
-  "초등학교",
-  "중학교",
-  "고등학교",
-  "대학교",
-  "아동",
-  "성인",
+// 교급 선택 — 학교명은 등록하지 않고 교급만 저장한다.
+// value는 기존 데이터(school 필드)와의 호환을 위해 school.ts의 getSchoolLevel이
+// 인식하는 값을 그대로 사용한다.
+const GRADE_LEVELS = [
+  { label: "초", value: "초등학교" },
+  { label: "중", value: "중학교" },
+  { label: "고", value: "고등학교" },
+  { label: "대(후기 청소년)", value: "대학교" },
+  { label: "성인", value: "성인" },
 ] as const;
-
-const SCHOOL_DATA: Record<string, string[]> = {
-  초등학교: [
-    "가인초",
-    "노일초",
-    "노원초",
-    "누원초",
-    "도봉초",
-    "동북초",
-    "방학초",
-    "백운초",
-    "상경초",
-    "상원초",
-    "수락초",
-    "숭미초",
-    "신방학초",
-    "신학초",
-    "신창초",
-    "신화초",
-    "쌍문초",
-    "오봉초",
-    "월천초",
-    "자운초",
-    "창경초",
-    "창도초",
-    "창동초",
-    "창림초",
-    "창원초",
-    "창일초",
-    "초당초",
-    "한신초",
-  ],
-  중학교: [
-    "노곡중",
-    "도봉중",
-    "방학중",
-    "백운중",
-    "북서울중",
-    "상경중",
-    "상원중",
-    "선덕중",
-    "신도봉중",
-    "신방학중",
-    "정의여중",
-    "창동중",
-    "창북중",
-    "창일중",
-    "효문중",
-  ],
-  고등학교: [
-    "누원고",
-    "서울문화고",
-    "서울외고",
-    "선덕고",
-    "세그루패션고",
-    "수락고",
-    "자운고",
-    "정의여고",
-    "창동고",
-    "효문고",
-  ],
-  대학교: [
-    "광운대",
-    "삼육대",
-    "인덕대",
-    "이화여대",
-    "남서울대",
-    "서일대",
-    "서울과기대",
-    "서울여대",
-    "신한대",
-    "덕성여대",
-  ],
-};
-
-const getSchoolSuffix = (level: string) => {
-  switch (level) {
-    case "초등학교":
-      return "초";
-    case "중학교":
-      return "중";
-    case "고등학교":
-      return "고";
-    case "대학교":
-      return "대";
-    default:
-      return "";
-  }
-};
-
-const buildSchoolValue = (level: string, name: string) => {
-  const trimmedName = name.trim().replace(/\s/g, "");
-  if (!(level in SCHOOL_DATA)) return level;
-  if (!trimmedName) return "";
-  const suffix = getSchoolSuffix(level);
-  if (suffix && trimmedName.endsWith(suffix)) return trimmedName;
-  return `${trimmedName}${suffix}`;
-};
 
 export function DbaseKioskFlow({
   items,
@@ -229,6 +130,13 @@ export function DbaseKioskFlow({
   const [visitor, setVisitor] = useState<Visitor | null>(null);
   const [identifyName, setIdentifyName] = useState("");
   const [identifyPin, setIdentifyPin] = useState("");
+  const [pinMatches, setPinMatches] = useState<
+    Extract<UserPinLookupResult, { status: "multiple_matches" }>["users"] | null
+  >(null);
+  // 등록 시 이름+전화번호가 겹치는 기존 회원 — "OO님 맞아?" 확인 대기 중
+  const [pendingMatch, setPendingMatch] = useState<DbaseRegisteredUser | null>(
+    null
+  );
   const [registerForm, setRegisterForm] = useState<RegisterForm>({
     name: "",
     phoneNumber: "",
@@ -237,14 +145,10 @@ export function DbaseKioskFlow({
     school: "",
     personalInfoConsent: false,
   });
-  // 생년월일(년/월/일 분리) · 학교(교급/이름) 보조 상태 — smy 모달 패턴
+  // 생년월일(년/월/일 분리) 보조 상태 — smy 모달 패턴
   const [birthYear, setBirthYear] = useState<string>();
   const [birthMonth, setBirthMonth] = useState<string>();
   const [birthDay, setBirthDay] = useState<string>();
-  const [schoolLevel, setSchoolLevel] = useState("");
-  const [schoolName, setSchoolName] = useState("");
-  const [isDirectInput, setIsDirectInput] = useState(false);
-  const [showSchoolPanel, setShowSchoolPanel] = useState(false);
   const [registerAttempted, setRegisterAttempted] = useState(false);
   const [headcount, setHeadcount] = useState<DbaseHeadcount>(emptyHeadcount);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
@@ -296,6 +200,8 @@ export function DbaseKioskFlow({
     setVisitor(null);
     setIdentifyName("");
     setIdentifyPin("");
+    setPinMatches(null);
+    setPendingMatch(null);
     setRegisterForm({
       name: "",
       phoneNumber: "",
@@ -307,10 +213,6 @@ export function DbaseKioskFlow({
     setBirthYear(undefined);
     setBirthMonth(undefined);
     setBirthDay(undefined);
-    setSchoolLevel("");
-    setSchoolName("");
-    setIsDirectInput(false);
-    setShowSchoolPanel(false);
     setRegisterAttempted(false);
     setHeadcount(emptyHeadcount);
     setSelectedItemIds([]);
@@ -381,7 +283,7 @@ export function DbaseKioskFlow({
 
   useEffect(() => {
     if (step !== "done" || isPreview) return;
-    const timeout = setTimeout(goHome, 8000);
+    const timeout = setTimeout(goHome, 3000);
     return () => clearTimeout(timeout);
   }, [step, isPreview]);
 
@@ -398,17 +300,43 @@ export function DbaseKioskFlow({
   const handleIdentify = async () => {
     setError("");
     const pin = identifyPin.replace(/[^\d]/g, "");
-    if (!identifyName.trim() || pin.length !== 4) {
-      setError("이름과 전화번호 가운데 4자리를 입력해주세요.");
+    if (pin.length !== 4) {
+      setError("전화번호 가운데 4자리를 입력해주세요.");
+      return;
+    }
+
+    // 2단계: 이미 동일 PIN에 여러 명이 걸려 이름 입력을 받은 상태 — 이름으로 좁힌다.
+    if (pinMatches) {
+      const normalizedName = identifyName.trim().replace(/\s/g, "");
+      if (!normalizedName) {
+        setError("이름을 입력해주세요.");
+        return;
+      }
+      const narrowed = pinMatches.filter(
+        (user) => user.name === normalizedName
+      );
+      if (narrowed.length !== 1) {
+        setPinMatches(null);
+        setStep("mismatch");
+        return;
+      }
+      setVisitor({ id: narrowed[0].id, name: narrowed[0].name });
+      setPinMatches(null);
+      setStep("headcount");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await findUsersByNameAndPin(identifyName, pin);
+      const result = await findUsersByPin(pin);
       if (result.status === "single_match") {
         setVisitor({ id: result.user.id, name: result.user.name });
         setStep("headcount");
+        return;
+      }
+      if (result.status === "multiple_matches") {
+        setPinMatches(result.users);
+        setError("");
         return;
       }
       setStep("mismatch");
@@ -432,21 +360,30 @@ export function DbaseKioskFlow({
     school: registerForm.school.trim().length === 0,
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (forceNewRecord = false) => {
     setError("");
-    if (Object.values(registerFieldErrors).some(Boolean)) {
+    if (!forceNewRecord && Object.values(registerFieldErrors).some(Boolean)) {
       setRegisterAttempted(true);
       setError("표시된 항목을 확인해주세요.");
       return;
     }
     setIsSubmitting(true);
     try {
-      const result = await registerDbaseUser(registerForm);
+      const result = await registerDbaseUser({
+        ...registerForm,
+        forceNewRecord,
+      });
       if ("error" in result) {
         setError(result.error);
         return;
       }
+      if ("needsConfirmation" in result) {
+        setPendingMatch(result.existingUser);
+        setStep("identityConfirm");
+        return;
+      }
       setVisitor(result.user);
+      setPendingMatch(null);
       setRegisterAttempted(false);
       setStep("headcount");
     } finally {
@@ -616,7 +553,7 @@ export function DbaseKioskFlow({
                     backLabel={copy.buttonRestart}
                     nextLabel={copy.buttonOk}
                     onBack={() => setStep("entry")}
-                    onNext={handleRegister}
+                    onNext={() => handleRegister()}
                     disabled={isSubmitting}
                   />
                 }
@@ -798,159 +735,36 @@ export function DbaseKioskFlow({
                     </FieldGroup>
                   </div>
 
-                  <FieldGroup label="학교">
+                  <FieldGroup label="교급">
                     <div
                       className={cn(
-                        "grid grid-cols-3 gap-2 rounded-2xl sm:grid-cols-6",
+                        "grid grid-cols-3 gap-2 rounded-2xl sm:grid-cols-5",
                         registerAttempted &&
                           registerFieldErrors.school &&
                           "p-1 ring-2 ring-red-500/40"
                       )}
                     >
-                      {SCHOOL_LEVELS.map((level) => (
+                      {GRADE_LEVELS.map((grade) => (
                         <Button
-                          key={level}
+                          key={grade.value}
                           type="button"
                           variant={
-                            schoolLevel === level ? "default" : "outline"
+                            registerForm.school === grade.value
+                              ? "default"
+                              : "outline"
                           }
                           className="h-12"
-                          onClick={() => {
-                            setSchoolLevel(level);
-                            setIsDirectInput(false);
-                            setSchoolName("");
-                            if (!(level in SCHOOL_DATA)) {
-                              setShowSchoolPanel(false);
-                              setRegisterForm((c) => ({
-                                ...c,
-                                school: level,
-                              }));
-                            } else {
-                              setRegisterForm((c) => ({ ...c, school: "" }));
-                              setShowSchoolPanel(true);
-                            }
-                          }}
+                          onClick={() =>
+                            setRegisterForm((c) => ({
+                              ...c,
+                              school: grade.value,
+                            }))
+                          }
                         >
-                          {level}
+                          {grade.label}
                         </Button>
                       ))}
                     </div>
-
-                    {registerForm.school && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (schoolLevel && schoolLevel in SCHOOL_DATA)
-                            setShowSchoolPanel(true);
-                        }}
-                        className="mt-1 inline-flex w-fit items-center gap-2 rounded-full bg-(--brand-primary) px-4 py-1.5 text-sm font-semibold text-(--brand-on-primary)"
-                      >
-                        {registerForm.school}
-                        {schoolLevel && schoolLevel in SCHOOL_DATA && (
-                          <span className="text-xs opacity-70">· 변경</span>
-                        )}
-                      </button>
-                    )}
-
-                    {/* 학교 선택 모달 — 교급 선택 시 화면 중앙에 팝업. 이 영역만 스크롤 */}
-                    <Dialog
-                      open={
-                        showSchoolPanel &&
-                        !!schoolLevel &&
-                        schoolLevel in SCHOOL_DATA
-                      }
-                      onOpenChange={(open) => setShowSchoolPanel(open)}
-                    >
-                      <DialogContent
-                        onOpenAutoFocus={(event) => event.preventDefault()}
-                        className="flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-3xl border-0 bg-(--brand-bg) p-6 text-(--brand-text) sm:p-8"
-                      >
-                        <DialogHeader className="mb-4 flex-row items-center justify-between space-y-0">
-                          <DialogTitle
-                            className="text-2xl font-light"
-                            style={displayHeadingStyle}
-                          >
-                            {schoolLevel}
-                          </DialogTitle>
-                        </DialogHeader>
-                        <div className="school-panel-scroll min-h-0 flex-1 overflow-y-auto pr-3">
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                            {(SCHOOL_DATA[schoolLevel] ?? []).map((school) => {
-                              const selected =
-                                !isDirectInput && schoolName === school;
-                              return (
-                                <Button
-                                  key={school}
-                                  type="button"
-                                  variant={selected ? "default" : "outline"}
-                                  className="h-14"
-                                  onClick={() => {
-                                    setIsDirectInput(false);
-                                    setSchoolName(school);
-                                    setRegisterForm((c) => ({
-                                      ...c,
-                                      school: buildSchoolValue(
-                                        schoolLevel,
-                                        school
-                                      ),
-                                    }));
-                                    setShowSchoolPanel(false);
-                                  }}
-                                >
-                                  {school}
-                                </Button>
-                              );
-                            })}
-                            <Button
-                              type="button"
-                              variant={isDirectInput ? "default" : "outline"}
-                              className="h-14 border-dashed"
-                              onClick={() => {
-                                setIsDirectInput(true);
-                                setSchoolName("");
-                                setRegisterForm((c) => ({
-                                  ...c,
-                                  school: "",
-                                }));
-                              }}
-                            >
-                              ✎ 직접 입력
-                            </Button>
-                          </div>
-                        </div>
-                        {isDirectInput && (
-                          <div className="mt-4 flex gap-2 border-t border-(--hairline) pt-4">
-                            <Input
-                              autoComplete="off"
-                              autoCorrect="off"
-                              lang="ko"
-                              placeholder="학교 이름 (예: 선덕)"
-                              value={schoolName}
-                              onChange={(event) => {
-                                const val = event.target.value.replace(
-                                  /\s/g,
-                                  ""
-                                );
-                                setSchoolName(val);
-                                setRegisterForm((c) => ({
-                                  ...c,
-                                  school: buildSchoolValue(schoolLevel, val),
-                                }));
-                              }}
-                              className="h-12 flex-1 text-base"
-                            />
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                if (schoolName) setShowSchoolPanel(false);
-                              }}
-                            >
-                              완료
-                            </Button>
-                          </div>
-                        )}
-                      </DialogContent>
-                    </Dialog>
                   </FieldGroup>
 
                   <label className="flex items-center gap-3 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 px-4 py-4 text-base">
@@ -970,6 +784,39 @@ export function DbaseKioskFlow({
               </Panel>
             )}
 
+            {step === "identityConfirm" && pendingMatch && (
+              <Panel eyebrow="확인 필요" title={`${pendingMatch.name}님 맞아?`}>
+                <p className="text-xl text-(--body-muted)">
+                  같은 이름과 전화번호로 등록된 회원이 있어요.
+                </p>
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-14 text-lg"
+                    disabled={isSubmitting}
+                    onClick={() => handleRegister(true)}
+                  >
+                    아니, 다른 사람이야
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-14 text-lg"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setVisitor(pendingMatch);
+                      setPendingMatch(null);
+                      setRegisterAttempted(false);
+                      setStep("headcount");
+                    }}
+                  >
+                    응, 나 맞아
+                  </Button>
+                </div>
+                {error && <ErrorText>{error}</ErrorText>}
+              </Panel>
+            )}
+
             {step === "identify" && (
               <Panel
                 eyebrow={copy.identifyEyebrow}
@@ -986,23 +833,6 @@ export function DbaseKioskFlow({
               >
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field
-                    label={copy.fieldName}
-                    labelClassName="text-base font-bold text-(--brand-text)"
-                  >
-                    <Input
-                      type="text"
-                      inputMode="text"
-                      placeholder="홍길동"
-                      value={identifyName}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="none"
-                      lang="ko"
-                      onChange={(event) => setIdentifyName(event.target.value)}
-                      className="h-16 text-2xl font-semibold focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
-                    />
-                  </Field>
-                  <Field
                     label={highlightSubstring(
                       copy.fieldPin,
                       "가운데",
@@ -1016,13 +846,41 @@ export function DbaseKioskFlow({
                       maxLength={4}
                       placeholder="1234"
                       value={identifyPin}
-                      onChange={(event) =>
-                        setIdentifyPin(event.target.value.replace(/[^\d]/g, ""))
-                      }
+                      onChange={(event) => {
+                        setPinMatches(null);
+                        setIdentifyPin(event.target.value.replace(/[^\d]/g, ""));
+                      }}
                       className="h-16 text-center text-3xl font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
                     />
                   </Field>
+                  {pinMatches && (
+                    <Field
+                      label={copy.fieldName}
+                      labelClassName="text-base font-bold text-(--brand-text)"
+                    >
+                      <Input
+                        type="text"
+                        inputMode="text"
+                        placeholder="홍길동"
+                        value={identifyName}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        lang="ko"
+                        autoFocus
+                        onChange={(event) =>
+                          setIdentifyName(event.target.value)
+                        }
+                        className="h-16 text-2xl font-semibold focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
+                      />
+                    </Field>
+                  )}
                 </div>
+                {pinMatches && (
+                  <p className="mt-3 text-sm text-(--body-muted)">
+                    같은 번호를 쓰는 회원이 여러 명이에요. 이름을 입력해줘.
+                  </p>
+                )}
                 {error && <ErrorText>{error}</ErrorText>}
               </Panel>
             )}
@@ -1037,7 +895,12 @@ export function DbaseKioskFlow({
                     type="button"
                     variant="outline"
                     className="h-14 text-lg"
-                    onClick={() => setStep("identify")}
+                    onClick={() => {
+                      setIdentifyName("");
+                      setIdentifyPin("");
+                      setPinMatches(null);
+                      setStep("identify");
+                    }}
                   >
                     {copy.mismatchRetry}
                   </Button>
@@ -1253,12 +1116,18 @@ export function DbaseKioskFlow({
                   <div
                     // 패드를 키오스크 프레임에 끼우면 화면 하단이 베젤에 가려
                     // 눌리지 않는다. 그래서 하단 고정이 아니라 화면 수직 중앙에 띄운다.
-                    className="fixed inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center px-4 animate-in fade-in zoom-in-95 duration-200"
+                    className="fixed inset-x-0 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-2 px-4 animate-in fade-in zoom-in-95 duration-200"
                   >
+                    {error && (
+                      <div className="w-full max-w-[1280px]">
+                        <ErrorText>{error}</ErrorText>
+                      </div>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setStep("confirm")}
-                      className="flex w-full max-w-[1280px] items-center justify-between gap-4 rounded-2xl px-6 py-4 shadow-2xl transition-transform active:scale-[0.99]"
+                      onClick={handleCommit}
+                      disabled={isSubmitting}
+                      className="flex w-full max-w-[1280px] items-center justify-between gap-4 rounded-2xl px-6 py-4 shadow-2xl transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                       style={{
                         backgroundColor: "var(--brand-primary)",
                         color: "var(--brand-on-primary)",
@@ -1273,7 +1142,7 @@ export function DbaseKioskFlow({
                         </span>
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5 text-lg font-bold tracking-tight">
-                        {copy.buttonOk}
+                        {isSubmitting ? "등록 중..." : copy.buttonOk}
                         <ArrowRight className="h-5 w-5" />
                       </span>
                     </button>
@@ -1281,63 +1150,6 @@ export function DbaseKioskFlow({
                 )}
               </section>
             )}
-
-            {step === "confirm" && (
-              <Panel
-                eyebrow={copy.confirmEyebrow}
-                title="이대로 등록할까?"
-                footer={
-                  <FlowFooter
-                    backLabel={copy.buttonBack}
-                    nextLabel={isSubmitting ? "등록 중..." : "등록"}
-                    onBack={() => setStep("contents")}
-                    onNext={handleCommit}
-                    disabled={isSubmitting}
-                  />
-                }
-              >
-                <div className="grid gap-5">
-                  <div className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
-                      인원
-                    </p>
-                    <p className="text-lg">
-                      {copy.countTotal}{" "}
-                      <span className="font-semibold">
-                        {headcount.totalCount}
-                      </span>
-                      명
-                      <span className="text-(--body-muted)">
-                        {" · "}청소년{" "}
-                        {headcount.youthMale + headcount.youthFemale} · 성인{" "}
-                        {headcount.adultMale + headcount.adultFemale}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-5">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
-                      {copy.contentsEyebrow}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedItems.map((item) => (
-                        <span
-                          key={item.id}
-                          className="rounded-full px-4 py-2 text-sm font-semibold"
-                          style={{
-                            backgroundColor: "var(--brand-primary)",
-                            color: "var(--brand-on-primary)",
-                          }}
-                        >
-                          {item.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  {error && <ErrorText>{error}</ErrorText>}
-                </div>
-              </Panel>
-            )}
-
 
             {step === "done" && (
               <section className="grid min-h-[60vh] content-center justify-items-center gap-8 text-center animate-in fade-in zoom-in-95 fill-mode-backwards duration-500">
@@ -1354,9 +1166,11 @@ export function DbaseKioskFlow({
                   >
                     {copy.doneTitle}
                   </h2>
-                  <p className="mt-4 text-lg text-(--body-muted)">
-                    {copy.doneSubtitle}
-                  </p>
+                  {copy.doneSubtitle && (
+                    <p className="mt-4 text-lg text-(--body-muted)">
+                      {copy.doneSubtitle}
+                    </p>
+                  )}
                 </div>
                 {outcomes.length > 0 && (
                   <div className="flex max-w-2xl flex-wrap justify-center gap-2">

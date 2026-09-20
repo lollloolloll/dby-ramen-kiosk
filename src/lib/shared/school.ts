@@ -5,8 +5,8 @@
  * 수기로 전체명("○○초등학교")이 들어온 경우도 함께 처리한다.
  *
  * - 미입력(null/빈문자) → "" (빈칸)
- * - "해당없음"/"아동"/"성인" → 그대로 반환 ("해당없음"은 과거 데이터 호환용)
- * - 초/중/고/대 → 초등학교/중학교/고등학교/대학교
+ * - "해당없음"/"아동"/"성인" → 그대로 반환 ("해당없음"/"아동"은 과거 데이터 호환용)
+ * - 초/중/고/대 → 초등학교/중학교/고등학교/대(후기 청소년)
  * - 그 외 분류 불가 → "" (빈칸)
  */
 export function getSchoolLevel(school: string | null | undefined): string {
@@ -21,7 +21,7 @@ export function getSchoolLevel(school: string | null | undefined): string {
   if (value.includes("초등")) return "초등학교";
   if (value.includes("중학")) return "중학교";
   if (value.includes("고등")) return "고등학교";
-  if (value.includes("대학")) return "대학교";
+  if (value.includes("대학")) return "대(후기 청소년)";
 
   // 약칭 끝글자 대응 ("선덕초", "창동중", "효문고", "이화여대")
   switch (value.slice(-1)) {
@@ -32,7 +32,7 @@ export function getSchoolLevel(school: string | null | undefined): string {
     case "고":
       return "고등학교";
     case "대":
-      return "대학교";
+      return "대(후기 청소년)";
     default:
       return "";
   }

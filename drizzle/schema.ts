@@ -65,9 +65,13 @@ export const generalUsers = sqliteTable(
     consentFilePath: text("consent_file_path"),
   },
   (table) => [
-    uniqueIndex("general_users_name_phone_unique").on(
+    // 이름+전화번호+생년월일이 모두 같을 때만 진짜 중복(동일인)으로 본다.
+    // 이름+전화번호만 겹치는 경우(가족 공유폰 등)는 등록 화면에서
+    // "OO님 맞아?" 확인을 거쳐 다른 사람으로 별도 등록할 수 있어야 하기 때문.
+    uniqueIndex("general_users_name_phone_birth_unique").on(
       table.name,
-      table.phoneNumber
+      table.phoneNumber,
+      table.birthDate
     ),
   ]
 );

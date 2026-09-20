@@ -88,8 +88,8 @@ export const DBASE_COPY: DbaseCopy = {
   confirmEyebrow: "최종 확인",
 
   doneEyebrow: "Welcome",
-  doneTitle: "Welcome to D.BASE!",
-  doneSubtitle: "도봉동청소년문화의집 플레이그라운드 등록",
+  doneTitle: "오늘 D.BASE에서 즐거운 시간 보내!",
+  doneSubtitle: "",
 
   fieldName: "이름",
   fieldPhone: "연락처",

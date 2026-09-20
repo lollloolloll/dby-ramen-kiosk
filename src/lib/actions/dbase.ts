@@ -31,6 +31,9 @@ const dbaseUserSchema = z.object({
   school: z.string().trim().min(1, "학교를 선택해주세요."),
   // 개인정보 동의는 선택(옵셔널). 미동의여도 등록 가능.
   personalInfoConsent: z.boolean().optional().default(false),
+  // 이름+전화번호가 겹치는 기존 회원이 있어도 "다른 사람이야" 확인을 거쳤다면
+  // 새 레코드로 강제 등록한다.
+  forceNewRecord: z.boolean().optional().default(false),
 });
 
 const dbaseVisitSchema = z.object({
@@ -63,9 +66,15 @@ export type DbaseVisitResult = {
   outcomes: DbaseItemOutcome[];
 };
 
+export type DbaseRegisterResult =
+  | { success: true; user: DbaseRegisteredUser }
+  // 이름+전화번호가 겹치는 회원이 이미 있음 — 본인 확인이 필요하다.
+  | { needsConfirmation: true; existingUser: DbaseRegisteredUser }
+  | { error: string };
+
 export async function registerDbaseUser(
   input: unknown
-): Promise<{ success: true; user: DbaseRegisteredUser } | { error: string }> {
+): Promise<DbaseRegisterResult> {
   const parsed = dbaseUserSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -80,10 +89,19 @@ export async function registerDbaseUser(
     };
   }
 
-  const { name, phoneNumber, gender, birthDate, school, personalInfoConsent } =
-    parsed.data;
+  const {
+    name,
+    phoneNumber,
+    gender,
+    birthDate,
+    school,
+    personalInfoConsent,
+    forceNewRecord,
+  } = parsed.data;
 
   try {
+    // 이름+전화번호만으로 조회 — 가족 공유폰 등으로 전화번호만 겹치는 건
+    // 정상이라 걸러지지 않고, 이름까지 겹칠 때만 확인이 필요하다.
     const existingUser = await db.query.generalUsers.findFirst({
       where: and(
         eq(generalUsers.name, name),
@@ -91,10 +109,10 @@ export async function registerDbaseUser(
       ),
     });
 
-    if (existingUser) {
+    if (existingUser && !forceNewRecord) {
       return {
-        success: true,
-        user: { id: existingUser.id, name: existingUser.name },
+        needsConfirmation: true,
+        existingUser: { id: existingUser.id, name: existingUser.name },
       };
     }
 
@@ -113,6 +131,11 @@ export async function registerDbaseUser(
     return { success: true, user: newUser };
   } catch (error) {
     console.error("D.BASE user registration failed:", error);
+    if (error instanceof Error && /UNIQUE constraint failed/.test(error.message)) {
+      return {
+        error: "이미 동일한 정보로 등록된 회원이에요. '또 왔어요'를 이용해줘.",
+      };
+    }
     return { error: "사용자 등록 중 오류가 발생했습니다." };
   }
 }

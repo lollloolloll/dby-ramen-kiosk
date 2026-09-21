@@ -44,10 +44,7 @@ import {
   type DbaseIdentityMatch,
   type DbaseItemOutcome,
 } from "@/lib/actions/dbase";
-import {
-  confirmUserSchool,
-  updateUserSchool,
-} from "@/lib/actions/settings";
+import { confirmUserSchool, updateUserSchool } from "@/lib/actions/settings";
 import {
   assertValidHeadcount,
   type DbaseHeadcount,
@@ -109,10 +106,21 @@ const formatPhoneNumber = (value: string) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 };
 
-// 교급 선택 — 학교명은 등록하지 않고 교급만 저장한다.
+// 교급 선택(신규 등록 전용) — 학교명은 등록하지 않고 교급만 저장한다.
 // value는 기존 데이터(school 필드)와의 호환을 위해 school.ts의 getSchoolLevel이
 // 인식하는 값을 그대로 사용한다.
 const GRADE_LEVELS = [
+  { label: "초", value: "초등학교" },
+  { label: "중", value: "중학교" },
+  { label: "고", value: "고등학교" },
+  { label: "대", value: "대학교" },
+  { label: "성인", value: "성인" },
+] as const;
+
+// 새학기 교급 재확인 전용 — 기존에 "아동"으로 등록된 회원도 재확인 시 그대로
+// 고를 수 있어야 해서 신규 등록 목록과 다르다 (RentalDialog의
+// RECONFIRM_GRADE_LEVELS와 동일한 옵션).
+const RECONFIRM_GRADE_LEVELS = [
   { label: "아동", value: "아동" },
   { label: "초", value: "초등학교" },
   { label: "중", value: "중학교" },
@@ -913,7 +921,7 @@ export function DbaseKioskFlow({
                     <FieldGroup label="교급">
                       <div
                         className={cn(
-                          "grid grid-cols-6 gap-2 rounded-2xl",
+                          "grid grid-cols-5 gap-2 rounded-2xl",
                           registerAttempted &&
                             registerFieldErrors.school &&
                             "p-1 ring-2 ring-red-500/40"
@@ -1193,16 +1201,16 @@ export function DbaseKioskFlow({
             )}
 
             {step === "schoolReconfirm" && visitor && (
-              <Panel title={`${visitor.name}님, 교급 확인할게`}>
+              <Panel title={`학교 확인할게`}>
                 {!reconfirmShowEditor ? (
                   <>
                     <p className="text-xl text-(--body-muted)">
-                      현재 등록된 교급은{" "}
+                      현재 등록된 학교는{" "}
                       <strong className="text-(--brand-text)">
                         {getSchoolLevel(reconfirmCurrentSchool) ||
-                          "등록된 교급 없음"}
+                          "등록된 학교 없음"}
                       </strong>
-                      이야. 새 학기인데 지금도 맞아?
+                      이야. 맞아?
                     </p>
                     <div className="mt-8 grid gap-3 sm:grid-cols-2">
                       <Button
@@ -1215,7 +1223,7 @@ export function DbaseKioskFlow({
                           setReconfirmGradeLevel("");
                         }}
                       >
-                        교급이 바뀌었어
+                        학교 바뀌었어
                       </Button>
                       <Button
                         type="button"
@@ -1230,10 +1238,10 @@ export function DbaseKioskFlow({
                 ) : (
                   <>
                     <p className="text-xl text-(--body-muted)">
-                      새 교급을 골라줘.
+                      새 학교 골라줘.
                     </p>
-                    <div className="mt-6 grid grid-cols-3 gap-2">
-                      {GRADE_LEVELS.map((grade) => (
+                    <div className="mt-6 grid grid-cols-6 gap-2">
+                      {RECONFIRM_GRADE_LEVELS.map((grade) => (
                         <Button
                           key={grade.value}
                           type="button"

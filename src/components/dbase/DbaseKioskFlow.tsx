@@ -154,6 +154,8 @@ export function DbaseKioskFlow({
   });
   // 생년월일(년/월/일 분리) 보조 상태 — smy 모달 패턴
   const [birthYear, setBirthYear] = useState<string>();
+  const initialBirthYearRef = useRef<HTMLDivElement>(null);
+  const [yearSelectOpen, setYearSelectOpen] = useState(false);
   const [birthMonth, setBirthMonth] = useState<string>();
   const [birthDay, setBirthDay] = useState<string>();
   const [registerAttempted, setRegisterAttempted] = useState(false);
@@ -171,6 +173,13 @@ export function DbaseKioskFlow({
       (_, i) => currentYear - i
     );
   }, []);
+  useEffect(() => {
+    if (!yearSelectOpen || birthYear) return;
+    const frame = requestAnimationFrame(() =>
+      initialBirthYearRef.current?.scrollIntoView({ block: "start" })
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [yearSelectOpen, birthYear]);
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
   const days = useMemo(() => {
     if (!birthYear || !birthMonth)
@@ -620,6 +629,10 @@ export function DbaseKioskFlow({
                           autoCapitalize="none"
                           lang="ko"
                           autoFocus
+                          readOnly
+                          onFocus={(event) =>
+                            event.currentTarget.removeAttribute("readonly")
+                          }
                           onChange={(event) =>
                             setRegisterForm((current) => ({
                               ...current,
@@ -640,11 +653,16 @@ export function DbaseKioskFlow({
                       <Field label={copy.fieldPhone}>
                         <Input
                           type="text"
-                          inputMode="text"
+                          inputMode="numeric"
                           autoComplete="off"
                           autoCorrect="off"
+                          autoCapitalize="none"
                           maxLength={13}
                           value={registerForm.phoneNumber}
+                          readOnly
+                          onFocus={(event) =>
+                            event.currentTarget.removeAttribute("readonly")
+                          }
                           onChange={(event) =>
                             setRegisterForm((current) => ({
                               ...current,
@@ -714,6 +732,8 @@ export function DbaseKioskFlow({
                       >
                         <Select
                           value={birthYear}
+                          open={yearSelectOpen}
+                          onOpenChange={setYearSelectOpen}
                           onValueChange={(value) => {
                             setBirthYear(value);
                             setRegisterForm((c) => ({
@@ -732,7 +752,11 @@ export function DbaseKioskFlow({
                             className="max-h-[300px]"
                           >
                             {years.map((year) => (
-                              <SelectItem key={year} value={String(year)}>
+                              <SelectItem
+                                key={year}
+                                ref={year === years[0] - 10 ? initialBirthYearRef : undefined}
+                                value={String(year)}
+                              >
                                 {year}
                               </SelectItem>
                             ))}
@@ -997,11 +1021,18 @@ export function DbaseKioskFlow({
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
+                        autoComplete="one-time-code"
+                        autoCorrect="off"
+                        autoCapitalize="none"
                         lang="ko"
                         maxLength={4}
                         placeholder="1234"
                         value={identifyPin}
                         autoFocus
+                        readOnly
+                        onFocus={(event) =>
+                          event.currentTarget.removeAttribute("readonly")
+                        }
                         onChange={(event) =>
                           setIdentifyPin(event.target.value.replace(/[^\d]/g, ""))
                         }

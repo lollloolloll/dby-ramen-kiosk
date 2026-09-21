@@ -323,6 +323,7 @@ export function RentalDialog({
   }, [item]);
 
   const [birthYear, setBirthYear] = useState<string>();
+  const initialBirthYearRef = useRef<HTMLDivElement>(null);
   const [birthMonth, setBirthMonth] = useState<string>();
   const [birthDay, setBirthDay] = useState<string>();
 
@@ -1008,6 +1009,13 @@ export function RentalDialog({
       (_, i) => currentYear - i
     );
   }, []);
+  useEffect(() => {
+    if (!yearSelectOpen || birthYear) return;
+    const frame = requestAnimationFrame(() =>
+      initialBirthYearRef.current?.scrollIntoView({ block: "start" })
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [yearSelectOpen, birthYear]);
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
   const days = useMemo(() => {
     if (!birthYear || !birthMonth)
@@ -1726,9 +1734,10 @@ export function RentalDialog({
                         <Input
                           placeholder="010-1234-5678"
                           type="text"
-                          inputMode="text"
+                          inputMode="numeric"
                           autoComplete="off"
                           autoCorrect="off"
+                          autoCapitalize="none"
                           {...field}
                           disabled={registerMode === "edit"}
                           className={cn(
@@ -1866,7 +1875,11 @@ export function RentalDialog({
                             className="max-h-[300px]"
                           >
                             {years.map((year) => (
-                              <SelectItem key={year} value={String(year)}>
+                              <SelectItem
+                                key={year}
+                                ref={year === years[0] - 10 ? initialBirthYearRef : undefined}
+                                value={String(year)}
+                              >
                                 {year}
                               </SelectItem>
                             ))}

@@ -107,6 +107,7 @@ const formatPhoneNumber = (value: string) => {
 // value는 기존 데이터(school 필드)와의 호환을 위해 school.ts의 getSchoolLevel이
 // 인식하는 값을 그대로 사용한다.
 const GRADE_LEVELS = [
+  { label: "아동", value: "아동" },
   { label: "초", value: "초등학교" },
   { label: "중", value: "중학교" },
   { label: "고", value: "고등학교" },
@@ -821,7 +822,7 @@ export function DbaseKioskFlow({
                   <FieldGroup label="교급">
                     <div
                       className={cn(
-                        "grid grid-cols-3 gap-2 rounded-2xl sm:grid-cols-5",
+                        "grid grid-cols-6 gap-2 rounded-2xl",
                         registerAttempted &&
                           registerFieldErrors.school &&
                           "p-1 ring-2 ring-red-500/40"

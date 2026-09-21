@@ -115,11 +115,7 @@ const GRADE_LEVELS = [
   { label: "성인", value: "성인" },
 ] as const;
 
-export function DbaseKioskFlow({
-  items,
-}: {
-  items: Item[];
-}) {
+export function DbaseKioskFlow({ items }: { items: Item[] }) {
   const config = useTheme();
   const copy = mergeDbaseCopy(config.dbaseCopy);
   const isPreview = usePreviewMode();
@@ -690,188 +686,192 @@ export function DbaseKioskFlow({
                       {registerForm.name} · {registerForm.phoneNumber}
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2">
-                    <FieldGroup label={copy.fieldGender}>
+                      <FieldGroup label={copy.fieldGender}>
+                        <div
+                          className={cn(
+                            "grid grid-cols-2 gap-3 rounded-2xl",
+                            registerAttempted &&
+                              registerFieldErrors.gender &&
+                              "p-1 ring-2 ring-red-500/40"
+                          )}
+                        >
+                          {(["남", "여"] as const).map((gender) => (
+                            <Button
+                              key={gender}
+                              type="button"
+                              variant={
+                                registerForm.gender === gender
+                                  ? "default"
+                                  : "outline"
+                              }
+                              className="h-14 text-lg"
+                              onClick={() =>
+                                setRegisterForm((current) => ({
+                                  ...current,
+                                  gender,
+                                }))
+                              }
+                            >
+                              {gender}
+                            </Button>
+                          ))}
+                        </div>
+                      </FieldGroup>
+
+                      <FieldGroup label={copy.fieldBirth}>
+                        <div
+                          className={cn(
+                            "grid grid-cols-3 gap-2 rounded-2xl",
+                            registerAttempted &&
+                              registerFieldErrors.birthDate &&
+                              "p-1 ring-2 ring-red-500/40"
+                          )}
+                        >
+                          <Select
+                            value={birthYear}
+                            open={yearSelectOpen}
+                            onOpenChange={setYearSelectOpen}
+                            onValueChange={(value) => {
+                              setBirthYear(value);
+                              setRegisterForm((c) => ({
+                                ...c,
+                                birthDate: `${value}-${birthMonth ?? ""}-${
+                                  birthDay ?? ""
+                                }`,
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="h-14 text-base">
+                              <SelectValue placeholder="년" />
+                            </SelectTrigger>
+                            <SelectContent
+                              position="popper"
+                              className="max-h-[300px]"
+                            >
+                              {years.map((year) => (
+                                <SelectItem
+                                  key={year}
+                                  ref={
+                                    year === years[0] - 10
+                                      ? initialBirthYearRef
+                                      : undefined
+                                  }
+                                  value={String(year)}
+                                >
+                                  {year}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={birthMonth}
+                            onValueChange={(value) => {
+                              setBirthMonth(value);
+                              setRegisterForm((c) => ({
+                                ...c,
+                                birthDate: `${birthYear ?? ""}-${value}-${
+                                  birthDay ?? ""
+                                }`,
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="h-14 text-base">
+                              <SelectValue placeholder="월" />
+                            </SelectTrigger>
+                            <SelectContent
+                              position="popper"
+                              className="max-h-[300px]"
+                            >
+                              {months.map((month) => (
+                                <SelectItem key={month} value={String(month)}>
+                                  {month}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={birthDay}
+                            onValueChange={(value) => {
+                              setBirthDay(value);
+                              setRegisterForm((c) => ({
+                                ...c,
+                                birthDate: `${birthYear ?? ""}-${
+                                  birthMonth ?? ""
+                                }-${value}`,
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="h-14 text-base">
+                              <SelectValue placeholder="일" />
+                            </SelectTrigger>
+                            <SelectContent
+                              position="popper"
+                              className="max-h-[300px]"
+                            >
+                              {days.map((day) => (
+                                <SelectItem key={day} value={String(day)}>
+                                  {day}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </FieldGroup>
+                    </div>
+
+                    <FieldGroup label="교급">
                       <div
                         className={cn(
-                          "grid grid-cols-2 gap-3 rounded-2xl",
+                          "grid grid-cols-6 gap-2 rounded-2xl",
                           registerAttempted &&
-                            registerFieldErrors.gender &&
+                            registerFieldErrors.school &&
                             "p-1 ring-2 ring-red-500/40"
                         )}
                       >
-                        {(["남", "여"] as const).map((gender) => (
+                        {GRADE_LEVELS.map((grade) => (
                           <Button
-                            key={gender}
+                            key={grade.value}
                             type="button"
                             variant={
-                              registerForm.gender === gender
+                              registerForm.school === grade.value
                                 ? "default"
                                 : "outline"
                             }
-                            className="h-14 text-lg"
+                            className="h-12"
                             onClick={() =>
-                              setRegisterForm((current) => ({
-                                ...current,
-                                gender,
+                              setRegisterForm((c) => ({
+                                ...c,
+                                school: grade.value,
                               }))
                             }
                           >
-                            {gender}
+                            {grade.label}
                           </Button>
                         ))}
                       </div>
                     </FieldGroup>
 
-                    <FieldGroup label={copy.fieldBirth}>
-                      <div
-                        className={cn(
-                          "grid grid-cols-3 gap-2 rounded-2xl",
-                          registerAttempted &&
-                            registerFieldErrors.birthDate &&
-                            "p-1 ring-2 ring-red-500/40"
-                        )}
-                      >
-                        <Select
-                          value={birthYear}
-                          open={yearSelectOpen}
-                          onOpenChange={setYearSelectOpen}
-                          onValueChange={(value) => {
-                            setBirthYear(value);
-                            setRegisterForm((c) => ({
-                              ...c,
-                              birthDate: `${value}-${birthMonth ?? ""}-${
-                                birthDay ?? ""
-                              }`,
-                            }));
-                          }}
-                        >
-                          <SelectTrigger className="h-14 text-base">
-                            <SelectValue placeholder="년" />
-                          </SelectTrigger>
-                          <SelectContent
-                            position="popper"
-                            className="max-h-[300px]"
-                          >
-                            {years.map((year) => (
-                              <SelectItem
-                                key={year}
-                                ref={year === years[0] - 10 ? initialBirthYearRef : undefined}
-                                value={String(year)}
-                              >
-                                {year}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={birthMonth}
-                          onValueChange={(value) => {
-                            setBirthMonth(value);
-                            setRegisterForm((c) => ({
-                              ...c,
-                              birthDate: `${birthYear ?? ""}-${value}-${
-                                birthDay ?? ""
-                              }`,
-                            }));
-                          }}
-                        >
-                          <SelectTrigger className="h-14 text-base">
-                            <SelectValue placeholder="월" />
-                          </SelectTrigger>
-                          <SelectContent
-                            position="popper"
-                            className="max-h-[300px]"
-                          >
-                            {months.map((month) => (
-                              <SelectItem key={month} value={String(month)}>
-                                {month}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={birthDay}
-                          onValueChange={(value) => {
-                            setBirthDay(value);
-                            setRegisterForm((c) => ({
-                              ...c,
-                              birthDate: `${birthYear ?? ""}-${
-                                birthMonth ?? ""
-                              }-${value}`,
-                            }));
-                          }}
-                        >
-                          <SelectTrigger className="h-14 text-base">
-                            <SelectValue placeholder="일" />
-                          </SelectTrigger>
-                          <SelectContent
-                            position="popper"
-                            className="max-h-[300px]"
-                          >
-                            {days.map((day) => (
-                              <SelectItem key={day} value={String(day)}>
-                                {day}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </FieldGroup>
+                    <label className="flex items-center gap-3 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 px-4 py-4 text-base">
+                      <Checkbox
+                        checked={registerForm.personalInfoConsent}
+                        onCheckedChange={(checked) =>
+                          setRegisterForm((current) => ({
+                            ...current,
+                            personalInfoConsent: checked === true,
+                          }))
+                        }
+                      />
+                      {copy.consentLabel}
+                    </label>
+                    {error && <ErrorText>{error}</ErrorText>}
                   </div>
-
-                  <FieldGroup label="교급">
-                    <div
-                      className={cn(
-                        "grid grid-cols-6 gap-2 rounded-2xl",
-                        registerAttempted &&
-                          registerFieldErrors.school &&
-                          "p-1 ring-2 ring-red-500/40"
-                      )}
-                    >
-                      {GRADE_LEVELS.map((grade) => (
-                        <Button
-                          key={grade.value}
-                          type="button"
-                          variant={
-                            registerForm.school === grade.value
-                              ? "default"
-                              : "outline"
-                          }
-                          className="h-12"
-                          onClick={() =>
-                            setRegisterForm((c) => ({
-                              ...c,
-                              school: grade.value,
-                            }))
-                          }
-                        >
-                          {grade.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </FieldGroup>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 px-4 py-4 text-base">
-                    <Checkbox
-                      checked={registerForm.personalInfoConsent}
-                      onCheckedChange={(checked) =>
-                        setRegisterForm((current) => ({
-                          ...current,
-                          personalInfoConsent: checked === true,
-                        }))
-                      }
-                    />
-                    {copy.consentLabel}
-                  </label>
-                  {error && <ErrorText>{error}</ErrorText>}
-                </div>
                 )}
               </Panel>
             )}
 
             {step === "identityConfirm" && pendingMatches && (
               <Panel
-                eyebrow="확인 필요"
+                eyebrow="이미 등록돼 있어요"
                 title={`${pendingMatches[0].name} 맞아?`}
               >
                 {pendingMatches.length === 1 ? (
@@ -949,7 +949,7 @@ export function DbaseKioskFlow({
                           setStep("register");
                         }}
                       >
-                        아니, 다른 사람이야
+                        아니야, 새로 등록할래
                       </Button>
                     </div>
                   </>
@@ -1035,7 +1035,9 @@ export function DbaseKioskFlow({
                           event.currentTarget.removeAttribute("readonly")
                         }
                         onChange={(event) =>
-                          setIdentifyPin(event.target.value.replace(/[^\d]/g, ""))
+                          setIdentifyPin(
+                            event.target.value.replace(/[^\d]/g, "")
+                          )
                         }
                         className="h-16 text-center text-3xl font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
                       />
@@ -1340,7 +1342,6 @@ export function DbaseKioskFlow({
                     )}
                   </div>
                 </div>
-
               </section>
             )}
 

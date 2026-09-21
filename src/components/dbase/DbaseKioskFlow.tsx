@@ -1210,7 +1210,7 @@ export function DbaseKioskFlow({
                         {getSchoolLevel(reconfirmCurrentSchool) ||
                           "등록된 학교 없음"}
                       </strong>
-                      이야. 맞아?
+                      야. 맞아?
                     </p>
                     <div className="mt-8 grid gap-3 sm:grid-cols-2">
                       <Button
@@ -1240,8 +1240,8 @@ export function DbaseKioskFlow({
                     <p className="text-xl text-(--body-muted)">
                       새 학교 골라줘.
                     </p>
-                    <div className="mt-6 grid grid-cols-6 gap-2">
-                      {RECONFIRM_GRADE_LEVELS.map((grade) => (
+                    <div className="mt-6 grid grid-cols-5 gap-2">
+                      {GRADE_LEVELS.map((grade) => (
                         <Button
                           key={grade.value}
                           type="button"

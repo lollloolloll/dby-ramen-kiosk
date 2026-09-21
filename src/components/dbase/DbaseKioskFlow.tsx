@@ -45,11 +45,16 @@ import {
   type DbaseItemOutcome,
 } from "@/lib/actions/dbase";
 import {
+  confirmUserSchool,
+  updateUserSchool,
+} from "@/lib/actions/settings";
+import {
   assertValidHeadcount,
   type DbaseHeadcount,
 } from "@/lib/dbase/headcount";
 import { mergeDbaseCopy } from "@/lib/dbase/copy";
 import { getDbaseInitialStep } from "@/components/dbase/preview-step";
+import { getSchoolLevel } from "@/lib/shared/school";
 import { getGridColsClass } from "@/lib/theme/theme-utils";
 import { resolveVisualMode, resolveWaveMode } from "@/lib/theme/visual-mode";
 import { cn } from "@/lib/utils";
@@ -60,6 +65,7 @@ type Step =
   | "identityConfirm"
   | "identify"
   | "mismatch"
+  | "schoolReconfirm"
   | "headcount"
   | "contents"
   | "done";
@@ -115,7 +121,13 @@ const GRADE_LEVELS = [
   { label: "성인", value: "성인" },
 ] as const;
 
-export function DbaseKioskFlow({ items }: { items: Item[] }) {
+export function DbaseKioskFlow({
+  items,
+  schoolReconfirmMode = false,
+}: {
+  items: Item[];
+  schoolReconfirmMode?: boolean;
+}) {
   const config = useTheme();
   const copy = mergeDbaseCopy(config.dbaseCopy);
   const isPreview = usePreviewMode();
@@ -156,6 +168,13 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
   const [birthMonth, setBirthMonth] = useState<string>();
   const [birthDay, setBirthDay] = useState<string>();
   const [registerAttempted, setRegisterAttempted] = useState(false);
+  // 새학기 교급 재확인 — schoolReconfirmMode가 켜져있고 방문자의 schoolConfirmed가
+  // false일 때, headcount로 넘어가기 전에 이 정보를 채워서 재확인 스텝을 보여준다.
+  const [reconfirmCurrentSchool, setReconfirmCurrentSchool] = useState<
+    string | null
+  >(null);
+  const [reconfirmShowEditor, setReconfirmShowEditor] = useState(false);
+  const [reconfirmGradeLevel, setReconfirmGradeLevel] = useState("");
   const [headcount, setHeadcount] = useState<DbaseHeadcount>(emptyHeadcount);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("전체");
@@ -228,6 +247,9 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
     setBirthMonth(undefined);
     setBirthDay(undefined);
     setRegisterAttempted(false);
+    setReconfirmCurrentSchool(null);
+    setReconfirmShowEditor(false);
+    setReconfirmGradeLevel("");
     setHeadcount(emptyHeadcount);
     setSelectedItemIds([]);
     setSelectedCategory("전체");
@@ -240,6 +262,64 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
   const goHome = () => {
     if (isPreview) return;
     router.push("/");
+  };
+
+  // PIN 재방문/기존 회원 확인 등 방문자를 확정하는 모든 경로가 거치는 공통
+  // 분기 — 새학기 설정이 켜져있고 이 방문자가 아직 교급을 재확인 안 했으면
+  // headcount로 바로 보내지 않고 schoolReconfirm 스텝을 먼저 보여준다.
+  const proceedAfterIdentify = (user: {
+    id: number;
+    name: string;
+    school: string | null;
+    schoolConfirmed: boolean;
+  }) => {
+    setVisitor({ id: user.id, name: user.name });
+    if (schoolReconfirmMode && !user.schoolConfirmed) {
+      setReconfirmCurrentSchool(user.school);
+      setReconfirmShowEditor(false);
+      setReconfirmGradeLevel("");
+      setStep("schoolReconfirm");
+      return;
+    }
+    setStep("headcount");
+  };
+
+  const handleSchoolReconfirmYes = async () => {
+    if (!visitor) return;
+    setIsSubmitting(true);
+    try {
+      const result = await confirmUserSchool(visitor.id);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setReconfirmCurrentSchool(null);
+      setStep("headcount");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSchoolReconfirmSave = async () => {
+    if (!visitor) return;
+    if (!reconfirmGradeLevel) {
+      setError("교급을 선택해줘.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await updateUserSchool(visitor.id, reconfirmGradeLevel);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setReconfirmCurrentSchool(null);
+      setReconfirmShowEditor(false);
+      setReconfirmGradeLevel("");
+      setStep("headcount");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetInactivityTimer = () => {
@@ -323,8 +403,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
     try {
       const result = await findUsersByPin(pin);
       if (result.status === "single_match") {
-        setVisitor({ id: result.user.id, name: result.user.name });
-        setStep("headcount");
+        proceedAfterIdentify(result.user);
         return;
       }
       if (result.status === "multiple_matches") {
@@ -426,6 +505,16 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
       setIsSubmitting(false);
     }
   };
+
+  // 키오스크 텍스트 입력에서 엔터 = 다음 버튼. 검증은 각 핸들러가 이미
+  // 처리하니 여기선 조합 중(한글 입력 중간) 엔터만 걸러주면 된다.
+  const submitOnEnter =
+    (action: () => void) => (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+      event.preventDefault();
+      if (isSubmitting) return;
+      action();
+    };
 
   const handleHeadcountNext = () => {
     setError("");
@@ -639,6 +728,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                               ),
                             }))
                           }
+                          onKeyDown={submitOnEnter(handleIdentityCheck)}
                           className={cn(
                             "h-14 text-lg",
                             registerAttempted &&
@@ -668,6 +758,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                               ),
                             }))
                           }
+                          onKeyDown={submitOnEnter(handleIdentityCheck)}
                           placeholder="010-0000-0000"
                           className={cn(
                             "h-14 text-lg",
@@ -899,10 +990,9 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                         className="h-14 text-lg"
                         disabled={isSubmitting}
                         onClick={() => {
-                          setVisitor(pendingMatches[0]);
                           setPendingMatches(null);
                           setRegisterAttempted(false);
-                          setStep("headcount");
+                          proceedAfterIdentify(pendingMatches[0]);
                         }}
                       >
                         응, 나 맞아
@@ -928,10 +1018,9 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                           className="h-14 text-lg"
                           disabled={isSubmitting}
                           onClick={() => {
-                            setVisitor(match);
                             setPendingMatches(null);
                             setRegisterAttempted(false);
-                            setStep("headcount");
+                            proceedAfterIdentify(match);
                           }}
                         >
                           {match.birthDate || "생년월일 미상"}
@@ -1039,6 +1128,7 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                             event.target.value.replace(/[^\d]/g, "")
                           )
                         }
+                        onKeyDown={submitOnEnter(handleIdentify)}
                         className="h-16 text-center text-3xl font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2"
                       />
                     </Field>
@@ -1055,10 +1145,9 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                         variant="outline"
                         className="h-14 justify-center text-lg font-semibold"
                         onClick={() => {
-                          setVisitor({ id: user.id, name: user.name });
                           setPinMatches(null);
                           setIdentifyPin("");
-                          setStep("headcount");
+                          proceedAfterIdentify(user);
                         }}
                       >
                         {user.name}
@@ -1100,6 +1189,92 @@ export function DbaseKioskFlow({ items }: { items: Item[] }) {
                     {copy.mismatchRegister}
                   </Button>
                 </div>
+              </Panel>
+            )}
+
+            {step === "schoolReconfirm" && visitor && (
+              <Panel title={`${visitor.name}님, 교급 확인할게`}>
+                {!reconfirmShowEditor ? (
+                  <>
+                    <p className="text-xl text-(--body-muted)">
+                      현재 등록된 교급은{" "}
+                      <strong className="text-(--brand-text)">
+                        {getSchoolLevel(reconfirmCurrentSchool) ||
+                          "등록된 교급 없음"}
+                      </strong>
+                      이야. 새 학기인데 지금도 맞아?
+                    </p>
+                    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setReconfirmShowEditor(true);
+                          setReconfirmGradeLevel("");
+                        }}
+                      >
+                        교급이 바뀌었어
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting}
+                        onClick={handleSchoolReconfirmYes}
+                      >
+                        응, 맞아
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xl text-(--body-muted)">
+                      새 교급을 골라줘.
+                    </p>
+                    <div className="mt-6 grid grid-cols-3 gap-2">
+                      {GRADE_LEVELS.map((grade) => (
+                        <Button
+                          key={grade.value}
+                          type="button"
+                          variant={
+                            reconfirmGradeLevel === grade.value
+                              ? "default"
+                              : "outline"
+                          }
+                          className="h-12"
+                          disabled={isSubmitting}
+                          onClick={() => setReconfirmGradeLevel(grade.value)}
+                        >
+                          {grade.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setReconfirmShowEditor(false);
+                          setReconfirmGradeLevel("");
+                        }}
+                      >
+                        뒤로
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-14 text-lg"
+                        disabled={isSubmitting || !reconfirmGradeLevel}
+                        onClick={handleSchoolReconfirmSave}
+                      >
+                        저장하고 계속하기
+                      </Button>
+                    </div>
+                  </>
+                )}
+                {error && <ErrorText>{error}</ErrorText>}
               </Panel>
             )}
 

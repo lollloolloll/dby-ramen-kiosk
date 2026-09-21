@@ -51,6 +51,8 @@ const dbaseVisitSchema = z.object({
 export type DbaseRegisteredUser = {
   id: number;
   name: string;
+  school: string | null;
+  schoolConfirmed: boolean;
 };
 
 export type DbaseItemOutcome = {
@@ -88,6 +90,8 @@ export type DbaseIdentityMatch = {
   id: number;
   name: string;
   birthDate: string | null;
+  school: string | null;
+  schoolConfirmed: boolean;
 };
 
 export type DbaseIdentityCheckResult =
@@ -130,7 +134,12 @@ export async function checkDbaseIdentity(
     if (matches.length === 1) {
       return {
         exists: true,
-        user: { id: matches[0].id, name: matches[0].name },
+        user: {
+          id: matches[0].id,
+          name: matches[0].name,
+          school: matches[0].school,
+          schoolConfirmed: matches[0].schoolConfirmed,
+        },
       };
     }
     return {
@@ -139,6 +148,8 @@ export async function checkDbaseIdentity(
         id: m.id,
         name: m.name,
         birthDate: m.birthDate,
+        school: m.school,
+        schoolConfirmed: m.schoolConfirmed,
       })),
     };
   } catch (error) {
@@ -187,7 +198,12 @@ export async function registerDbaseUser(
     if (existingUser && !forceNewRecord) {
       return {
         needsConfirmation: true,
-        existingUser: { id: existingUser.id, name: existingUser.name },
+        existingUser: {
+          id: existingUser.id,
+          name: existingUser.name,
+          school: existingUser.school,
+          schoolConfirmed: existingUser.schoolConfirmed,
+        },
       };
     }
 
@@ -201,7 +217,12 @@ export async function registerDbaseUser(
         school,
         personalInfoConsent,
       })
-      .returning({ id: generalUsers.id, name: generalUsers.name });
+      .returning({
+        id: generalUsers.id,
+        name: generalUsers.name,
+        school: generalUsers.school,
+        schoolConfirmed: generalUsers.schoolConfirmed,
+      });
 
     return { success: true, user: newUser };
   } catch (error) {

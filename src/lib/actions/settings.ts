@@ -33,6 +33,7 @@ export async function setSchoolReconfirmMode(enabled: boolean) {
     }
     revalidatePath("/admin/settings");
     revalidatePath("/kiosk/smy");
+    revalidatePath("/kiosk/dby");
     return { success: true };
   } catch (error) {
     console.error("Error setting schoolreconfirm mode:", error);

@@ -922,7 +922,7 @@ export function DbaseKioskFlow({
                     <FieldGroup label="교급">
                       <div
                         className={cn(
-                          "grid grid-cols-5 gap-2 rounded-2xl",
+                          "grid grid-cols-6 gap-2 rounded-2xl",
                           registerAttempted &&
                             registerFieldErrors.school &&
                             "p-1 ring-2 ring-red-500/40"
@@ -1241,7 +1241,7 @@ export function DbaseKioskFlow({
                     <p className="text-xl text-(--body-muted)">
                       새 학교 골라줘.
                     </p>
-                    <div className="mt-6 grid grid-cols-5 gap-2">
+                    <div className="mt-6 grid grid-cols-6 gap-2">
                       {GRADE_LEVELS.map((grade) => (
                         <Button
                           key={grade.value}

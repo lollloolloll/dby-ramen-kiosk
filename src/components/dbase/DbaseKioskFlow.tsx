@@ -47,7 +47,9 @@ import {
 import { confirmUserSchool, updateUserSchool } from "@/lib/actions/settings";
 import {
   assertValidHeadcount,
+  getHeadcountBucketSum,
   type DbaseHeadcount,
+  type DbaseHeadcountBucketKey,
 } from "@/lib/dbase/headcount";
 import { mergeDbaseCopy } from "@/lib/dbase/copy";
 import { getDbaseInitialStep } from "@/components/dbase/preview-step";
@@ -93,11 +95,25 @@ const displayHeadingStyle: React.CSSProperties = {
 
 const emptyHeadcount: DbaseHeadcount = {
   totalCount: 0,
+  childMale: 0,
+  childFemale: 0,
   youthMale: 0,
   youthFemale: 0,
   adultMale: 0,
   adultFemale: 0,
 };
+
+// 인원 등록 카드 — 계층별 남/여 카운터.
+// 엑셀 내보내기 컬럼과 같은 순서를 유지해야 집계가 어긋나지 않는다.
+const HEADCOUNT_TIERS = [
+  { label: "아동", maleKey: "childMale", femaleKey: "childFemale" },
+  { label: "청소년", maleKey: "youthMale", femaleKey: "youthFemale" },
+  { label: "성인", maleKey: "adultMale", femaleKey: "adultFemale" },
+] as const satisfies readonly {
+  label: string;
+  maleKey: DbaseHeadcountBucketKey;
+  femaleKey: DbaseHeadcountBucketKey;
+}[];
 
 const formatPhoneNumber = (value: string) => {
   const digits = value.replace(/[^\d]/g, "").slice(0, 11);
@@ -394,8 +410,7 @@ export function DbaseKioskFlow({
     if (key === "totalCount") return; // 총원은 세부 인원 합계로 자동 계산
     setHeadcount((current) => {
       const next = { ...current, [key]: Math.max(0, current[key] + delta) };
-      next.totalCount =
-        next.youthMale + next.youthFemale + next.adultMale + next.adultFemale;
+      next.totalCount = getHeadcountBucketSum(next);
       return next;
     });
   };
@@ -1301,45 +1316,31 @@ export function DbaseKioskFlow({
                 }
               >
                 <div className="grid gap-6">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-4">
-                      <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
-                        청소년
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Counter
-                          label="남"
-                          value={headcount.youthMale}
-                          onMinus={() => updateHeadcount("youthMale", -1)}
-                          onPlus={() => updateHeadcount("youthMale", 1)}
-                        />
-                        <Counter
-                          label="여"
-                          value={headcount.youthFemale}
-                          onMinus={() => updateHeadcount("youthFemale", -1)}
-                          onPlus={() => updateHeadcount("youthFemale", 1)}
-                        />
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {HEADCOUNT_TIERS.map((tier) => (
+                      <div
+                        key={tier.label}
+                        className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-4"
+                      >
+                        <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
+                          {tier.label}
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <Counter
+                            label="남"
+                            value={headcount[tier.maleKey]}
+                            onMinus={() => updateHeadcount(tier.maleKey, -1)}
+                            onPlus={() => updateHeadcount(tier.maleKey, 1)}
+                          />
+                          <Counter
+                            label="여"
+                            value={headcount[tier.femaleKey]}
+                            onMinus={() => updateHeadcount(tier.femaleKey, -1)}
+                            onPlus={() => updateHeadcount(tier.femaleKey, 1)}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-4">
-                      <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
-                        성인
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Counter
-                          label="남"
-                          value={headcount.adultMale}
-                          onMinus={() => updateHeadcount("adultMale", -1)}
-                          onPlus={() => updateHeadcount("adultMale", 1)}
-                        />
-                        <Counter
-                          label="여"
-                          value={headcount.adultFemale}
-                          onMinus={() => updateHeadcount("adultFemale", -1)}
-                          onPlus={() => updateHeadcount("adultFemale", 1)}
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
                   {/* 총 인원은 세부 인원 합계로 자동 계산 (읽기 전용 표시) */}

@@ -88,6 +88,8 @@ export const visitSessions = sqliteTable("visit_sessions", {
     .notNull()
     .references(() => generalUsers.id, { onDelete: "cascade" }),
   totalCount: integer("total_count").notNull(),
+  childMale: integer("child_male").default(0),
+  childFemale: integer("child_female").default(0),
   youthMale: integer("youth_male").default(0).notNull(),
   youthFemale: integer("youth_female").default(0).notNull(),
   adultMale: integer("adult_male").default(0).notNull(),

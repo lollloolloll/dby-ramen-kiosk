@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 
@@ -19,20 +20,57 @@ async function loadModule() {
 
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, transpiled.outputText, "utf8");
-  return import(`${outputPath}?t=${Date.now()}`);
+  return import(`${pathToFileURL(outputPath).href}?t=${Date.now()}`);
 }
 
-test("assertValidHeadcount accepts a total that matches all four buckets", async () => {
+test("assertValidHeadcount accepts a total that matches all six buckets", async () => {
   const { assertValidHeadcount } = await loadModule();
 
   assert.doesNotThrow(() =>
     assertValidHeadcount({
-      totalCount: 5,
+      totalCount: 8,
+      childMale: 2,
+      childFemale: 1,
       youthMale: 2,
       youthFemale: 1,
       adultMale: 1,
       adultFemale: 1,
     })
+  );
+});
+
+test("getHeadcountBucketSum counts the 아동 buckets", async () => {
+  const { getHeadcountBucketSum } = await loadModule();
+
+  assert.equal(
+    getHeadcountBucketSum({
+      totalCount: 0,
+      childMale: 2,
+      childFemale: 1,
+      youthMale: 2,
+      youthFemale: 1,
+      adultMale: 1,
+      adultFemale: 1,
+    }),
+    8
+  );
+});
+
+test("assertValidHeadcount rejects a total that ignores the 아동 buckets", async () => {
+  const { assertValidHeadcount } = await loadModule();
+
+  assert.throws(
+    () =>
+      assertValidHeadcount({
+        totalCount: 5,
+        childMale: 2,
+        childFemale: 1,
+        youthMale: 2,
+        youthFemale: 1,
+        adultMale: 1,
+        adultFemale: 1,
+      }),
+    /총 인원은 세부 인원 합계와 같아야 합니다/
   );
 });
 
@@ -43,6 +81,8 @@ test("assertValidHeadcount rejects a total that does not match bucket sum", asyn
     () =>
       assertValidHeadcount({
         totalCount: 5,
+        childMale: 0,
+        childFemale: 0,
         youthMale: 2,
         youthFemale: 1,
         adultMale: 1,
@@ -59,6 +99,8 @@ test("assertValidHeadcount rejects negative bucket values", async () => {
     () =>
       assertValidHeadcount({
         totalCount: 1,
+        childMale: 0,
+        childFemale: 0,
         youthMale: -1,
         youthFemale: 1,
         adultMale: 1,

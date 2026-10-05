@@ -41,6 +41,10 @@ const dbaseVisitSchema = z.object({
   itemIds: z.array(z.number().int().positive()).min(1, "컨텐츠를 선택해주세요."),
   headcount: z.object({
     totalCount: z.number().int(),
+    // 아동 버킷은 운영 중 추가 — 구버전 키오스크 화면이 캐시된 채로 보내는
+    // 페이로드에도 깨지지 않도록 기본 0으로 받는다.
+    childMale: z.number().int().optional().default(0),
+    childFemale: z.number().int().optional().default(0),
     youthMale: z.number().int(),
     youthFemale: z.number().int(),
     adultMale: z.number().int(),
@@ -272,8 +276,10 @@ export async function commitDbaseVisit(
     }
 
     const rentalDate = Math.floor(Date.now() / 1000);
-    const maleCount = headcount.youthMale + headcount.adultMale;
-    const femaleCount = headcount.youthFemale + headcount.adultFemale;
+    const maleCount =
+      headcount.childMale + headcount.youthMale + headcount.adultMale;
+    const femaleCount =
+      headcount.childFemale + headcount.youthFemale + headcount.adultFemale;
 
     // 방문 세션(헤드카운트) 기록 — 기존 유지
     const [newSession] = await db
@@ -281,6 +287,8 @@ export async function commitDbaseVisit(
       .values({
         generalUserId: userId,
         totalCount: headcount.totalCount,
+        childMale: headcount.childMale,
+        childFemale: headcount.childFemale,
         youthMale: headcount.youthMale,
         youthFemale: headcount.youthFemale,
         adultMale: headcount.adultMale,

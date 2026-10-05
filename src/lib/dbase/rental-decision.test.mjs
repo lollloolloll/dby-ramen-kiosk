@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 
@@ -19,7 +20,7 @@ async function loadModule() {
 
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, transpiled.outputText, "utf8");
-  return import(`${outputPath}?t=${Date.now()}`);
+  return import(`${pathToFileURL(outputPath).href}?t=${Date.now()}`);
 }
 
 test("itemQuantity: 시간제 미설정이면 1, 설정값이 있으면 그 값", async () => {

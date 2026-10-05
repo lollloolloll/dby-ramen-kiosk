@@ -728,6 +728,8 @@ export async function getRentalRecords(
         femaleCount: rentalRecords.femaleCount,
         visitSessionId: rentalRecords.visitSessionId,
         visitTotalCount: visitSessions.totalCount,
+        visitChildMale: visitSessions.childMale,
+        visitChildFemale: visitSessions.childFemale,
         visitYouthMale: visitSessions.youthMale,
         visitYouthFemale: visitSessions.youthFemale,
         visitAdultMale: visitSessions.adultMale,
@@ -1259,6 +1261,14 @@ export async function exportRentalRecordsToExcel(
       { header: "교급", key: "schoolLevel", width: 12 },
       { header: "아이템 이름", key: "itemName", width: 20 },
       { header: "아이템 카테고리", key: "itemCategory", width: 15 },
+      // 키오스크 인원 등록 화면의 계층 x 성별 버킷(= 관리자 "D.BASE 방문" 칼럼과
+      // 같은 값). 방문 세션이 없는 기록은 계층을 알 수 없어 빈 칸으로 둔다.
+      { header: "아동 남", key: "childMale", width: 10 },
+      { header: "아동 여", key: "childFemale", width: 10 },
+      { header: "청소년 남", key: "youthMale", width: 10 },
+      { header: "청소년 여", key: "youthFemale", width: 10 },
+      { header: "성인 남", key: "adultMale", width: 10 },
+      { header: "성인 여", key: "adultFemale", width: 10 },
       { header: "남자 인원", key: "maleCount", width: 10 },
       { header: "여자 인원", key: "femaleCount", width: 10 },
     ];
@@ -1296,6 +1306,12 @@ export async function exportRentalRecordsToExcel(
         rentalDateObj.getTime() + 9 * 60 * 60 * 1000
       );
 
+      // 방문 세션이 붙어 있으면 계층 x 성별 분포를 그대로 쓴다.
+      // 세션이 없는 기록(키오스크 외 대여)은 빈 칸 — 합계에 섞이지 않게 한다.
+      const hasVisitSession = record.visitSessionId != null;
+      const tierCount = (value: number | null | undefined) =>
+        hasVisitSession ? value ?? 0 : null;
+
       worksheet.addRow({
         id: record.id,
         rentalDateOnly: rentalDateForExcel,
@@ -1306,6 +1322,12 @@ export async function exportRentalRecordsToExcel(
         schoolLevel: getSchoolLevel(record.userSchool), // 교급 (대여 시점 학교 스냅샷 기준)
         itemName: record.itemName,
         itemCategory: record.itemCategory,
+        childMale: tierCount(record.visitChildMale),
+        childFemale: tierCount(record.visitChildFemale),
+        youthMale: tierCount(record.visitYouthMale),
+        youthFemale: tierCount(record.visitYouthFemale),
+        adultMale: tierCount(record.visitAdultMale),
+        adultFemale: tierCount(record.visitAdultFemale),
         maleCount: record.maleCount,
         femaleCount: record.femaleCount,
       });

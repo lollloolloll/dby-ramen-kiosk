@@ -27,6 +27,8 @@ export type RentalRecord = {
   femaleCount: number | null;
   visitSessionId?: number | null;
   visitTotalCount?: number | null;
+  visitChildMale?: number | null;
+  visitChildFemale?: number | null;
   visitYouthMale?: number | null;
   visitYouthFemale?: number | null;
   visitAdultMale?: number | null;
@@ -69,6 +71,8 @@ export const columns: ColumnDef<RentalRecord>[] = [
         record.visitSessionId && typeof record.visitTotalCount === "number"
           ? {
               totalCount: record.visitTotalCount,
+              childMale: record.visitChildMale ?? 0,
+              childFemale: record.visitChildFemale ?? 0,
               youthMale: record.visitYouthMale ?? 0,
               youthFemale: record.visitYouthFemale ?? 0,
               adultMale: record.visitAdultMale ?? 0,

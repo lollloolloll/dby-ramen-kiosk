@@ -24,34 +24,10 @@ import {
 } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getSchoolLevel } from "@/lib/shared/school";
+import { calculateAge, getAgeGroup } from "@/lib/shared/ageGroup";
 import { Workbook } from "exceljs";
 import { AnalyticsData } from "@/lib/types/analytics";
 
-// ----------------------------------------------------------------------
-// 유틸리티 함수
-// ----------------------------------------------------------------------
-
-function calculateAge(
-  birthDate: string | null,
-  referenceDate: Date = new Date()
-): number | null {
-  if (!birthDate) return null;
-  const birth = new Date(birthDate);
-  const targetDate = referenceDate;
-
-  let age = targetDate.getFullYear() - birth.getFullYear();
-  const m = targetDate.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && targetDate.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
-}
-function getAgeGroup(age: number | null): string {
-  if (age === null) return "알 수 없음";
-  if (age <= 8) return "아동";
-  if (age <= 24) return "청소년"; // 9세 ~ 24세
-  return "성인"; // 25세 이상
-}
 
 // ----------------------------------------------------------------------
 // 서버 액션: 대여 관련

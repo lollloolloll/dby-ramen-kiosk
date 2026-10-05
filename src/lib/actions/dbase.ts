@@ -1,7 +1,12 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { assertValidHeadcount, type DbaseHeadcount } from "@/lib/dbase/headcount";
+import {
+  assertValidHeadcount,
+  toVisitSessionBuckets,
+  type DbaseHeadcount,
+} from "@/lib/dbase/headcount";
+import { resolveAgeGroupKey } from "@/lib/shared/ageGroup";
 import {
   generalUsers,
   items,
@@ -39,22 +44,40 @@ const dbaseUserSchema = z.object({
 const dbaseVisitSchema = z.object({
   userId: z.number().int().positive(),
   itemIds: z.array(z.number().int().positive()).min(1, "컨텐츠를 선택해주세요."),
+  // 인원은 남/여만 받는다. 계층은 방문자 생년월일로 서버에서 정한다.
+  // youth*/adult*/child* 는 구버전 키오스크 화면(캐시)이 보내던 필드 —
+  // 배포 직후 새로고침 전 방문이 실패하지 않도록 받아서 남/여로 합친다.
   headcount: z.object({
     totalCount: z.number().int(),
-    // 아동 버킷은 운영 중 추가 — 구버전 키오스크 화면이 캐시된 채로 보내는
-    // 페이로드에도 깨지지 않도록 기본 0으로 받는다.
-    childMale: z.number().int().optional().default(0),
-    childFemale: z.number().int().optional().default(0),
-    youthMale: z.number().int(),
-    youthFemale: z.number().int(),
-    adultMale: z.number().int(),
-    adultFemale: z.number().int(),
+    male: z.number().int().optional(),
+    female: z.number().int().optional(),
+    childMale: z.number().int().optional(),
+    childFemale: z.number().int().optional(),
+    youthMale: z.number().int().optional(),
+    youthFemale: z.number().int().optional(),
+    adultMale: z.number().int().optional(),
+    adultFemale: z.number().int().optional(),
   }),
 });
+
+// 신규(남/여) 또는 구버전(계층별) 페이로드를 남/여 합계로 정규화한다.
+function normalizeHeadcountInput(
+  raw: z.infer<typeof dbaseVisitSchema>["headcount"]
+): DbaseHeadcount {
+  const male =
+    raw.male ?? (raw.childMale ?? 0) + (raw.youthMale ?? 0) + (raw.adultMale ?? 0);
+  const female =
+    raw.female ??
+    (raw.childFemale ?? 0) + (raw.youthFemale ?? 0) + (raw.adultFemale ?? 0);
+  return { totalCount: raw.totalCount, male, female };
+}
 
 export type DbaseRegisteredUser = {
   id: number;
   name: string;
+  // 키오스크가 "청소년으로 기록할게" 같은 안내를 띄우기 위해 필요.
+  // 실제 계층 판정은 서버가 다시 한다.
+  birthDate: string | null;
   school: string | null;
   schoolConfirmed: boolean;
 };
@@ -141,6 +164,7 @@ export async function checkDbaseIdentity(
         user: {
           id: matches[0].id,
           name: matches[0].name,
+          birthDate: matches[0].birthDate,
           school: matches[0].school,
           schoolConfirmed: matches[0].schoolConfirmed,
         },
@@ -205,6 +229,7 @@ export async function registerDbaseUser(
         existingUser: {
           id: existingUser.id,
           name: existingUser.name,
+          birthDate: existingUser.birthDate,
           school: existingUser.school,
           schoolConfirmed: existingUser.schoolConfirmed,
         },
@@ -224,6 +249,7 @@ export async function registerDbaseUser(
       .returning({
         id: generalUsers.id,
         name: generalUsers.name,
+        birthDate: generalUsers.birthDate,
         school: generalUsers.school,
         schoolConfirmed: generalUsers.schoolConfirmed,
       });
@@ -256,7 +282,8 @@ export async function commitDbaseVisit(
   const itemIds = Array.from(new Set(parsed.data.itemIds));
 
   try {
-    assertValidHeadcount(headcount satisfies DbaseHeadcount);
+    const headcountInput = normalizeHeadcountInput(headcount);
+    assertValidHeadcount(headcountInput);
 
     const user = await db.query.generalUsers.findFirst({
       where: eq(generalUsers.id, userId),
@@ -265,6 +292,10 @@ export async function commitDbaseVisit(
     if (!user) {
       return { error: "사용자 정보를 찾을 수 없습니다." };
     }
+
+    // 계층은 방문자 본인의 연령대 — 클라이언트가 보낸 값은 쓰지 않는다.
+    const tier = resolveAgeGroupKey(user.birthDate);
+    const buckets = toVisitSessionBuckets(headcountInput, tier);
 
     const selectedItems = await db
       .select()
@@ -276,23 +307,16 @@ export async function commitDbaseVisit(
     }
 
     const rentalDate = Math.floor(Date.now() / 1000);
-    const maleCount =
-      headcount.childMale + headcount.youthMale + headcount.adultMale;
-    const femaleCount =
-      headcount.childFemale + headcount.youthFemale + headcount.adultFemale;
+    const maleCount = headcountInput.male;
+    const femaleCount = headcountInput.female;
 
     // 방문 세션(헤드카운트) 기록 — 기존 유지
     const [newSession] = await db
       .insert(visitSessions)
       .values({
         generalUserId: userId,
-        totalCount: headcount.totalCount,
-        childMale: headcount.childMale,
-        childFemale: headcount.childFemale,
-        youthMale: headcount.youthMale,
-        youthFemale: headcount.youthFemale,
-        adultMale: headcount.adultMale,
-        adultFemale: headcount.adultFemale,
+        totalCount: headcountInput.totalCount,
+        ...buckets,
       })
       .returning({ id: visitSessions.id });
 

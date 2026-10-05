@@ -48,9 +48,11 @@ import { confirmUserSchool, updateUserSchool } from "@/lib/actions/settings";
 import {
   assertValidHeadcount,
   getHeadcountBucketSum,
+  HEADCOUNT_GENDERS,
   type DbaseHeadcount,
-  type DbaseHeadcountBucketKey,
+  type DbaseHeadcountGenderKey,
 } from "@/lib/dbase/headcount";
+import { getAgeGroupLabel } from "@/lib/shared/ageGroup";
 import { mergeDbaseCopy } from "@/lib/dbase/copy";
 import { getDbaseInitialStep } from "@/components/dbase/preview-step";
 import { getSchoolLevel } from "@/lib/shared/school";
@@ -72,6 +74,8 @@ type Step =
 type Visitor = {
   id: number;
   name: string;
+  // 인원 등록 계층은 본인 연령대로 정해지므로 안내 문구에 쓴다
+  birthDate: string | null;
 };
 
 type RegisterForm = {
@@ -95,25 +99,9 @@ const displayHeadingStyle: React.CSSProperties = {
 
 const emptyHeadcount: DbaseHeadcount = {
   totalCount: 0,
-  childMale: 0,
-  childFemale: 0,
-  youthMale: 0,
-  youthFemale: 0,
-  adultMale: 0,
-  adultFemale: 0,
+  male: 0,
+  female: 0,
 };
-
-// 인원 등록 카드 — 계층별 남/여 카운터.
-// 엑셀 내보내기 컬럼과 같은 순서를 유지해야 집계가 어긋나지 않는다.
-const HEADCOUNT_TIERS = [
-  { label: "아동", maleKey: "childMale", femaleKey: "childFemale" },
-  { label: "청소년", maleKey: "youthMale", femaleKey: "youthFemale" },
-  { label: "성인", maleKey: "adultMale", femaleKey: "adultFemale" },
-] as const satisfies readonly {
-  label: string;
-  maleKey: DbaseHeadcountBucketKey;
-  femaleKey: DbaseHeadcountBucketKey;
-}[];
 
 const formatPhoneNumber = (value: string) => {
   const digits = value.replace(/[^\d]/g, "").slice(0, 11);
@@ -295,10 +283,11 @@ export function DbaseKioskFlow({
   const proceedAfterIdentify = (user: {
     id: number;
     name: string;
+    birthDate: string | null;
     school: string | null;
     schoolConfirmed: boolean;
   }) => {
-    setVisitor({ id: user.id, name: user.name });
+    setVisitor({ id: user.id, name: user.name, birthDate: user.birthDate });
     if (schoolReconfirmMode && !user.schoolConfirmed) {
       setReconfirmCurrentSchool(user.school);
       setReconfirmShowEditor(false);
@@ -406,8 +395,7 @@ export function DbaseKioskFlow({
     return () => clearTimeout(timeout);
   }, [step, isPreview]);
 
-  const updateHeadcount = (key: keyof DbaseHeadcount, delta: number) => {
-    if (key === "totalCount") return; // 총원은 세부 인원 합계로 자동 계산
+  const updateHeadcount = (key: DbaseHeadcountGenderKey, delta: number) => {
     setHeadcount((current) => {
       const next = { ...current, [key]: Math.max(0, current[key] + delta) };
       next.totalCount = getHeadcountBucketSum(next);
@@ -1316,29 +1304,28 @@ export function DbaseKioskFlow({
                 }
               >
                 <div className="grid gap-6">
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    {HEADCOUNT_TIERS.map((tier) => (
+                  {/* 계층(아동/청소년/성인)은 직원이 고르지 않는다 —
+                      방문자 본인 연령대로 자동 기록되며, 생년월일이 잘못
+                      등록된 경우를 직원이 알아챌 수 있도록 안내만 띄운다. */}
+                  <p className="text-center text-sm text-(--body-muted)">
+                    <strong className="text-(--brand-text)">
+                      {getAgeGroupLabel(visitor?.birthDate)}
+                    </strong>{" "}
+                    인원으로 기록할게
+                  </p>
+
+                  <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-3">
+                    {HEADCOUNT_GENDERS.map((gender) => (
                       <div
-                        key={tier.label}
+                        key={gender.key}
                         className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-4"
                       >
-                        <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
-                          {tier.label}
-                        </p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <Counter
-                            label="남"
-                            value={headcount[tier.maleKey]}
-                            onMinus={() => updateHeadcount(tier.maleKey, -1)}
-                            onPlus={() => updateHeadcount(tier.maleKey, 1)}
-                          />
-                          <Counter
-                            label="여"
-                            value={headcount[tier.femaleKey]}
-                            onMinus={() => updateHeadcount(tier.femaleKey, -1)}
-                            onPlus={() => updateHeadcount(tier.femaleKey, 1)}
-                          />
-                        </div>
+                        <Counter
+                          label={gender.label}
+                          value={headcount[gender.key]}
+                          onMinus={() => updateHeadcount(gender.key, -1)}
+                          onPlus={() => updateHeadcount(gender.key, 1)}
+                        />
                       </div>
                     ))}
                   </div>

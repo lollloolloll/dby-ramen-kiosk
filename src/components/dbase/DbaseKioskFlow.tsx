@@ -52,7 +52,6 @@ import {
   type DbaseHeadcount,
   type DbaseHeadcountGenderKey,
 } from "@/lib/dbase/headcount";
-import { getAgeGroupLabel } from "@/lib/shared/ageGroup";
 import { mergeDbaseCopy } from "@/lib/dbase/copy";
 import { getDbaseInitialStep } from "@/components/dbase/preview-step";
 import { getSchoolLevel } from "@/lib/shared/school";
@@ -1305,28 +1304,16 @@ export function DbaseKioskFlow({
               >
                 <div className="grid gap-6">
                   {/* 계층(아동/청소년/성인)은 직원이 고르지 않는다 —
-                      방문자 본인 연령대로 자동 기록되며, 생년월일이 잘못
-                      등록된 경우를 직원이 알아챌 수 있도록 안내만 띄운다. */}
-                  <p className="text-center text-sm text-(--body-muted)">
-                    <strong className="text-(--brand-text)">
-                      {getAgeGroupLabel(visitor?.birthDate)}
-                    </strong>{" "}
-                    인원으로 기록할게
-                  </p>
-
-                  <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-3">
+                      방문자 본인 연령대로 서버에서 자동 기록된다. */}
+                  <div className="grid gap-4 sm:grid-cols-2">
                     {HEADCOUNT_GENDERS.map((gender) => (
-                      <div
+                      <HeadcountCounter
                         key={gender.key}
-                        className="rounded-2xl border border-(--hairline) bg-(--brand-bg)/40 p-4"
-                      >
-                        <Counter
-                          label={gender.label}
-                          value={headcount[gender.key]}
-                          onMinus={() => updateHeadcount(gender.key, -1)}
-                          onPlus={() => updateHeadcount(gender.key, 1)}
-                        />
-                      </div>
+                        label={gender.label}
+                        value={headcount[gender.key]}
+                        onMinus={() => updateHeadcount(gender.key, -1)}
+                        onPlus={() => updateHeadcount(gender.key, 1)}
+                      />
                     ))}
                   </div>
 
@@ -1836,50 +1823,56 @@ function FlowFooter({
   );
 }
 
-function Counter({
+// 인원 등록 전용 카운터. 계층 4칸이 남/여 2칸으로 줄면서 카드 하나가 쓸 수
+// 있는 폭이 두 배가 됐다 — 태블릿에서 장갑 끼고도 누를 수 있게 버튼을 64px
+// 터치 타깃으로, 숫자는 한눈에 읽히는 크기로 키웠다.
+function HeadcountCounter({
   label,
   value,
-  accent,
   onMinus,
   onPlus,
 }: {
   label: string;
   value: number;
-  accent?: boolean;
   onMinus: () => void;
   onPlus: () => void;
 }) {
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-(--surface-card) p-4",
-        accent ? "border-(--brand-primary)" : "border-(--hairline)"
+        "rounded-2xl border bg-(--surface-card) p-5 transition-colors sm:p-6",
+        value > 0 ? "border-(--brand-primary)" : "border-(--hairline)"
       )}
     >
-      <div className="mb-4 text-xs font-semibold uppercase tracking-[0.14em] text-(--body-muted)">
+      <div className="mb-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
         {label}
       </div>
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-between gap-3">
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="shrink-0"
+          aria-label={`${label} 한 명 줄이기`}
+          className="h-16 w-16 shrink-0 rounded-xl"
           onClick={onMinus}
         >
-          <Minus className="h-4 w-4" />
+          <Minus className="h-6 w-6" />
         </Button>
-        <span className="w-10 text-center text-3xl font-light tabular-nums">
+        <span
+          className="flex-1 text-center text-6xl tabular-nums"
+          style={displayHeadingStyle}
+        >
           {value}
         </span>
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="shrink-0"
+          aria-label={`${label} 한 명 늘리기`}
+          className="h-16 w-16 shrink-0 rounded-xl"
           onClick={onPlus}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-6 w-6" />
         </Button>
       </div>
     </div>

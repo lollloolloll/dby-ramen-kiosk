@@ -25,10 +25,10 @@ async function loadModule() {
 
 const AT = new Date("2026-10-06");
 
-test("resolveAgeGroupKey splits 아동/청소년/성인 at 만 8세 and 만 24세", async () => {
+test("resolveAgeGroupKey splits 유아/청소년/성인 at 만 8세 and 만 24세", async () => {
   const { resolveAgeGroupKey } = await loadModule();
 
-  // 만 8세 (아동 경계 안쪽)
+  // 만 8세 (유아 경계 안쪽)
   assert.equal(resolveAgeGroupKey("2018-01-01", AT), "child");
   // 만 9세 (청소년 시작)
   assert.equal(resolveAgeGroupKey("2017-01-01", AT), "youth");
@@ -41,7 +41,7 @@ test("resolveAgeGroupKey splits 아동/청소년/성인 at 만 8세 and 만 24�
 test("resolveAgeGroupKey respects the birthday not yet passed this year", async () => {
   const { resolveAgeGroupKey } = await loadModule();
 
-  // 2017-12-31 생 → 2026-10-06 기준 아직 만 8세 → 아동
+  // 2017-12-31 생 → 2026-10-06 기준 아직 만 8세 → 유아
   assert.equal(resolveAgeGroupKey("2017-12-31", AT), "child");
   // 2017-01-01 생 → 이미 만 9세 → 청소년
   assert.equal(resolveAgeGroupKey("2017-01-01", AT), "youth");
@@ -59,7 +59,7 @@ test("resolveAgeGroupKey falls back to 청소년 when the birth date is unusable
 test("getAgeGroupLabel returns the 한글 label used by the kiosk notice", async () => {
   const { getAgeGroupLabel } = await loadModule();
 
-  assert.equal(getAgeGroupLabel("2018-01-01", AT), "아동");
+  assert.equal(getAgeGroupLabel("2018-01-01", AT), "유아");
   assert.equal(getAgeGroupLabel("2010-05-05", AT), "청소년");
   assert.equal(getAgeGroupLabel("1990-05-05", AT), "성인");
 });
@@ -67,7 +67,7 @@ test("getAgeGroupLabel returns the 한글 label used by the kiosk notice", async
 test("getAgeGroup keeps the existing 엑셀 연령대 wording", async () => {
   const { getAgeGroup, calculateAge } = await loadModule();
 
-  assert.equal(getAgeGroup(calculateAge("2018-01-01", AT)), "아동");
+  assert.equal(getAgeGroup(calculateAge("2018-01-01", AT)), "유아");
   assert.equal(getAgeGroup(calculateAge("2010-01-01", AT)), "청소년");
   assert.equal(getAgeGroup(calculateAge("1990-01-01", AT)), "성인");
   assert.equal(getAgeGroup(null), "알 수 없음");

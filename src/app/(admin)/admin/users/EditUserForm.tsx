@@ -56,7 +56,7 @@ const formatPhoneNumber = (value: string) => {
   }
   return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(
     3,
-    7
+    7,
   )}-${phoneNumber.slice(7, 11)}`;
 };
 
@@ -65,7 +65,8 @@ const formatPhoneNumber = (value: string) => {
 const getSchoolLevelValue = (school: string | null) => {
   if (!school) return "";
   if (school === "성인" || school === "해당없음") return "성인";
-  if (school === "아동") return "아동";
+  // "아동"은 예전 선택지 이름 — 다음 저장 때 "유아"로 덮어써진다.
+  if (school === "유아" || school === "아동") return "유아";
   switch (school.slice(-1)) {
     case "초":
       return "초등학교";
@@ -88,13 +89,13 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
   const initialBirthDate = user.birthDate ? user.birthDate.split("-") : [];
 
   const [birthYear, setBirthYear] = useState<string | undefined>(
-    initialBirthDate[0]
+    initialBirthDate[0],
   );
   const [birthMonth, setBirthMonth] = useState<string | undefined>(
-    initialBirthDate[1]
+    initialBirthDate[1],
   );
   const [birthDay, setBirthDay] = useState<string | undefined>(
-    initialBirthDate[2]
+    initialBirthDate[2],
   );
 
   const form = useForm<GeneralUserFormValues>({
@@ -140,7 +141,7 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
     const currentYear = new Date().getFullYear();
     return Array.from(
       { length: currentYear - 1929 },
-      (_, i) => currentYear - i
+      (_, i) => currentYear - i,
     );
   }, []);
 
@@ -153,7 +154,7 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
     const daysInMonth = new Date(
       parseInt(birthYear),
       parseInt(birthMonth),
-      0
+      0,
     ).getDate();
     return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   }, [birthYear, birthMonth]);
@@ -174,7 +175,7 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "사용자 정보 업데이트에 실패했습니다."
+          : "사용자 정보 업데이트에 실패했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -339,7 +340,10 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
                       <FormLabel>
                         교급<span className="text-red-500">*</span>
                       </FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="선택" />
@@ -347,7 +351,7 @@ export function EditUserForm({ user, children }: EditUserFormProps) {
                         </FormControl>
                         <SelectContent>
                           {[
-                            "아동",
+                            "유아",
                             "초등학교",
                             "중학교",
                             "고등학교",

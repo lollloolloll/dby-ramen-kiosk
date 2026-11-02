@@ -211,14 +211,14 @@ export function RentalAnalyticsClient({
 
   const ageGroupMap: { [key: string]: string } = {
     all: "전체 연령대",
-    child: "아동",
+    child: "유아",
     teen: "청소년",
     adult: "성인",
   };
 
   const ageGroupData = useMemo(
     () => [
-      { name: "아동", ...analyticsData.ageGroupStats.child },
+      { name: "유아", ...analyticsData.ageGroupStats.child },
       { name: "청소년", ...analyticsData.ageGroupStats.teen },
       { name: "성인", ...analyticsData.ageGroupStats.adult },
     ],
@@ -391,7 +391,7 @@ export function RentalAnalyticsClient({
                   <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-[oklch(0.75_0.12_165)]" />
-                      아동 (만 8세 이하)
+                      유아 (만 8세 이하)
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-[oklch(0.7_0.18_350)]" />

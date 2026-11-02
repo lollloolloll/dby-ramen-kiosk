@@ -1239,8 +1239,8 @@ export async function exportRentalRecordsToExcel(
       { header: "아이템 카테고리", key: "itemCategory", width: 15 },
       // 키오스크 인원 등록 화면의 계층 x 성별 버킷(= 관리자 "D.BASE 방문" 칼럼과
       // 같은 값). 방문 세션이 없는 기록은 계층을 알 수 없어 빈 칸으로 둔다.
-      { header: "아동 남", key: "childMale", width: 10 },
-      { header: "아동 여", key: "childFemale", width: 10 },
+      { header: "유아 남", key: "childMale", width: 10 },
+      { header: "유아 여", key: "childFemale", width: 10 },
       { header: "청소년 남", key: "youthMale", width: 10 },
       { header: "청소년 여", key: "youthFemale", width: 10 },
       { header: "성인 남", key: "adultMale", width: 10 },

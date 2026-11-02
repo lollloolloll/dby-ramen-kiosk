@@ -23,20 +23,36 @@ async function loadModule() {
   return import(`${pathToFileURL(outputPath).href}?t=${Date.now()}`);
 }
 
-test("assertValidHeadcount accepts a total that matches 남 + 여", async () => {
+const empty = {
+  childMale: 0,
+  childFemale: 0,
+  youthMale: 0,
+  youthFemale: 0,
+  adultMale: 0,
+  adultFemale: 0,
+};
+
+test("assertValidHeadcount accepts a total that matches the 6 buckets", async () => {
   const { assertValidHeadcount } = await loadModule();
 
+  // 청소년 1명 + 보호자(성인) 2명
   assert.doesNotThrow(() =>
-    assertValidHeadcount({ totalCount: 4, male: 1, female: 3 })
+    assertValidHeadcount({
+      ...empty,
+      totalCount: 3,
+      youthMale: 1,
+      adultMale: 1,
+      adultFemale: 1,
+    })
   );
 });
 
-test("assertValidHeadcount rejects a total that does not match 남 + 여", async () => {
+test("assertValidHeadcount rejects a total that does not match the buckets", async () => {
   const { assertValidHeadcount } = await loadModule();
 
   assert.throws(
-    () => assertValidHeadcount({ totalCount: 5, male: 1, female: 3 }),
-    /총 인원은 남녀 인원 합계와 같아야 합니다/
+    () => assertValidHeadcount({ ...empty, totalCount: 5, youthMale: 1 }),
+    /총 인원은 세부 인원 합계와 같아야 합니다/
   );
 });
 
@@ -44,7 +60,7 @@ test("assertValidHeadcount rejects an empty visit", async () => {
   const { assertValidHeadcount } = await loadModule();
 
   assert.throws(
-    () => assertValidHeadcount({ totalCount: 0, male: 0, female: 0 }),
+    () => assertValidHeadcount({ ...empty, totalCount: 0 }),
     /총 인원은 최소 1명 이상이어야 합니다/
   );
 });
@@ -53,68 +69,71 @@ test("assertValidHeadcount rejects negative values", async () => {
   const { assertValidHeadcount } = await loadModule();
 
   assert.throws(
-    () => assertValidHeadcount({ totalCount: 1, male: -1, female: 2 }),
+    () =>
+      assertValidHeadcount({
+        ...empty,
+        totalCount: 1,
+        childMale: -1,
+        adultFemale: 2,
+      }),
     /인원 수는 0명 이상이어야 합니다/
   );
 });
 
-test("toVisitSessionBuckets puts an adult visitor's group in the 성인 buckets", async () => {
+test("toVisitSessionBuckets keeps a mixed group's tiers as entered", async () => {
   const { toVisitSessionBuckets } = await loadModule();
 
-  // 본인이 성인이면 그 방문 인원 전체가 성인 남/여로 기록된다
   assert.deepEqual(
-    toVisitSessionBuckets({ totalCount: 4, male: 1, female: 3 }, "adult"),
-    {
+    toVisitSessionBuckets({
+      totalCount: 4,
       childMale: 0,
-      childFemale: 0,
-      youthMale: 0,
+      childFemale: 1,
+      youthMale: 1,
       youthFemale: 0,
       adultMale: 1,
-      adultFemale: 3,
-    }
-  );
-});
-
-test("toVisitSessionBuckets puts a youth visitor's group in the 청소년 buckets", async () => {
-  const { toVisitSessionBuckets } = await loadModule();
-
-  assert.deepEqual(
-    toVisitSessionBuckets({ totalCount: 4, male: 2, female: 2 }, "youth"),
+      adultFemale: 1,
+    }),
     {
       childMale: 0,
-      childFemale: 0,
-      youthMale: 2,
-      youthFemale: 2,
-      adultMale: 0,
-      adultFemale: 0,
+      childFemale: 1,
+      youthMale: 1,
+      youthFemale: 0,
+      adultMale: 1,
+      adultFemale: 1,
     }
   );
 });
 
-test("toVisitSessionBuckets puts a child visitor's group in the 아동 buckets", async () => {
-  const { toVisitSessionBuckets } = await loadModule();
+test("getGenderTotals sums 남/여 across tiers", async () => {
+  const { getGenderTotals } = await loadModule();
 
   assert.deepEqual(
-    toVisitSessionBuckets({ totalCount: 3, male: 1, female: 2 }, "child"),
-    {
+    getGenderTotals({
       childMale: 1,
       childFemale: 2,
-      youthMale: 0,
+      youthMale: 3,
       youthFemale: 0,
-      adultMale: 0,
-      adultFemale: 0,
-    }
+      adultMale: 1,
+      adultFemale: 1,
+    }),
+    { male: 5, female: 3 }
   );
 });
 
-test("toVisitSessionBuckets keeps the bucket total equal to the headcount", async () => {
-  const { toVisitSessionBuckets, getHeadcountBucketSum } = await loadModule();
+test("fromLegacyGenderHeadcount puts an old 남/여 payload in the visitor's tier", async () => {
+  const { fromLegacyGenderHeadcount, getHeadcountBucketSum } = await loadModule();
 
-  const headcount = { totalCount: 4, male: 1, female: 3 };
-  for (const tier of ["child", "youth", "adult"]) {
-    const buckets = toVisitSessionBuckets(headcount, tier);
-    const sum = Object.values(buckets).reduce((a, b) => a + b, 0);
-    assert.equal(sum, getHeadcountBucketSum(headcount), `tier=${tier}`);
-    assert.equal(sum, headcount.totalCount, `tier=${tier}`);
+  for (const [tier, maleKey, femaleKey] of [
+    ["child", "childMale", "childFemale"],
+    ["youth", "youthMale", "youthFemale"],
+    ["adult", "adultMale", "adultFemale"],
+  ]) {
+    const headcount = fromLegacyGenderHeadcount(
+      { totalCount: 4, male: 1, female: 3 },
+      tier
+    );
+    assert.equal(headcount[maleKey], 1, `tier=${tier}`);
+    assert.equal(headcount[femaleKey], 3, `tier=${tier}`);
+    assert.equal(getHeadcountBucketSum(headcount), 4, `tier=${tier}`);
   }
 });

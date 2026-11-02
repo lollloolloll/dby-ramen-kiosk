@@ -5,7 +5,8 @@
  * 수기로 전체명("○○초등학교")이 들어온 경우도 함께 처리한다.
  *
  * - 미입력(null/빈문자) → "" (빈칸)
- * - "해당없음"/"아동"/"성인" → 그대로 반환 ("해당없음"/"아동"은 과거 데이터 호환용)
+ * - "해당없음"/"유아"/"성인" → 그대로 반환 ("해당없음"은 과거 데이터 호환용)
+ * - "아동" → "유아" (예전 선택지 이름. 기존 회원 데이터에 남아 있다)
  * - 초/중/고/대 → 초등학교/중학교/고등학교/대(후기 청소년)
  * - 그 외 분류 불가 → "" (빈칸)
  */
@@ -14,8 +15,9 @@ export function getSchoolLevel(school: string | null | undefined): string {
 
   const value = school.trim();
   if (!value) return "";
-  if (value === "해당없음" || value === "아동" || value === "성인")
+  if (value === "해당없음" || value === "유아" || value === "성인")
     return value;
+  if (value === "아동") return "유아";
 
   // 수기 전체명 대응 ("○○초등학교" 등)
   if (value.includes("초등")) return "초등학교";

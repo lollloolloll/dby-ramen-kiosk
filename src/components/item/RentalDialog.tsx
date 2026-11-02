@@ -137,12 +137,13 @@ const getSchoolSuffix = (level: string) => {
   }
 };
 
-const NON_STUDENT_LEVELS = ["해당없음", "아동", "성인"];
+// "아동"은 "유아"의 예전 이름 — 기존 회원 데이터 호환용으로 남겨 둔다.
+const NON_STUDENT_LEVELS = ["해당없음", "유아", "아동", "성인"];
 
 // 새학기 교급 재확인 전용 — 학교명 없이 교급만 고르게 한다.
-// "아동"은 smy 신규 등록에 이미 있는 선택지라 여기서도 빠지면 안 됨.
+// "유아"는 smy 신규 등록에 이미 있는 선택지라 여기서도 빠지면 안 됨.
 const RECONFIRM_GRADE_LEVELS = [
-  { label: "아동", value: "아동" },
+  { label: "유아", value: "유아" },
   { label: "초", value: "초등학교" },
   { label: "중", value: "중학교" },
   { label: "고", value: "고등학교" },
@@ -488,7 +489,7 @@ export function RentalDialog({
     setBirthDay(birthDateParts[2]);
 
     if (user.school && NON_STUDENT_LEVELS.includes(user.school)) {
-      setSchoolLevel(user.school);
+      setSchoolLevel(user.school === "아동" ? "유아" : user.school);
       setSchoolName("");
       setIsDirectInput(false);
       setShowSchoolPanel(false);
@@ -1967,7 +1968,7 @@ export function RentalDialog({
                             "중학교",
                             "고등학교",
                             "대학교",
-                            "아동",
+                            "유아",
                             "성인",
                           ].map((level) => (
                             <Button

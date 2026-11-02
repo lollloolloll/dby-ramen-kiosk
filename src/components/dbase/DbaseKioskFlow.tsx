@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,9 +48,9 @@ import { confirmUserSchool, updateUserSchool } from "@/lib/actions/settings";
 import {
   assertValidHeadcount,
   getHeadcountBucketSum,
-  HEADCOUNT_GENDERS,
+  HEADCOUNT_TIERS,
   type DbaseHeadcount,
-  type DbaseHeadcountGenderKey,
+  type DbaseHeadcountBucketKey,
 } from "@/lib/dbase/headcount";
 import { mergeDbaseCopy } from "@/lib/dbase/copy";
 import { getDbaseInitialStep } from "@/components/dbase/preview-step";
@@ -98,8 +98,12 @@ const displayHeadingStyle: React.CSSProperties = {
 
 const emptyHeadcount: DbaseHeadcount = {
   totalCount: 0,
-  male: 0,
-  female: 0,
+  childMale: 0,
+  childFemale: 0,
+  youthMale: 0,
+  youthFemale: 0,
+  adultMale: 0,
+  adultFemale: 0,
 };
 
 const formatPhoneNumber = (value: string) => {
@@ -113,7 +117,7 @@ const formatPhoneNumber = (value: string) => {
 // value는 기존 데이터(school 필드)와의 호환을 위해 school.ts의 getSchoolLevel이
 // 인식하는 값을 그대로 사용한다.
 const GRADE_LEVELS = [
-  { label: "아동", value: "아동" },
+  { label: "유아", value: "유아" },
   { label: "초", value: "초등학교" },
   { label: "중", value: "중학교" },
   { label: "고", value: "고등학교" },
@@ -121,11 +125,11 @@ const GRADE_LEVELS = [
   { label: "성인", value: "성인" },
 ] as const;
 
-// 새학기 교급 재확인 전용 — 기존에 "아동"으로 등록된 회원도 재확인 시 그대로
+// 새학기 교급 재확인 전용 — 기존에 "유아"(예전 "아동")로 등록된 회원도 재확인 시 그대로
 // 고를 수 있어야 해서 신규 등록 목록과 다르다 (RentalDialog의
 // RECONFIRM_GRADE_LEVELS와 동일한 옵션).
 const RECONFIRM_GRADE_LEVELS = [
-  { label: "아동", value: "아동" },
+  { label: "유아", value: "유아" },
   { label: "초", value: "초등학교" },
   { label: "중", value: "중학교" },
   { label: "고", value: "고등학교" },
@@ -394,7 +398,7 @@ export function DbaseKioskFlow({
     return () => clearTimeout(timeout);
   }, [step, isPreview]);
 
-  const updateHeadcount = (key: DbaseHeadcountGenderKey, delta: number) => {
+  const updateHeadcount = (key: DbaseHeadcountBucketKey, delta: number) => {
     setHeadcount((current) => {
       const next = { ...current, [key]: Math.max(0, current[key] + delta) };
       next.totalCount = getHeadcountBucketSum(next);
@@ -1303,17 +1307,43 @@ export function DbaseKioskFlow({
                 }
               >
                 <div className="grid gap-6">
-                  {/* 계층(아동/청소년/성인)은 직원이 고르지 않는다 —
-                      방문자 본인 연령대로 서버에서 자동 기록된다. */}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {HEADCOUNT_GENDERS.map((gender) => (
-                      <HeadcountCounter
-                        key={gender.key}
-                        label={gender.label}
-                        value={headcount[gender.key]}
-                        onMinus={() => updateHeadcount(gender.key, -1)}
-                        onPlus={() => updateHeadcount(gender.key, 1)}
-                      />
+                  {/* 함께 온 인원의 계층이 본인과 다를 수 있어(청소년 + 보호자 등)
+                      계층별 남/여를 직접 센다. 엑셀 컬럼과 같은 순서. */}
+                  {/* 표 형태 — 열 머리글(유아/청소년/성인)과 그 아래 숫자가
+                      같은 세로줄에 오도록 한 그리드에 놓는다. */}
+                  <div className="grid grid-cols-[auto_repeat(3,minmax(0,1fr))] items-center gap-x-3 gap-y-3">
+                    <span />
+                    {HEADCOUNT_TIERS.map((tier) => (
+                      <span
+                        key={tier.label}
+                        className="text-center text-base font-semibold tracking-[0.18em] text-(--brand-text)"
+                      >
+                        {tier.label}
+                      </span>
+                    ))}
+                    {(
+                      [
+                        { label: "남", keyOf: "maleKey" },
+                        { label: "여", keyOf: "femaleKey" },
+                      ] as const
+                    ).map((gender) => (
+                      <Fragment key={gender.label}>
+                        <span className="w-8 text-center text-sm font-semibold text-(--body-muted)">
+                          {gender.label}
+                        </span>
+                        {HEADCOUNT_TIERS.map((tier) => {
+                          const key = tier[gender.keyOf];
+                          return (
+                            <HeadcountCell
+                              key={key}
+                              label={`${tier.label} ${gender.label}`}
+                              value={headcount[key]}
+                              onMinus={() => updateHeadcount(key, -1)}
+                              onPlus={() => updateHeadcount(key, 1)}
+                            />
+                          );
+                        })}
+                      </Fragment>
                     ))}
                   </div>
 
@@ -1823,10 +1853,10 @@ function FlowFooter({
   );
 }
 
-// 인원 등록 전용 카운터. 계층 4칸이 남/여 2칸으로 줄면서 카드 하나가 쓸 수
-// 있는 폭이 두 배가 됐다 — 태블릿에서 장갑 끼고도 누를 수 있게 버튼을 64px
-// 터치 타깃으로, 숫자는 한눈에 읽히는 크기로 키웠다.
-function HeadcountCounter({
+// 인원 등록 표의 한 칸 — [-] 숫자 [+].
+// 버튼이 양쪽에 같은 폭으로 붙어 있어 숫자가 칸 가운데(= 열 머리글 아래)에
+// 온다. 태블릿(1280x800 가로)에서도 버튼은 56px 터치 타깃을 유지한다.
+function HeadcountCell({
   label,
   value,
   onMinus,
@@ -1840,41 +1870,36 @@ function HeadcountCounter({
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-(--surface-card) p-5 transition-colors sm:p-6",
+        "flex items-center gap-2 rounded-2xl border bg-(--surface-card) p-3 transition-colors",
         value > 0 ? "border-(--brand-primary)" : "border-(--hairline)"
       )}
     >
-      <div className="mb-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-(--body-muted)">
-        {label}
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={`${label} 한 명 줄이기`}
-          className="h-16 w-16 shrink-0 rounded-xl"
-          onClick={onMinus}
-        >
-          <Minus className="h-6 w-6" />
-        </Button>
-        <span
-          className="flex-1 text-center text-6xl tabular-nums"
-          style={displayHeadingStyle}
-        >
-          {value}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={`${label} 한 명 늘리기`}
-          className="h-16 w-16 shrink-0 rounded-xl"
-          onClick={onPlus}
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label={`${label} 한 명 줄이기`}
+        className="h-14 w-14 shrink-0 rounded-xl"
+        onClick={onMinus}
+      >
+        <Minus className="h-5 w-5" />
+      </Button>
+      <span
+        className="flex-1 text-center text-4xl tabular-nums"
+        style={displayHeadingStyle}
+      >
+        {value}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label={`${label} 한 명 늘리기`}
+        className="h-14 w-14 shrink-0 rounded-xl"
+        onClick={onPlus}
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

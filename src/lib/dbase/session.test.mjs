@@ -36,14 +36,14 @@ test("formatDbaseHeadcount summarizes preserved visit-session distribution", asy
       adultMale: 1,
       adultFemale: 1,
     }),
-    "총 8명 · 아동 남 2, 여 1 · 청소년 남 2, 여 1 · 성인 남 1, 여 1"
+    "총 8명 · 유아 남 2, 여 1 · 청소년 남 2, 여 1 · 성인 남 1, 여 1"
   );
 });
 
-test("formatDbaseHeadcount treats pre-아동 sessions (null buckets) as zero", async () => {
+test("formatDbaseHeadcount treats pre-유아 sessions (null buckets) as zero", async () => {
   const { formatDbaseHeadcount } = await loadModule();
 
-  // 아동 집계 도입 이전에 저장된 행 — child_male/child_female이 null일 수 있다
+  // 유아 집계 도입 이전에 저장된 행 — child_male/child_female이 null일 수 있다
   assert.equal(
     formatDbaseHeadcount({
       totalCount: 5,
@@ -54,7 +54,7 @@ test("formatDbaseHeadcount treats pre-아동 sessions (null buckets) as zero", a
       adultMale: 1,
       adultFemale: 1,
     }),
-    "총 5명 · 아동 남 0, 여 0 · 청소년 남 2, 여 1 · 성인 남 1, 여 1"
+    "총 5명 · 유아 남 0, 여 0 · 청소년 남 2, 여 1 · 성인 남 1, 여 1"
   );
 });
 
